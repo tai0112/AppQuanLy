@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Giữ lại âm thanh thông báo khi bật thu gọn tài nguyên (release) -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@raw/ting,@raw/pop,@raw/chime,@raw/dingdong,@raw/soft,@raw/alert" />

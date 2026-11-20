@@ -1,0 +1,26 @@
+# Bí mật — không commit
+server/.env
+*.local.json
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+
+# Flutter
+app/.dart_tool/
+app/build/
+app/.flutter-plugins*
+app/ios/Pods/
+
+# Bản web build chép vào API (sinh lại bằng ./run.sh)
+server/src/LHT.Api/wwwroot/
+# Ảnh người dùng tải lên (dữ liệu, không phải mã nguồn)
+server/src/LHT.Api/uploads/
+
+# IDE / hệ thống
+.idea/
+*.iml
+.DS_Store
+*.cpuprofile

@@ -1,0 +1,33 @@
+{
+  "appName": "LHT Money",
+  "updated": "20/11/2026",
+  "contact": "hotro@example.com",
+  "privacy": {
+    "title": "Chính sách quyền riêng tư",
+    "intro": "LHT Money là ứng dụng quản lý chi tiêu, lịch trình và tiện ích cá nhân. Chính sách này giải thích dữ liệu nào được thu thập, dùng để làm gì và quyền của bạn đối với dữ liệu đó.",
+    "sections": [
+      {"title": "1. Dùng không cần tài khoản", "body": "Bạn có thể dùng các tính năng tài chính, lịch trình, tiền điện, ngày yêu, chu kỳ mà không cần đăng ký. Khi đó mọi dữ liệu chỉ lưu trên thiết bị của bạn và không được gửi đi đâu."},
+      {"title": "2. Dữ liệu thu thập khi có tài khoản", "body": "• Thông tin tài khoản: email, tên đăng nhập, tên hiển thị, ảnh đại diện (nếu có), mật khẩu (chỉ lưu dạng băm, không ai đọc được).\n• Dữ liệu bạn tự nhập để đồng bộ giữa các thiết bị: giao dịch, tài khoản tiền, danh mục, định mức, hũ tiết kiệm, lịch trình, hoạt động, chỉ số điện, ngày yêu.\n• Ảnh bạn chủ động chọn hoặc chụp để đính kèm giao dịch, lịch trình, bài viết, tin nhắn.\n• Nội dung mạng xã hội: bài viết, bình luận, cảm xúc, tin nhắn, danh sách bạn bè.\n• Dữ liệu chu kỳ kinh nguyệt: mặc định CHỈ lưu trên thiết bị; chỉ được đồng bộ lên máy chủ khi bạn tự bật \"Đồng bộ dữ liệu chu kỳ\".\n• Mã thiết bị để gửi thông báo (nếu bạn cho phép thông báo)."},
+      {"title": "3. Máy ảnh và thư viện ảnh", "body": "Ứng dụng chỉ truy cập máy ảnh khi bạn bấm \"Chụp ảnh\" và chỉ đọc những ảnh bạn tự chọn trong thư viện, nhằm đính kèm hoá đơn / ảnh vào giao dịch, ảnh kỷ niệm vào lịch trình, ảnh vào bài viết hoặc tin nhắn. Ứng dụng không tự chụp, không quét thư viện, không nhận diện khuôn mặt và không dùng ảnh cho mục đích nào khác."},
+      {"title": "4. Mục đích sử dụng", "body": "Dữ liệu chỉ dùng để cung cấp tính năng cho chính bạn: lưu trữ, đồng bộ giữa các thiết bị, thống kê, nhắc nhở, và chia sẻ với những người bạn chủ động chọn (bạn bè, người tham gia lịch trình, người nhận tin nhắn). Chúng tôi không bán dữ liệu, không dùng cho quảng cáo, không theo dõi bạn trên ứng dụng / trang web khác và không chia sẻ cho bên thứ ba."},
+      {"title": "5. Lưu trữ và bảo mật", "body": "Dữ liệu được truyền qua kết nối mã hoá (HTTPS) và lưu trên máy chủ của LHT Money. Mật khẩu được băm một chiều. Chỉ bạn (và những người bạn chủ động chia sẻ) xem được dữ liệu của mình."},
+      {"title": "6. Xoá dữ liệu và tài khoản", "body": "Bạn có thể xoá từng mục bất cứ lúc nào. Để xoá toàn bộ, vào Cài đặt → Xoá tài khoản. Khi xoá tài khoản: mọi dữ liệu cá nhân, ảnh, bài viết bị xoá vĩnh viễn khỏi máy chủ; bình luận và tin nhắn bạn đã gửi bị xoá nội dung; hồ sơ được ẩn danh hoá. Thao tác không thể hoàn tác."},
+      {"title": "7. Trẻ em", "body": "Ứng dụng không dành cho trẻ em dưới 13 tuổi và không cố ý thu thập dữ liệu của trẻ dưới 13 tuổi."},
+      {"title": "8. Liên hệ", "body": "Mọi câu hỏi về quyền riêng tư hoặc yêu cầu về dữ liệu, vui lòng liên hệ: {contact}."}
+    ]
+  },
+  "terms": {
+    "title": "Điều khoản sử dụng",
+    "intro": "Bằng việc tạo tài khoản và sử dụng LHT Money, bạn đồng ý với các điều khoản dưới đây.",
+    "sections": [
+      {"title": "1. Tài khoản", "body": "Bạn chịu trách nhiệm giữ bí mật mật khẩu và mọi hoạt động trên tài khoản của mình. Bạn phải từ 13 tuổi trở lên."},
+      {"title": "2. KHÔNG dung thứ nội dung phản cảm hoặc hành vi lạm dụng", "body": "Bạn không được đăng, gửi hoặc chia sẻ: nội dung khiêu dâm, bạo lực, thù ghét, phân biệt đối xử; quấy rối, đe doạ, bắt nạt người khác; lừa đảo, spam, mạo danh; thông tin cá nhân của người khác khi chưa được phép; nội dung vi phạm pháp luật hoặc quyền sở hữu trí tuệ. Chúng tôi không dung thứ bất kỳ nội dung phản cảm hay người dùng lạm dụng nào."},
+      {"title": "3. Báo cáo và chặn", "body": "Bạn có thể báo cáo bất kỳ bài viết, bình luận, tin nhắn hoặc người dùng nào (menu ⋯ hoặc nhấn giữ), và chặn người dùng để không còn thấy nội dung / nhận tin nhắn từ họ. Nội dung bị báo cáo được ẩn ngay với bạn."},
+      {"title": "4. Xử lý vi phạm", "body": "Chúng tôi xem xét mọi báo cáo trong vòng 24 giờ, gỡ nội dung vi phạm và có thể khoá tài khoản của người vi phạm mà không cần báo trước."},
+      {"title": "5. Dữ liệu tài chính và sức khoẻ", "body": "Số liệu, thống kê và tính tiền điện chỉ mang tính tham khảo. Dự đoán chu kỳ chỉ mang tính tham khảo, KHÔNG phải tư vấn y tế và KHÔNG dùng để tránh thai; hãy hỏi ý kiến bác sĩ khi cần."},
+      {"title": "6. Quyền riêng tư", "body": "Việc thu thập và sử dụng dữ liệu được mô tả trong Chính sách quyền riêng tư."},
+      {"title": "7. Chấm dứt", "body": "Bạn có thể xoá tài khoản bất cứ lúc nào trong Cài đặt → Xoá tài khoản."},
+      {"title": "8. Liên hệ", "body": "Góp ý hoặc khiếu nại: {contact}."}
+    ]
+  }
+}
