@@ -24,3 +24,6 @@ server/src/LHT.Api/uploads/
 *.iml
 .DS_Store
 *.cpuprofile
+
+
+*.md
