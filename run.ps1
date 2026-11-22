@@ -63,5 +63,15 @@ if (-not $NoWeb) {
 
 Write-Host "▶ API .NET + SignalR (tự migrate DB + seed phân quyền) -> http://localhost:5000" -ForegroundColor Cyan
 Set-Location "$ROOT/server"
+
+# Khoá ký JWT lưu trong user-secrets của từng máy (không đưa lên git). Chưa có → tự tạo ngẫu nhiên một lần.
+$secrets = dotnet user-secrets list --project src/LHT.Api 2>$null
+if (-not ($secrets -match '^Jwt:Key\s*=')) {
+    $bytes = New-Object byte[] 48
+    [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+    dotnet user-secrets set "Jwt:Key" ([Convert]::ToBase64String($bytes)) --project src/LHT.Api | Out-Null
+    Write-Host "  Đã tạo khoá Jwt:Key mới trong user-secrets của máy này." -ForegroundColor Yellow
+}
+
 dotnet run --project src/LHT.Api --launch-profile http
 
