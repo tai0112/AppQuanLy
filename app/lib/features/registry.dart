@@ -41,6 +41,7 @@ const features = <Feature>[
   Feature('electricity', 'Tiền điện', Icons.bolt_rounded, '/electricity', perm: Perm.tienDien, color: Color(0xFFFFB224)),
   Feature('love', 'Ngày yêu', Icons.favorite_rounded, '/love', perm: Perm.ngayYeu, color: Color(0xFFE93D82)),
   Feature('cycle', 'Chu kỳ', Icons.water_drop_rounded, '/cycle', perm: Perm.chuKy, color: Color(0xFFD6409F)),
+  Feature('reminders', 'Nhắc nhở', Icons.alarm_rounded, '/reminders', perm: Perm.nhacNho, color: Color(0xFFF76B15)),
   Feature('schedule', 'Lịch trình', Icons.event_rounded, '/schedule', perm: Perm.lichTrinh, color: Color(0xFF0090FF)),
   Feature('feed', 'Bảng tin', Icons.dynamic_feed_rounded, '/feed', perm: Perm.baiViet, color: Color(0xFF6E56CF), loginOnly: true),
   Feature('chat', 'Tin nhắn', Icons.chat_bubble_rounded, '/chat', perm: Perm.tinNhan, color: Color(0xFF12A594), loginOnly: true),

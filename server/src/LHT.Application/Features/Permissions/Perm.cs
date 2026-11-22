@@ -12,6 +12,7 @@ public static class Perm
     public const string TienDien = "TIEN_ICH.TIEN_DIEN";
     public const string NgayYeu = "TIEN_ICH.NGAY_YEU";
     public const string ChuKy = "TIEN_ICH.CHU_KY";
+    public const string NhacNho = "TIEN_ICH.NHAC_NHO";
     public const string LichTrinh = "LICH_TRINH.LICH";
     public const string BanBe = "XA_HOI.BAN_BE";
     public const string TinNhan = "XA_HOI.TIN_NHAN";

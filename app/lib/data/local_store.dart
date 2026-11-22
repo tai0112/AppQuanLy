@@ -34,6 +34,7 @@ class E {
   static const cycleSettings = 'cycleSettings';
   static const cyclePeriods = 'cyclePeriods';
   static const cycleLogs = 'cycleLogs';
+  static const reminders = 'reminders';
 
   /// Thứ tự đẩy lên server (bảng cha trước).
   static const pushOrder = [
@@ -60,6 +61,7 @@ class E {
     cycleSettings,
     cyclePeriods,
     cycleLogs,
+    reminders,
   ];
 
   /// Bảng chỉ đọc từ server.

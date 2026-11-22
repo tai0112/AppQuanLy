@@ -39,6 +39,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CycleLog> CycleLogs => Set<CycleLog>();
     public DbSet<CycleSettings> CycleSettings => Set<CycleSettings>();
     public DbSet<AppSettings> AppSettings => Set<AppSettings>();
+    public DbSet<Reminder> Reminders => Set<Reminder>();
 
     // Lịch trình
     public DbSet<Plan> Plans => Set<Plan>();

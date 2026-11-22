@@ -44,6 +44,7 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
         ("cycleSettings", typeof(CycleSettings), false),
         ("cyclePeriods", typeof(CyclePeriod), false),
         ("cycleLogs", typeof(CycleLog), false),
+        ("reminders", typeof(Reminder), false),
     ];
 
     public static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);

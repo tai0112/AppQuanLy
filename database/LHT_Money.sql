@@ -3427,3 +3427,85 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261122041306_NhacNho'
+)
+BEGIN
+    CREATE TABLE [NhacNho] (
+        [Id] uniqueidentifier NOT NULL,
+        [TieuDe] nvarchar(200) NOT NULL,
+        [GhiChu] nvarchar(max) NULL,
+        [BieuTuong] nvarchar(50) NULL,
+        [MauSac] nvarchar(9) NULL,
+        [CheDoLap] tinyint NOT NULL,
+        [CacGio] nvarchar(200) NOT NULL,
+        [CacThu] nvarchar(20) NULL,
+        [CacNgay] nvarchar(4000) NULL,
+        [DangBat] bit NOT NULL,
+        [ThuTu] int NOT NULL,
+        [NgayTao] datetimeoffset NOT NULL,
+        [NgayCapNhat] datetimeoffset NOT NULL,
+        [NgayXoa] datetimeoffset NULL,
+        [NguoiDungId] uniqueidentifier NOT NULL,
+        CONSTRAINT [PK_NhacNho] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_NhacNho_NguoiDung_NguoiDungId] FOREIGN KEY ([NguoiDungId]) REFERENCES [NguoiDung] ([Id]) ON DELETE NO ACTION
+    );
+    DECLARE @defaultSchema59 AS sysname;
+    SET @defaultSchema59 = SCHEMA_NAME();
+    DECLARE @description59 AS sql_variant;
+    SET @description59 = N'Nhắc nhở do người dùng tự đặt (uống nước, uống thuốc...)';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho';
+    SET @description59 = N'Khoá chính (UUID v7 do app sinh)';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'Id';
+    SET @description59 = N'Nội dung nhắc';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'TieuDe';
+    SET @description59 = N'Ghi chú';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'GhiChu';
+    SET @description59 = N'Tên icon';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'BieuTuong';
+    SET @description59 = N'Màu (hex)';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'MauSac';
+    SET @description59 = N'Lặp lại: 1=hằng ngày, 2=theo thứ trong tuần, 3=từng ngày cụ thể';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'CheDoLap';
+    SET @description59 = N'Các giờ nhắc trong ngày, vd 07:30,21:00';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'CacGio';
+    SET @description59 = N'Các thứ nhắc khi lặp theo thứ: 1=Thứ 2 ... 7=Chủ nhật, vd 1,3,5';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'CacThu';
+    SET @description59 = N'Các ngày nhắc khi chọn từng ngày, vd 2026-11-25,2026-11-28';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'CacNgay';
+    SET @description59 = N'Đang bật';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'DangBat';
+    SET @description59 = N'Thứ tự sắp xếp';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'ThuTu';
+    SET @description59 = N'Thời điểm tạo (UTC)';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'NgayTao';
+    SET @description59 = N'Thời điểm sửa gần nhất (UTC) - dùng để đồng bộ';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'NgayCapNhat';
+    SET @description59 = N'Thời điểm xoá mềm (UTC), NULL = chưa xoá';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'NgayXoa';
+    SET @description59 = N'Người dùng sở hữu bản ghi';
+    EXEC sp_addextendedproperty 'MS_Description', @description59, 'SCHEMA', @defaultSchema59, 'TABLE', N'NhacNho', 'COLUMN', N'NguoiDungId';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261122041306_NhacNho'
+)
+BEGIN
+    CREATE INDEX [IX_NhacNho_NguoiDungId_NgayCapNhat] ON [NhacNho] ([NguoiDungId], [NgayCapNhat]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261122041306_NhacNho'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261122041306_NhacNho', N'10.0.15');
+END;
+
+COMMIT;
+GO
+

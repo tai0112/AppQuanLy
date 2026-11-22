@@ -2720,6 +2720,101 @@ namespace LHT.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LHT.Domain.Entities.Reminder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("Id")
+                        .HasComment("Khoá chính (UUID v7 do app sinh)");
+
+                    b.Property<string>("Color")
+                        .HasMaxLength(9)
+                        .HasColumnType("nvarchar(9)")
+                        .HasColumnName("MauSac")
+                        .HasComment("Màu (hex)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("NgayTao")
+                        .HasComment("Thời điểm tạo (UTC)");
+
+                    b.Property<string>("Dates")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)")
+                        .HasColumnName("CacNgay")
+                        .HasComment("Các ngày nhắc khi chọn từng ngày, vd 2026-11-25,2026-11-28");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("NgayXoa")
+                        .HasComment("Thời điểm xoá mềm (UTC), NULL = chưa xoá");
+
+                    b.Property<string>("Icon")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("BieuTuong")
+                        .HasComment("Tên icon");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit")
+                        .HasColumnName("DangBat")
+                        .HasComment("Đang bật");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("GhiChu")
+                        .HasComment("Ghi chú");
+
+                    b.Property<byte>("RepeatMode")
+                        .HasColumnType("tinyint")
+                        .HasColumnName("CheDoLap")
+                        .HasComment("Lặp lại: 1=hằng ngày, 2=theo thứ trong tuần, 3=từng ngày cụ thể");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("ThuTu")
+                        .HasComment("Thứ tự sắp xếp");
+
+                    b.Property<string>("Times")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("CacGio")
+                        .HasComment("Các giờ nhắc trong ngày, vd 07:30,21:00");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("TieuDe")
+                        .HasComment("Nội dung nhắc");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("NgayCapNhat")
+                        .HasComment("Thời điểm sửa gần nhất (UTC) - dùng để đồng bộ");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("NguoiDungId")
+                        .HasComment("Người dùng sở hữu bản ghi");
+
+                    b.Property<string>("Weekdays")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasColumnName("CacThu")
+                        .HasComment("Các thứ nhắc khi lặp theo thứ: 1=Thứ 2 ... 7=Chủ nhật, vd 1,3,5");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "UpdatedAt");
+
+                    b.ToTable("NhacNho", null, t =>
+                        {
+                            t.HasComment("Nhắc nhở do người dùng tự đặt (uống nước, uống thuốc...)");
+                        });
+                });
+
             modelBuilder.Entity("LHT.Domain.Entities.Report", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3752,6 +3847,15 @@ namespace LHT.Infrastructure.Persistence.Migrations
                 });
 
             modelBuilder.Entity("LHT.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("LHT.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LHT.Domain.Entities.Reminder", b =>
                 {
                     b.HasOne("LHT.Domain.Entities.User", null)
                         .WithMany()

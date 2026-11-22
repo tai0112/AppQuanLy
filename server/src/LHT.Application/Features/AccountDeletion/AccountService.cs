@@ -95,7 +95,7 @@ public class AccountService(IAppDbContext db, IFileStorage storage, TimeProvider
             {
                 Owned<Attachment>(me, ct), Owned<Transaction>(me, ct), Owned<RecurringRule>(me, ct), Owned<JarTransaction>(me, ct), Owned<Budget>(me, ct),
                 Owned<ElectricityBill>(me, ct), Owned<ElectricityTier>(me, ct), Owned<ElectricityMeter>(me, ct), Owned<ElectricityPriceTable>(me, ct),
-                Owned<CycleLog>(me, ct), Owned<CyclePeriod>(me, ct), Owned<CycleSettings>(me, ct), Owned<LoveCounter>(me, ct), Owned<AppSettings>(me, ct),
+                Owned<CycleLog>(me, ct), Owned<CyclePeriod>(me, ct), Owned<CycleSettings>(me, ct), Owned<LoveCounter>(me, ct), Owned<Reminder>(me, ct), Owned<AppSettings>(me, ct),
                 ("Post", () => db.Set<Post>().IgnoreQueryFilters().Where(p => p.AuthorId == me).ExecuteDeleteAsync(ct)), Owned<Event>(me, ct), Owned<Plan>(me, ct), Owned<SavingsJar>(me, ct), Owned<Category>(me, ct),
                 Owned<Account>(me, ct), Owned<ExchangeRate>(me, ct), Owned<Currency>(me, ct), Owned<Notification>(me, ct), Owned<Device>(me, ct),
                 Owned<RefreshToken>(me, ct), Owned<StoredFile>(me, ct),

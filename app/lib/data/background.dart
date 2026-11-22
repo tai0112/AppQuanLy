@@ -42,8 +42,35 @@ void startBackgroundTasks(Services s) {
   }
 
   s.store.addListener(refresh);
+  // Web không hẹn được thông báo hệ thống → giữ đúng MỘT bộ hẹn giờ tới lần nhắc kế tiếp (hiện banner + thông báo trình duyệt).
+  if (kIsWeb) s.store.addListener(() => _armWebReminder(s));
+  if (kIsWeb) _armWebReminder(s);
   s.notifier.requestPermission();
   refresh();
+}
+
+Timer? _webTimer;
+Timer? _webDebounce;
+
+void _armWebReminder(Services s) {
+  _webDebounce?.cancel();
+  _webDebounce = Timer(const Duration(seconds: 1), () {
+    _webTimer?.cancel();
+    final now = DateTime.now();
+    (DateTime, Reminder)? next;
+    for (final r in s.store.all(E.reminders).map(Reminder.new)) {
+      final t = Reminders.next(r, now.add(const Duration(seconds: 1)));
+      if (t != null && (next == null || t.isBefore(next.$1))) next = (t, r);
+    }
+    if (next == null) return;
+    final (at, r) = next;
+    // Timer dài bị trình duyệt trì hoãn khi tab ngủ → hẹn tối đa 1 giờ rồi tính lại.
+    final wait = at.difference(DateTime.now());
+    _webTimer = Timer(wait > const Duration(hours: 1) ? const Duration(hours: 1) : wait, () {
+      if (!DateTime.now().isBefore(at)) s.notifier.show('⏰ ${r.title}', r.note ?? Fmt.time(at), kind: NotifyKind.reminder, inApp: true);
+      _armWebReminder(s);
+    });
+  });
 }
 
 Future<void> _scheduleReminders(Services s) async {
@@ -54,6 +81,16 @@ Future<void> _scheduleReminders(Services s) async {
   var id = 1000;
   var count = 0;
 
+  // Nhắc nhở tự đặt: ưu tiên trước (người dùng chủ động đặt), 7 ngày tới, tối đa 20 thông báo chờ.
+  final custom = <(DateTime, Reminder)>[
+    for (final r in s.store.all(E.reminders).map(Reminder.new))
+      for (final t in Reminders.occurrences(r, now, now.add(const Duration(days: 7)))) (t, r),
+  ]..sort((a, b) => a.$1.compareTo(b.$1));
+  for (final (at, r) in custom.take(20)) {
+    await n.schedule(id++, at, '⏰ ${r.title}', r.note ?? 'Đến giờ rồi · ${Fmt.time(at)}');
+    count++;
+  }
+
   // Lịch trình 14 ngày tới (iOS giới hạn 64 thông báo chờ → tối đa 50).
   final events = s.store.all(E.events).map(EventRec.new).where((e) => e.remindBefore != null);
   final upcoming = <(DateTime, EventRec)>[];
@@ -63,7 +100,7 @@ Future<void> _scheduleReminders(Services s) async {
     }
   }
   upcoming.sort((a, b) => a.$1.compareTo(b.$1));
-  for (final (at, e) in upcoming.take(50)) {
+  for (final (at, e) in upcoming.take(50 - count)) {
     await n.schedule(id++, at, 'Sắp tới: ${e.title}', '${Fmt.time(at.add(Duration(minutes: e.remindBefore!)))}${e.location != null ? ' · ${e.location}' : ''}');
     count++;
   }

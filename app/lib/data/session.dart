@@ -20,6 +20,7 @@ class Perm {
   static const tienDien = 'TIEN_ICH.TIEN_DIEN';
   static const ngayYeu = 'TIEN_ICH.NGAY_YEU';
   static const chuKy = 'TIEN_ICH.CHU_KY';
+  static const nhacNho = 'TIEN_ICH.NHAC_NHO';
   static const lichTrinh = 'LICH_TRINH.LICH';
   static const banBe = 'XA_HOI.BAN_BE';
   static const tinNhan = 'XA_HOI.TIN_NHAN';
@@ -30,7 +31,7 @@ class Perm {
   static const qtBaoCao = 'QUAN_TRI.BAO_CAO';
 
   /// Chức năng cá nhân dùng được khi chưa đăng nhập (offline).
-  static const offline = {giaoDich, taiKhoan, thongKe, danhMuc, dinhMuc, huTietKiem, tienDien, ngayYeu, chuKy, lichTrinh};
+  static const offline = {giaoDich, taiKhoan, thongKe, danhMuc, dinhMuc, huTietKiem, tienDien, ngayYeu, chuKy, nhacNho, lichTrinh};
 }
 
 /// Phiên đăng nhập + quyền động (menu do server trả về theo vai trò).

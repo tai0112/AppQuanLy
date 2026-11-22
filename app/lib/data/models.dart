@@ -300,3 +300,39 @@ extension type EventItemRec(Map<String, dynamic> m) {
 
 String timeStr((int, int) t) => '${t.$1.toString().padLeft(2, '0')}:${t.$2.toString().padLeft(2, '0')}';
 String timeIso((int, int) t) => '${timeStr(t)}:00';
+
+/// Cách lặp của nhắc nhở (khớp LHT.Domain.Enums.ReminderRepeat).
+class ReminderRepeat {
+  static const daily = 1, weekdays = 2, dates = 3;
+}
+
+/// Nhắc nhở tự đặt: một hoặc nhiều giờ trong ngày, lặp hằng ngày / theo thứ / từng ngày cụ thể.
+extension type Reminder(Map<String, dynamic> m) {
+  String get id => m['id'];
+  String get title => m['title'] ?? '';
+  String? get note => m['note'];
+  String? get icon => m['icon'];
+  String? get color => m['color'];
+  int get repeatMode => (m['repeatMode'] as num?)?.toInt() ?? ReminderRepeat.daily;
+  bool get isActive => m['isActive'] != false;
+  int get sortOrder => (m['sortOrder'] as num?)?.toInt() ?? 0;
+
+  /// "07:30,21:00" → [(7,30), (21,0)], đã sắp xếp.
+  List<(int, int)> get times {
+    final out = <(int, int)>[];
+    for (final s in (m['times'] as String? ?? '').split(',')) {
+      final t = parseTime(s.trim());
+      if (t != null) out.add(t);
+    }
+    return out..sort((a, b) => (a.$1 * 60 + a.$2).compareTo(b.$1 * 60 + b.$2));
+  }
+
+  /// 1 = Thứ 2 ... 7 = Chủ nhật.
+  Set<int> get weekdays => {
+    for (final s in (m['weekdays'] as String? ?? '').split(','))
+      if (int.tryParse(s.trim()) case final d? when d >= 1 && d <= 7) d,
+  };
+
+  /// Các ngày cụ thể (yyyy-MM-dd), đã sắp xếp.
+  List<String> get dates => ((m['dates'] as String? ?? '').split(',').map((s) => s.trim()).where((s) => s.length == 10).toSet().toList())..sort();
+}

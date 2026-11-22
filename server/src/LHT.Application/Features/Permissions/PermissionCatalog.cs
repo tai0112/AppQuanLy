@@ -22,6 +22,7 @@ public static class PermissionCatalog
             new(Perm.TienDien, "Tiền điện", "/electricity", "bolt"),
             new(Perm.NgayYeu, "Ngày yêu", "/love", "favorite"),
             new(Perm.ChuKy, "Chu kỳ", "/cycle", "water_drop"),
+            new(Perm.NhacNho, "Nhắc nhở", "/reminders", "alarm"),
         ]),
         new("LICH_TRINH", "Lịch trình", "event", 3,
         [

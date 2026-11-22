@@ -21,6 +21,7 @@ import 'features/electricity.dart';
 import 'features/notify_settings.dart';
 import 'features/jars.dart';
 import 'features/love.dart';
+import 'features/reminders.dart';
 import 'features/schedule.dart';
 import 'features/settings.dart';
 import 'features/shell.dart';
@@ -115,6 +116,11 @@ final router = GoRouter(
     GoRoute(path: '/electricity', pageBuilder: (c, s) => _page(s, const ElectricityPage())),
     GoRoute(path: '/love', pageBuilder: (c, s) => _page(s, const LovePage())),
     GoRoute(path: '/cycle', pageBuilder: (c, s) => _page(s, const CyclePage())),
+    GoRoute(path: '/reminders', pageBuilder: (c, s) => _page(s, const RemindersPage())),
+    GoRoute(
+      path: '/reminders/edit',
+      pageBuilder: (c, s) => _page(s, ReminderEditPage(id: _extra(s)['id'] as String?)),
+    ),
     GoRoute(path: '/schedule', pageBuilder: (c, s) => _page(s, const SchedulePage())),
     GoRoute(
       path: '/schedule/edit',

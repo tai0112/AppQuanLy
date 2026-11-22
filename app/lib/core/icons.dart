@@ -67,6 +67,12 @@ const Map<String, IconData> appIcons = {
   'park': Icons.park_rounded,
   'church': Icons.church_rounded,
   'sports_soccer': Icons.sports_soccer_rounded,
+  'alarm': Icons.alarm_rounded,
+  'local_drink': Icons.local_drink_rounded,
+  'bedtime': Icons.bedtime_rounded,
+  'self_improvement': Icons.self_improvement_rounded,
+  'directions_run': Icons.directions_run_rounded,
+  'notifications': Icons.notifications_rounded,
 };
 
 IconData iconOf(String? name) => appIcons[name] ?? Icons.circle_outlined;

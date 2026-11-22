@@ -716,3 +716,59 @@ class Love {
     return d;
   }
 }
+
+/// Tính các lần nhắc của [Reminder].
+class Reminders {
+  /// Các thời điểm nhắc trong [from, to), tăng dần.
+  static List<DateTime> occurrences(Reminder r, DateTime from, DateTime to) {
+    final times = r.times;
+    if (!r.isActive || times.isEmpty || !to.isAfter(from)) return const [];
+    final out = <DateTime>[];
+    void addDay(DateTime d) {
+      for (final t in times) {
+        final at = DateTime(d.year, d.month, d.day, t.$1, t.$2);
+        if (!at.isBefore(from) && at.isBefore(to)) out.add(at);
+      }
+    }
+
+    if (r.repeatMode == ReminderRepeat.dates) {
+      for (final s in r.dates) {
+        final d = DateTime.tryParse(s);
+        if (d != null) addDay(d);
+      }
+      return out..sort();
+    }
+    final days = r.repeatMode == ReminderRepeat.weekdays ? r.weekdays : null;
+    if (days != null && days.isEmpty) return const [];
+    for (var d = dateOnly(from); d.isBefore(to); d = DateTime(d.year, d.month, d.day + 1)) {
+      if (days == null || days.contains(d.weekday)) addDay(d);
+    }
+    return out;
+  }
+
+  /// Lần nhắc kế tiếp (tìm trong 1 năm tới), null nếu không còn.
+  static DateTime? next(Reminder r, DateTime now) {
+    if (r.repeatMode == ReminderRepeat.dates) return occurrences(r, now, DateTime(now.year + 5)).firstOrNull;
+    return occurrences(r, now, now.add(const Duration(days: 8))).firstOrNull;
+  }
+
+  /// "Hằng ngày" / "Thứ 2 – Thứ 6" / "T3, T5, CN" / "25/11, 28/11 +2 ngày"
+  static String describe(Reminder r) {
+    switch (r.repeatMode) {
+      case ReminderRepeat.weekdays:
+        final d = r.weekdays.toList()..sort();
+        if (d.length == 7) return 'Hằng ngày';
+        if (d.isEmpty) return 'Chưa chọn thứ';
+        if (d.length == 5 && d.last == 5) return 'Thứ 2 – Thứ 6';
+        if (d.length == 2 && d.first == 6) return 'Cuối tuần';
+        return d.map((x) => Fmt.weekdaysShort[x - 1]).join(', ');
+      case ReminderRepeat.dates:
+        final ds = r.dates.map(DateTime.tryParse).whereType<DateTime>().toList();
+        if (ds.isEmpty) return 'Chưa chọn ngày';
+        final shown = ds.take(3).map(Fmt.dateShort).join(', ');
+        return ds.length > 3 ? '$shown +${ds.length - 3} ngày' : shown;
+      default:
+        return 'Hằng ngày';
+    }
+  }
+}
