@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$NoWeb,
     [switch]$NoDocker
 )
@@ -33,13 +33,22 @@ if (-not $NoDocker) {
     Write-Host "▶ Bỏ qua Docker (sử dụng SQL Server có sẵn trên máy)" -ForegroundColor Yellow
 }
 
+$wwwroot = "$ROOT/server/src/LHT.Api/wwwroot"
+if (-not $NoWeb -and -not (Get-Command flutter -ErrorAction SilentlyContinue)) {
+    Write-Host "⚠ Không tìm thấy Flutter trên máy này → bỏ qua bước build web." -ForegroundColor Yellow
+    Write-Host "  Cài Flutter: https://docs.flutter.dev/get-started/install/windows rồi thêm thư mục flutter\bin vào PATH." -ForegroundColor Yellow
+    if (-not (Test-Path "$wwwroot/index.html")) {
+        Write-Host "  Chưa có bản web trong wwwroot: API vẫn chạy nhưng mở http://localhost:5000 sẽ chưa có giao diện." -ForegroundColor Yellow
+    }
+    $NoWeb = $true
+}
+
 if (-not $NoWeb) {
     Write-Host "▶ Build Flutter web" -ForegroundColor Cyan
     Set-Location "$ROOT/app"
     flutter pub get
     flutter build web --release
-    
-    $wwwroot = "$ROOT/server/src/LHT.Api/wwwroot"
+
     if (Test-Path $wwwroot) {
         Remove-Item -Recurse -Force $wwwroot
     }
