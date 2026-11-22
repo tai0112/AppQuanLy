@@ -522,6 +522,8 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
               ),
               TableCalendar(
                 locale: 'vi',
+                // Chỉ nhận vuốt ngang (đổi tháng); vuốt dọc nhường cho cuộn màn hình — bắt đầu vuốt trên lịch vẫn cuộn được.
+                availableGestures: AvailableGestures.horizontalSwipe,
                 firstDay: today,
                 lastDay: DateTime(today.year + 5, 12, 31),
                 focusedDay: _focused.isBefore(today) ? today : _focused,

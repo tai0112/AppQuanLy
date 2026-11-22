@@ -922,3 +922,118 @@ Future<T?> pickFromList<T>(BuildContext context, {required String title, require
     },
   );
 }
+
+/// Vuốt từ mép màn hình vào trong để chuyển trang (vd đổi tháng): mép trái → [onPrev], mép phải → [onNext].
+/// Dải mép hẹp, nhận trọn cử chỉ trong dải → không tranh với vuốt-xoá dòng hay lịch bên dưới.
+/// Mũi tên tròn trượt theo ngón tay; vượt ngưỡng thì rung nhẹ, thả tay mới chuyển.
+class EdgeSwipe extends StatefulWidget {
+  const EdgeSwipe({super.key, required this.child, required this.onPrev, required this.onNext, this.edgeWidth = 22});
+  final Widget child;
+  final VoidCallback onPrev, onNext;
+  final double edgeWidth;
+
+  @override
+  State<EdgeSwipe> createState() => _EdgeSwipeState();
+}
+
+class _EdgeSwipeState extends State<EdgeSwipe> with SingleTickerProviderStateMixin {
+  static const _threshold = 70.0;
+  late final _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+  double _dx = 0; // quãng đã kéo vào trong (>= 0)
+  bool _left = true, _armed = false;
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
+
+  void _start(bool left) {
+    _left = left;
+    _dx = 0;
+    _armed = false;
+    _anim.value = 0;
+  }
+
+  void _update(DragUpdateDetails d) {
+    _dx = (_dx + (_left ? d.delta.dx : -d.delta.dx)).clamp(0, 160);
+    final armed = _dx >= _threshold;
+    if (armed && !_armed) HapticFeedback.selectionClick();
+    _armed = armed;
+    _anim.value = (_dx / _threshold).clamp(0, 1.4) / 1.4;
+  }
+
+  void _end(DragEndDetails d) {
+    final v = d.primaryVelocity ?? 0;
+    final fling = _left ? v > 600 : v < -600;
+    if (_armed || fling) {
+      HapticFeedback.lightImpact();
+      _left ? widget.onPrev() : widget.onNext();
+    }
+    _anim.animateTo(0, curve: Curves.easeOutCubic);
+  }
+
+  Widget _strip(bool left) => Positioned(
+    top: 0,
+    bottom: 0,
+    left: left ? 0 : null,
+    right: left ? null : 0,
+    width: widget.edgeWidth,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onHorizontalDragStart: (_) => _start(left),
+      onHorizontalDragUpdate: _update,
+      onHorizontalDragEnd: _end,
+      onHorizontalDragCancel: () => _anim.animateTo(0, curve: Curves.easeOutCubic),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Stack(
+      children: [
+        widget.child,
+        _strip(true),
+        _strip(false),
+        // Mũi tên báo hiệu: chỉ vẽ lại phần này khi kéo
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _anim,
+              builder: (context, _) {
+                final p = _anim.value;
+                if (p == 0) return const SizedBox.shrink();
+                final armed = _dx >= _threshold;
+                return Align(
+                  alignment: _left ? Alignment.centerLeft : Alignment.centerRight,
+                  child: Transform.translate(
+                    offset: Offset((_left ? 1 : -1) * (-44 + 60 * p), 0),
+                    child: Opacity(
+                      opacity: p.clamp(0, 1),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: armed ? scheme.primary : scheme.surfaceContainerHighest,
+                          shape: BoxShape.circle,
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 10)],
+                        ),
+                        child: Icon(
+                          _left ? Icons.chevron_left_rounded : Icons.chevron_right_rounded,
+                          color: armed ? scheme.onPrimary : scheme.onSurfaceVariant,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}

@@ -160,6 +160,8 @@ class _CyclePageState extends ConsumerState<CyclePage> {
             padding: const EdgeInsets.all(8),
             child: TableCalendar(
               locale: 'vi',
+              // Chỉ nhận vuốt ngang (đổi tháng); vuốt dọc nhường cho cuộn màn hình — bắt đầu vuốt trên lịch vẫn cuộn được.
+              availableGestures: AvailableGestures.horizontalSwipe,
               firstDay: DateTime(2000),
               lastDay: DateTime(2100),
               focusedDay: focused,
