@@ -6,6 +6,12 @@
 $ErrorActionPreference = "Stop"
 $ROOT = $PSScriptRoot
 
+# Máy không cài Docker → dùng SQL Server có sẵn trên máy (chuỗi kết nối trong appsettings.Development.json / user-secrets)
+if (-not $NoDocker -and -not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Host "⚠ Không tìm thấy Docker → dùng SQL Server có sẵn trên máy." -ForegroundColor Yellow
+    $NoDocker = $true
+}
+
 if (-not $NoDocker) {
     Write-Host "▶ SQL Server (Docker)" -ForegroundColor Cyan
     Set-Location "$ROOT/server"
