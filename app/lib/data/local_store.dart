@@ -106,7 +106,8 @@ class LocalStore extends ChangeNotifier {
   /// Ảnh vừa chọn đang được ghi xuống đĩa (vài trăm ms) — giữ tạm để hiển thị/tải lên ngay, ghi xong thì bỏ.
   final Map<String, Uint8List> _writing = {};
   final Map<String, Future<void>> _writes = {};
-  late Box<String> _fileMeta;
+  late Box<String> _fileMeta; // ảnh chờ tải lên
+  late Box<String> _localFiles; // ảnh đã có trong tệp trên máy (đã tải lên hoặc tải về) — id → "mime|thời điểm lưu (ms)"
   late Box<String> _outbox;
 
   final Map<String, Map<String, Map<String, dynamic>>> _cache = {};
@@ -129,6 +130,7 @@ class LocalStore extends ChangeNotifier {
     _meta = await Hive.openBox<String>('meta');
     _blobs = await FileStore.open(dir: filesDir);
     _fileMeta = await Hive.openBox<String>('file_meta');
+    _localFiles = await Hive.openBox<String>('local_files');
     _outbox = await Hive.openBox<String>('outbox');
     await _migrateOldFilesBox();
     for (final key in _records.keys.cast<String>()) {
@@ -302,6 +304,7 @@ class LocalStore extends ChangeNotifier {
     _writing.clear();
     await _blobs.clear();
     await _fileMeta.clear();
+    await _localFiles.clear();
     await _outbox.clear();
     for (final k in _meta.keys.cast<String>().where((k) => k != 'apiUrl').toList()) {
       await _meta.delete(k);
@@ -330,8 +333,12 @@ class LocalStore extends ChangeNotifier {
     return id;
   }
 
-  /// Ảnh này có bản trên máy không (chưa upload). Không đọc nội dung → rẻ, gọi trong build() thoải mái.
-  bool hasLocalFile(String? id) => id != null && _fileMeta.containsKey(id);
+  /// Ảnh này có bản trong tệp trên máy không (chờ tải lên, đã tải lên hoặc đã tải về).
+  /// Không đọc nội dung → rẻ, gọi trong build() thoải mái.
+  bool hasLocalFile(String? id) => id != null && (_fileMeta.containsKey(id) || _localFiles.containsKey(id));
+
+  /// Số ảnh đang lưu trong tệp trên máy.
+  int get localFileCount => _localFiles.length + _fileMeta.length;
 
   /// Đọc nội dung ảnh trên máy (từ đĩa / IndexedDB), null nếu không có.
   Future<Uint8List?> readFile(String id) async => _writing[id] ?? await _blobs.read(id);
@@ -341,11 +348,65 @@ class LocalStore extends ChangeNotifier {
       if (jsonDecode(_fileMeta.get(id)!) as Map case final m) (id: id, mime: m['mime'] as String, name: m['name'] as String),
   ];
 
-  /// Upload xong (hoặc ảnh đã mất trên máy): xoá bản local (dọn cache).
-  Future<void> fileUploaded(String id) async {
-    await _writes[id]; // còn đang ghi thì đợi xong rồi mới xoá → không để lại file mồ côi trên đĩa
+  /// Upload xong: bỏ khỏi hàng đợi nhưng GIỮ tệp trên máy (xem được khi không có mạng).
+  /// [missing] = ảnh đã mất trên máy (không còn gì để tải) → chỉ bỏ khỏi hàng đợi, tránh kẹt mãi.
+  Future<void> fileUploaded(String id, {bool missing = false}) async {
+    await _writes[id]; // còn đang ghi thì đợi xong
+    final m = _fileMeta.get(id);
     await _fileMeta.delete(id);
-    await _blobs.delete(id);
+    if (missing) {
+      await _blobs.delete(id);
+    } else {
+      await _localFiles.put(id, '${m == null ? 'image/jpeg' : (jsonDecode(m) as Map)['mime']}|${DateTime.now().millisecondsSinceEpoch}');
+    }
+    notifyListeners();
+  }
+
+  /// Ảnh tải về từ server → lưu vào tệp trên máy.
+  Future<void> saveDownloadedFile(String id, Uint8List bytes, String mime) async {
+    await _blobs.write(id, bytes);
+    await _localFiles.put(id, '$mime|${DateTime.now().millisecondsSinceEpoch}');
+  }
+
+  /// Các ảnh dữ liệu cá nhân đang dùng: mọi trường "fileId" / "...FileId" của bản ghi chưa xoá.
+  Set<String> referencedFileIds() {
+    // Chỉ quét lại khi dữ liệu đổi (phiên bản các bảng chỉ tăng) → lượt đồng bộ định kỳ không tốn CPU.
+    final sig = _epoch * 1000000 + _entityVer.values.fold<int>(0, (a, b) => a + b);
+    if (sig == _refSig) return _refCache;
+    final out = <String>{};
+    for (final entity in _cache.values) {
+      for (final rec in entity.values) {
+        if (rec['deletedAt'] != null) continue;
+        for (final e in rec.entries) {
+          if (e.value is String && (e.key == 'fileId' || e.key.endsWith('FileId'))) out.add(e.value as String);
+        }
+      }
+    }
+    _refSig = sig;
+    return _refCache = out;
+  }
+
+  int _refSig = -1;
+  Set<String> _refCache = const {};
+
+  /// Ảnh cần tải về: đang được dùng nhưng chưa có trong tệp trên máy.
+  List<String> missingFiles() => [
+    for (final id in referencedFileIds())
+      if (!hasLocalFile(id)) id,
+  ];
+
+  /// Xoá tệp ảnh không còn bản ghi nào dùng (bản ghi đã xoá). Ảnh chờ tải lên luôn được giữ;
+  /// ảnh mới lưu trong 1 giờ cũng giữ (có thể đang nằm trong form chưa bấm Lưu).
+  Future<void> pruneLocalFiles() async {
+    final used = referencedFileIds();
+    final cutoff = DateTime.now().subtract(const Duration(hours: 1)).millisecondsSinceEpoch;
+    for (final id in _localFiles.keys.cast<String>().toList()) {
+      final at = int.tryParse(_localFiles.get(id)!.split('|').last) ?? 0;
+      if (!used.contains(id) && at < cutoff) {
+        await _localFiles.delete(id);
+        await _blobs.delete(id);
+      }
+    }
   }
 
   // ------------------------------------------------------------------ Outbox (bài viết/tin nhắn offline)

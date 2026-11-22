@@ -1,4 +1,4 @@
-// Ảnh luôn được đưa lên SERVER khi đã đăng nhập: kho trên máy chỉ là chỗ giữ tạm tới khi upload thành công.
+// Ảnh luôn được đưa lên SERVER khi đã đăng nhập, đồng thời giữ lại trong tệp trên máy; đồng bộ tải về ảnh còn thiếu.
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -14,6 +14,8 @@ class FakeApi extends ApiClient {
   bool loggedIn = false;
   bool offline = false;
   final uploaded = <String, int>{}; // id → số byte server nhận
+  final serverFiles = <String, Uint8List>{}; // ảnh có trên server (tải về được)
+  Map<String, dynamic> changes = {};
 
   @override
   bool get isLoggedIn => loggedIn;
@@ -26,8 +28,18 @@ class FakeApi extends ApiClient {
   }
 
   @override
-  Future<T> get<T>(String path, {Map<String, dynamic>? query}) async =>
-      {'changes': <String, dynamic>{}, 'serverTime': DateTime.now().toUtc().toIso8601String()} as T;
+  Future<({Uint8List bytes, String mime})?> download(String fileId) async {
+    if (offline) throw ApiException('Mất kết nối', offline: true);
+    final b = serverFiles[fileId];
+    return b == null ? null : (bytes: b, mime: 'image/jpeg');
+  }
+
+  @override
+  Future<T> get<T>(String path, {Map<String, dynamic>? query}) async {
+    final c = changes;
+    changes = {};
+    return {'changes': c, 'serverTime': DateTime.now().toUtc().toIso8601String()} as T;
+  }
 
   @override
   Future<T> post<T>(String path, [Object? body]) async => {'accepted': <String>[], 'rejected': <Map<String, dynamic>>[]} as T;
@@ -59,7 +71,7 @@ void main() {
   Uint8List img(int n) => Uint8List.fromList(List.filled(n, 9));
   List<FileSystemEntity> filesOnDisk() => Directory(filesDir).listSync();
 
-  test('chưa đăng nhập: ảnh giữ trên máy; đăng nhập xong: tải lên server rồi mới xoá bản trên máy', () async {
+  test('chưa đăng nhập: ảnh giữ trên máy; đăng nhập xong: tải lên server, tệp vẫn giữ trên máy', () async {
     final id = store.addFile(img(250 * 1024), 'image/jpeg');
     await Future<void>.delayed(const Duration(milliseconds: 100));
 
@@ -71,8 +83,8 @@ void main() {
     api.loggedIn = true;
     await sync.sync();
     expect(api.uploaded[id], 250 * 1024, reason: 'server phải nhận đủ ảnh');
-    expect(store.hasLocalFile(id), isFalse);
-    expect(filesOnDisk(), isEmpty);
+    expect(store.hasLocalFile(id), isTrue, reason: 'ảnh giữ trong tệp để xem khi không có mạng');
+    expect(filesOnDisk(), hasLength(1));
     expect(store.pendingUploads(), isEmpty);
   });
 
@@ -90,11 +102,11 @@ void main() {
     api.offline = false;
     await sync.sync();
     expect(api.uploaded.keys, contains(id));
-    expect(store.hasLocalFile(id), isFalse);
-    expect(filesOnDisk(), isEmpty);
+    expect(store.pendingUploads(), isEmpty);
+    expect(filesOnDisk(), hasLength(1));
   });
 
-  test('đồng bộ chạy ngay lúc ảnh còn đang ghi xuống đĩa: vẫn tải lên đủ, không để lại file thừa', () async {
+  test('đồng bộ chạy ngay lúc ảnh còn đang ghi xuống đĩa: vẫn tải lên đủ, không để lại file tạm', () async {
     api.loggedIn = true;
     final ids = [for (var i = 0; i < 5; i++) store.addFile(img(400 * 1024), 'image/jpeg')];
     await sync.sync(); // không chờ ghi xong
@@ -102,6 +114,33 @@ void main() {
 
     expect(api.uploaded.keys.toSet(), ids.toSet());
     expect(api.uploaded.values.every((n) => n == 400 * 1024), isTrue);
-    expect(filesOnDisk(), isEmpty, reason: 'không được còn file mồ côi');
+    expect(filesOnDisk().where((f) => f.path.endsWith('.tmp')), isEmpty, reason: 'không được còn file ghi dở');
+    expect(filesOnDisk(), hasLength(5));
+  });
+
+  test('đồng bộ tải về ảnh còn thiếu (thêm từ máy khác) và lưu vào tệp', () async {
+    api.loggedIn = true;
+    api.serverFiles['f-remote'] = img(5000);
+    api.changes = {
+      E.attachments: [
+        {'id': 'a1', 'fileId': 'f-remote', 'ownerType': 1, 'ownerId': 't1', 'updatedAt': '2026-11-22T00:00:00Z'},
+      ],
+    };
+    await sync.sync();
+    expect(store.hasLocalFile('f-remote'), isTrue);
+    expect((await store.readFile('f-remote'))!.length, 5000);
+    expect(store.missingFiles(), isEmpty);
+  });
+
+  test('tắt tự động đồng bộ: sửa dữ liệu không tự đẩy lên, bấm Đồng bộ mới đẩy', () async {
+    api.loggedIn = true;
+    sync.autoSync = false;
+    store.onLocalChange = sync.schedule; // như start(), bỏ phần theo dõi mạng (cần plugin)
+    store.addFile(img(100), 'image/jpeg');
+    await Future<void>.delayed(const Duration(milliseconds: 2000));
+    expect(api.uploaded, isEmpty, reason: 'không tự đồng bộ khi đã tắt');
+
+    await sync.sync();
+    expect(api.uploaded, hasLength(1));
   });
 }

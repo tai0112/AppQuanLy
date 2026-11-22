@@ -244,7 +244,16 @@ class SyncBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final (icon, text, color) = switch (sync.state) {
       SyncState.localOnly => (Icons.phone_iphone_rounded, 'Dữ liệu đang lưu trên máy (chưa đăng nhập)', Colors.blueGrey),
-      SyncState.syncing => (Icons.sync_rounded, 'Đang đồng bộ...', Colors.blue),
+      SyncState.syncing => (
+        Icons.sync_rounded,
+        sync.fileProgress == null ? 'Đang đồng bộ...' : 'Đang tải ảnh về máy ${sync.fileProgress!.$1 + 1}/${sync.fileProgress!.$2}...',
+        Colors.blue,
+      ),
+      SyncState.idle when !sync.autoSync => (
+        Icons.pause_circle_outline_rounded,
+        sync.pending > 0 ? 'Đồng bộ tự động đang tắt · ${sync.pending} thay đổi lưu trên máy' : 'Đồng bộ tự động đang tắt · bấm để đồng bộ',
+        Colors.blueGrey,
+      ),
       SyncState.offline => (Icons.cloud_off_rounded, 'Mất kết nối · ${sync.pending} thay đổi chờ đẩy lên', Colors.orange),
       SyncState.error => (Icons.error_outline_rounded, 'Lỗi đồng bộ: ${sync.lastError ?? ''}', Colors.red),
       SyncState.idle =>

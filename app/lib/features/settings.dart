@@ -1188,10 +1188,30 @@ class SyncStatusPage extends ConsumerWidget {
           SyncBanner(sync: sync),
           const SizedBox(height: 12),
           AppCard(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            child: SwitchListTile(
+              value: sync.autoSync,
+              onChanged: (v) => sync.autoSync = v,
+              secondary: Icon(sync.autoSync ? Icons.cloud_sync_rounded : Icons.phone_iphone_rounded, color: Theme.of(context).colorScheme.primary),
+              title: const Text('Tự động đồng bộ', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: Text(
+                  sync.autoSync
+                      ? 'Mọi thay đổi tự đẩy lên máy chủ và tải về từ các máy khác.'
+                      : 'Dữ liệu và ảnh chỉ lưu trên máy này. Bấm "Đồng bộ ngay" khi muốn đồng bộ.',
+                  key: ValueKey(sync.autoSync),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          AppCard(
             child: Column(
               children: [
                 ListTile(leading: const Icon(Icons.edit_note_rounded), title: const Text('Bản ghi chờ đẩy lên'), trailing: Text('${dirty.length}')),
                 ListTile(leading: const Icon(Icons.image_rounded), title: const Text('Ảnh chờ tải lên'), trailing: Text('${uploads.length}')),
+                ListTile(leading: const Icon(Icons.photo_library_rounded), title: const Text('Ảnh lưu trên máy'), trailing: Text('${store.localFileCount}')),
                 ListTile(leading: const Icon(Icons.outbox_rounded), title: const Text('Bài viết / tin nhắn chờ gửi'), trailing: Text('${outbox.length}')),
                 ListTile(
                   leading: Icon(Icons.bolt_rounded, color: rt.connected ? AppColors.income : null),
@@ -1219,7 +1239,8 @@ class SyncStatusPage extends ConsumerWidget {
           ],
           const SizedBox(height: 12),
           Text(
-            'Khi không có mạng, mọi thay đổi được lưu tạm trên máy. Có mạng trở lại, app tự đẩy lên máy chủ và xoá ảnh tạm khỏi bộ nhớ.',
+            'Dữ liệu và ảnh luôn được lưu trong máy nên dùng được cả khi không có mạng. Khi đồng bộ, app đẩy thay đổi và ảnh mới lên máy chủ, '
+            'đồng thời tải về dữ liệu và ảnh còn thiếu (vd ảnh thêm từ máy khác). Ảnh của bản ghi đã xoá sẽ được dọn khỏi máy.',
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],

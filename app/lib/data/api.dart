@@ -126,6 +126,21 @@ class ApiClient {
     return _call<Map<String, dynamic>>(() => _dio.post('/api/v1/files', data: form));
   }
 
+  /// Tải nội dung ảnh từ server (để lưu vào tệp trên máy). null = server không còn ảnh này.
+  Future<({Uint8List bytes, String mime})?> download(String fileId) async {
+    try {
+      final r = await _dio.get<List<int>>(
+        fileUrl(fileId),
+        options: Options(responseType: ResponseType.bytes, receiveTimeout: const Duration(seconds: 60)),
+      );
+      return (bytes: Uint8List.fromList(r.data ?? const []), mime: r.headers.value('content-type') ?? 'image/jpeg');
+    } on DioException catch (e) {
+      if (e.response == null) throw ApiException('Không kết nối được máy chủ', offline: true);
+      if (e.response!.statusCode == 404 || e.response!.statusCode == 403) return null;
+      throw ApiException('Lỗi tải ảnh (${e.response!.statusCode})', status: e.response!.statusCode);
+    }
+  }
+
   Future<bool> ping() async {
     try {
       final r = await Dio(BaseOptions(connectTimeout: const Duration(seconds: 3))).get('$baseUrl/health');

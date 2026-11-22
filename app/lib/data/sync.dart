@@ -11,11 +11,14 @@ import 'seed.dart';
 enum SyncState { idle, syncing, offline, error, localOnly }
 
 /// Đồng bộ offline-first:
-///  1. Upload ảnh đang chờ → xoá bản local (dọn cache)
+///  1. Upload ảnh đang chờ (tệp ảnh vẫn giữ trên máy)
 ///  2. Đẩy bản ghi đã sửa (push) → bỏ cờ "dirty"
 ///  3. Gửi bài viết / tin nhắn soạn lúc offline (outbox)
 ///  4. Lấy thay đổi từ server (pull) theo mốc thời gian
-/// Chạy khi: mở app, có mạng trở lại, sau khi sửa dữ liệu (chờ 1,5s), mỗi 60s, khi server báo SyncHint.
+///  5. Tải về các ảnh còn thiếu trên máy, dọn tệp ảnh không còn dùng
+/// Tự động đồng bộ (mặc định bật, cài đặt riêng từng máy): chạy khi mở app, có mạng trở lại, sau khi sửa dữ liệu (chờ 1,5s),
+/// mỗi 60s, khi server báo SyncHint. Tắt → dữ liệu chỉ lưu trên máy, chỉ đồng bộ khi người dùng bấm "Đồng bộ"
+/// (bài viết / tin nhắn vẫn gửi ngay vì là chức năng trực tuyến).
 class SyncEngine extends ChangeNotifier {
   SyncEngine(this.store, this.api);
 
@@ -35,13 +38,25 @@ class SyncEngine extends ChangeNotifier {
   final _sent = StreamController<({String kind, Map<String, dynamic> result})>.broadcast();
   Stream<({String kind, Map<String, dynamic> result})> get outboxSent => _sent.stream;
 
+  /// Tự động đồng bộ (lưu riêng trên máy này).
+  bool get autoSync => store.meta('autoSync') != '0';
+
+  set autoSync(bool v) {
+    store.setMeta('autoSync', v ? null : '0');
+    notifyListeners();
+    if (v) schedule(const Duration(milliseconds: 200));
+  }
+
+  /// Ảnh tải về trong lần đồng bộ đang chạy: (đã xong, tổng).
+  (int, int)? fileProgress;
+
   void start() {
     store.onLocalChange = schedule;
-    _timer = Timer.periodic(AppConfig.syncInterval, (_) => sync());
+    _timer = Timer.periodic(AppConfig.syncInterval, (_) => _autoRun());
     _conn = Connectivity().onConnectivityChanged.listen((r) {
       if (r.any((x) => x != ConnectivityResult.none)) schedule(const Duration(milliseconds: 300));
     });
-    sync();
+    _autoRun();
   }
 
   @override
@@ -54,8 +69,31 @@ class SyncEngine extends ChangeNotifier {
 
   void schedule([Duration delay = const Duration(milliseconds: 1500)]) {
     _debounce?.cancel();
-    _debounce = Timer(delay, sync);
+    _debounce = Timer(delay, _autoRun);
     notifyListeners();
+  }
+
+  /// Lần chạy tự động: bật tự động đồng bộ → đồng bộ đủ; tắt → chỉ gửi bài viết / tin nhắn đang chờ.
+  Future<void> _autoRun() async {
+    if (autoSync) return sync();
+    if (!api.isLoggedIn || _running || store.outbox().isEmpty) return;
+    _running = true;
+    try {
+      await _sendOutbox();
+    } catch (_) {
+      // mất mạng → lần sau gửi tiếp
+    } finally {
+      _running = false;
+      _runQueued();
+    }
+  }
+
+  /// Có yêu cầu "Đồng bộ" đến lúc đang chạy → chạy lại đồng bộ ĐẦY ĐỦ (yêu cầu tường minh, không phụ thuộc tự động).
+  void _runQueued() {
+    if (!_again) return;
+    _again = false;
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 200), sync);
   }
 
   /// Số thay đổi chờ đồng bộ (không tính dữ liệu chu kỳ khi người dùng tắt đồng bộ chu kỳ).
@@ -82,6 +120,7 @@ class SyncEngine extends ChangeNotifier {
       await _push();
       await _sendOutbox();
       await _pull();
+      await _downloadFiles();
       ensureActivityTemplates(store);
       ensureEventCategories(store); // tài khoản cũ chưa có danh mục lịch trình → tạo sau khi đã lấy dữ liệu server
       lastSyncedAt = DateTime.now();
@@ -95,10 +134,7 @@ class SyncEngine extends ChangeNotifier {
       _setState(SyncState.error);
     } finally {
       _running = false;
-      if (_again) {
-        _again = false;
-        schedule(const Duration(milliseconds: 200));
-      }
+      _runQueued();
     }
   }
 
@@ -118,8 +154,32 @@ class SyncEngine extends ChangeNotifier {
       // Đọc từng ảnh từ đĩa ngay lúc tải lên → mỗi lúc chỉ 1 ảnh nằm trong RAM.
       final bytes = await store.readFile(f.id);
       if (bytes != null) await api.upload(f.id, bytes, f.mime, f.name);
-      await store.fileUploaded(f.id); // mất file (không còn gì để tải) cũng bỏ khỏi hàng đợi, tránh kẹt mãi
+      await store.fileUploaded(f.id, missing: bytes == null); // mất file cũng bỏ khỏi hàng đợi, tránh kẹt mãi
     }
+  }
+
+  /// Tải về từng ảnh còn thiếu (mỗi lúc 1 ảnh trong RAM, ghi ngay xuống tệp), rồi dọn tệp ảnh không còn dùng.
+  Future<void> _downloadFiles() async {
+    final missing = store.missingFiles();
+    final gone = (store.meta('goneFiles') ?? '').split(',').where((s) => s.isNotEmpty).toSet();
+    final todo = missing.where((id) => !gone.contains(id)).toList();
+    try {
+      for (final (i, id) in todo.indexed) {
+        fileProgress = (i, todo.length);
+        notifyListeners();
+        final f = await api.download(id);
+        if (f == null) {
+          gone.add(id); // server không còn ảnh này → không thử lại mỗi lần
+        } else {
+          await store.saveDownloadedFile(id, f.bytes, f.mime);
+        }
+      }
+    } finally {
+      fileProgress = null;
+      store.setMeta('goneFiles', gone.isEmpty ? null : gone.join(','));
+      if (todo.isNotEmpty) store.notifyRemoteApplied(); // ảnh đã có trên máy → màn hình chuyển sang đọc tệp
+    }
+    await store.pruneLocalFiles();
   }
 
   Future<void> _push() async {

@@ -23,7 +23,7 @@ void main() {
 
   Uint8List img(int n, int v) => Uint8List.fromList(List.filled(n, v));
 
-  test('ảnh mới được ghi ra file, đọc lại đúng, tải lên xong thì xoá', () async {
+  test('ảnh mới được ghi ra file, đọc lại đúng, tải lên xong vẫn giữ tệp', () async {
     final store = LocalStore();
     await store.initForTest(filesDir: filesDir);
 
@@ -42,9 +42,12 @@ void main() {
     expect(pending.single.mime, 'image/jpeg');
 
     await store.fileUploaded(id);
-    expect(store.hasLocalFile(id), isFalse);
-    expect(f.existsSync(), isFalse);
+    expect(store.hasLocalFile(id), isTrue);
+    expect(f.existsSync(), isTrue);
     expect(store.pendingUploads(), isEmpty);
+
+    await store.fileUploaded('mat-roi', missing: true); // ảnh không còn trên máy → chỉ bỏ khỏi hàng đợi
+    expect(store.hasLocalFile('mat-roi'), isFalse);
   });
 
   test('kho cũ (Hive box "files" nạp hết vào RAM) được chuyển sang file rồi xoá', () async {
