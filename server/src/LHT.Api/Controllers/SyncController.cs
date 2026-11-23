@@ -13,6 +13,9 @@ public class SyncController(SyncService sync) : BaseApiController
         => OkResponse(await sync.PushAsync(CurrentUserId, req, ct));
 
     [HttpGet("pull")]
-    public async Task<ActionResult<ApiResponse<SyncPullResponse>>> Pull([FromQuery] DateTimeOffset? since, CancellationToken ct)
-        => OkResponse(await sync.PullAsync(CurrentUserId, since, ct));
+    public async Task<ActionResult<ApiResponse<SyncPullResponse>>> Pull(
+        [FromQuery] DateTimeOffset? since,
+        [FromQuery] bool full = false,
+        CancellationToken ct = default)
+        => OkResponse(await sync.PullAsync(CurrentUserId, full ? null : since, ct));
 }

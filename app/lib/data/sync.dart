@@ -144,6 +144,14 @@ class SyncEngine extends ChangeNotifier {
     await sync(forceFull: true);
   }
 
+  /// Xoá sạch bộ nhớ máy và kéo mới 100% từ máy chủ (dùng khi dữ liệu máy bị lệch hoặc muốn đồng bộ sạch).
+  Future<void> wipeAndResync() async {
+    await store.wipe();
+    seedDefaults(store);
+    store.setMeta('lastPulledAt', null);
+    await sync(forceFull: true);
+  }
+
   /// Lần đầu đăng nhập: lấy dữ liệu server trước; nếu tài khoản đã có dữ liệu thì bỏ dữ liệu mặc định chưa sửa trên máy.
   Future<void> firstSyncAfterLogin() async {
     try {
@@ -248,8 +256,16 @@ class SyncEngine extends ChangeNotifier {
   }
 
   Future<void> _pull({bool forceFull = false}) async {
-    final since = forceFull ? null : store.meta('lastPulledAt');
-    final res = await api.get<Map<String, dynamic>>('/sync/pull', query: since == null ? null : {'since': since});
+    // Nếu máy chưa có giao dịch và tài khoản nào, tự động kéo toàn bộ (full pull) để tránh kẹt mốc since cũ
+    final isEmpty = store.all(E.transactions).isEmpty && store.all(E.accounts).isEmpty;
+    final shouldFullPull = forceFull || isEmpty;
+
+    final since = shouldFullPull ? null : store.meta('lastPulledAt');
+    final query = <String, dynamic>{
+      if (since != null) 'since': since,
+      if (shouldFullPull) 'full': 'true',
+    };
+    final res = await api.get<Map<String, dynamic>>('/sync/pull', query: query.isEmpty ? null : query);
     _apply(res['changes'] as Map<String, dynamic>? ?? {});
     store.setMeta('lastPulledAt', res['serverTime'] as String);
   }

@@ -1319,6 +1319,43 @@ class SyncStatusPage extends ConsumerWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton.icon(
+              onPressed: sync.state == SyncState.syncing
+                  ? null
+                  : () async {
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Làm sạch máy & tải lại?'),
+                          content: const Text(
+                            'Toàn bộ bộ nhớ đệm trên máy sẽ được dọn sạch và tải lại dữ liệu mới nhất từ máy chủ. '
+                            'Dùng khi dữ liệu máy bị lệch hoặc bạn vừa xoá dữ liệu trên máy chủ.',
+                          ),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Xoá & Tải lại'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirm == true) {
+                        await sync.wipeAndResync();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Đã làm sạch máy và tải lại dữ liệu từ máy chủ')),
+                          );
+                        }
+                      }
+                    },
+              icon: const Icon(Icons.cleaning_services_rounded, size: 18),
+              label: const Text('Làm sạch máy & tải lại từ máy chủ'),
+            ),
+          ),
           const SizedBox(height: 12),
           if (dirty.isNotEmpty) ...[
             const SectionTitle('Chi tiết chờ đồng bộ'),
