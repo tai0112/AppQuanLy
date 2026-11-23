@@ -258,6 +258,15 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 keywords: 'bao cao vi pham quan tri',
                 onTap: () => context.push('/admin/reports'),
               ),
+            if (session.can(Perm.qtNhatKy) || session.isAdmin)
+              _S(
+                icon: Icons.history_rounded,
+                color: const Color(0xFF10B981),
+                title: 'Nhật ký hệ thống & API',
+                subtitle: 'Xem lịch sử gọi API, thời gian xử lý, lỗi và IP',
+                keywords: 'nhat ky he thong log api audit system',
+                onTap: () => context.push('/admin/logs'),
+              ),
           ],
         ),
       if (session.isLoggedIn)

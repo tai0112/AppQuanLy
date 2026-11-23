@@ -111,6 +111,113 @@ namespace LHT.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("LHT.Domain.Entities.ApiLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("Id")
+                        .HasComment("Khoá chính (UUID v7 do app sinh)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("NgayTao")
+                        .HasComment("Thời điểm tạo (UTC)");
+
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("NgayXoa")
+                        .HasComment("Thời điểm xoá mềm (UTC), NULL = chưa xoá");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ThoiGianXuLyMs")
+                        .HasComment("Thời gian xử lý tính bằng mili-giây");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("ThongDiepLoi")
+                        .HasComment("Chi tiết lỗi / Exception nếu có");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("DiaChiIp")
+                        .HasComment("Địa chỉ IP client");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("PhuongThuc")
+                        .HasComment("Phương thức HTTP: GET, POST, PUT, DELETE...");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)")
+                        .HasColumnName("DuongDan")
+                        .HasComment("Đường dẫn API");
+
+                    b.Property<string>("QueryString")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("ThamSo")
+                        .HasComment("Tham số truy vấn");
+
+                    b.Property<string>("RequestBody")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("DuLieuYeuCau")
+                        .HasComment("Nội dung body gửi lên (đã che mật khẩu)");
+
+                    b.Property<string>("ResponseBody")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("DuLieuTraVe")
+                        .HasComment("Nội dung phản hồi hoặc thông điệp lỗi");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("int")
+                        .HasColumnName("MaTrangThai")
+                        .HasComment("Mã trạng thái HTTP: 200, 400, 401, 500...");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset")
+                        .HasColumnName("NgayCapNhat")
+                        .HasComment("Thời điểm sửa gần nhất (UTC) - dùng để đồng bộ");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("TrinhDuyet")
+                        .HasComment("Trình duyệt hoặc ứng dụng gọi API");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("NguoiDungId")
+                        .HasComment("Mã người dùng (nếu đã đăng nhập)");
+
+                    b.Property<string>("Username")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("TenDangNhap")
+                        .HasComment("Tên đăng nhập");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Path");
+
+                    b.HasIndex("StatusCode");
+
+                    b.HasIndex("UpdatedAt");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("NhatKyApi", null, t =>
+                        {
+                            t.HasComment("Nhật ký truy cập và gọi API của hệ thống");
+                        });
+                });
+
             modelBuilder.Entity("LHT.Domain.Entities.AppSettings", b =>
                 {
                     b.Property<Guid>("Id")

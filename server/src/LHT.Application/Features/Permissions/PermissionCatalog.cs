@@ -40,6 +40,7 @@ public static class PermissionCatalog
             new(Perm.QuanTriNguoiDung, "Người dùng", "/admin/users", "manage_accounts", false),
             new(Perm.QuanTriChucNang, "Chức năng", "/admin/operations", "tune", false),
             new(Perm.QuanTriBaoCao, "Báo cáo vi phạm", "/admin/reports", "flag", false),
+            new(Perm.QuanTriNhatKy, "Nhật ký hệ thống", "/admin/logs", "history", false),
         ]),
     ];
 }

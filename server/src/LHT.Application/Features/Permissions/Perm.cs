@@ -21,6 +21,7 @@ public static class Perm
     public const string QuanTriNguoiDung = "QUAN_TRI.NGUOI_DUNG";
     public const string QuanTriChucNang = "QUAN_TRI.CHUC_NANG";
     public const string QuanTriBaoCao = "QUAN_TRI.BAO_CAO";
+    public const string QuanTriNhatKy = "QUAN_TRI.NHAT_KY";
 
     public const string RoleAdmin = "ADMIN";
     public const string RoleUser = "USER";

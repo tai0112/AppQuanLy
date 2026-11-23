@@ -140,13 +140,18 @@ class SyncEngine extends ChangeNotifier {
 
   /// Lần đầu đăng nhập: lấy dữ liệu server trước; nếu tài khoản đã có dữ liệu thì bỏ dữ liệu mặc định chưa sửa trên máy.
   Future<void> firstSyncAfterLogin() async {
-    store.setMeta('lastPulledAt', null);
-    final res = await api.get<Map<String, dynamic>>('/sync/pull');
-    final changes = (res['changes'] as Map<String, dynamic>? ?? {});
-    if ((changes[E.categories] as List?)?.isNotEmpty == true) store.dropUntouchedSeeds();
-    _apply(changes);
-    store.setMeta('lastPulledAt', res['serverTime'] as String);
-    await sync();
+    try {
+      store.setMeta('lastPulledAt', null);
+      final res = await api.get<Map<String, dynamic>>('/sync/pull');
+      final changes = (res['changes'] as Map<String, dynamic>? ?? {});
+      if ((changes[E.categories] as List?)?.isNotEmpty == true) store.dropUntouchedSeeds();
+      _apply(changes);
+      store.setMeta('lastPulledAt', res['serverTime'] as String);
+      await sync();
+    } catch (e) {
+      debugPrint('firstSyncAfterLogin error: $e');
+      // Không để lỗi đồng bộ ban đầu chặn luồng đăng nhập
+    }
   }
 
   Future<void> _uploadFiles() async {
@@ -192,12 +197,18 @@ class SyncEngine extends ChangeNotifier {
           for (final r in chunk) {'entity': r.entity, 'data': _clean(r.data)},
         ],
       });
-      final accepted = (res['accepted'] as List).cast<String>().toSet();
+      final accepted = (res['accepted'] as List?)?.map((x) => x.toString()).toSet() ?? <String>{};
       for (final r in chunk) {
         if (accepted.contains(r.data['id'])) store.markSynced(r.entity, r.data['id'] as String);
       }
-      for (final rej in (res['rejected'] as List).cast<Map<String, dynamic>>()) {
-        store.markRejected(rej['entity'] as String, rej['id'] as String, rej['reason'] as String);
+      final rejList = res['rejected'] as List?;
+      if (rejList != null) {
+        for (final raw in rejList) {
+          if (raw is Map) {
+            final rej = Map<String, dynamic>.from(raw);
+            store.markRejected(rej['entity'] as String, rej['id'] as String, rej['reason'] as String);
+          }
+        }
       }
     }
   }
@@ -240,8 +251,12 @@ class SyncEngine extends ChangeNotifier {
   void _apply(Map<String, dynamic> changes) {
     if (changes.isEmpty) return;
     for (final e in changes.entries) {
-      for (final rec in (e.value as List).cast<Map<String, dynamic>>()) {
-        store.applyRemote(e.key, rec);
+      final list = e.value as List?;
+      if (list == null) continue;
+      for (final raw in list) {
+        if (raw is Map) {
+          store.applyRemote(e.key, Map<String, dynamic>.from(raw));
+        }
       }
     }
     store.notifyRemoteApplied();

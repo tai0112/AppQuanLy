@@ -12,6 +12,7 @@ import 'core/ui.dart';
 import 'data/local_store.dart';
 import 'features/accounts.dart';
 import 'features/admin.dart';
+import 'features/api_logs.dart';
 import 'features/moderation.dart';
 import 'features/budgets.dart';
 import 'features/categories.dart';
@@ -171,6 +172,7 @@ final router = GoRouter(
     GoRoute(path: '/settings/time', pageBuilder: (c, s) => _page(s, const TimeSettingsPage())),
     GoRoute(path: '/admin', pageBuilder: (c, s) => _page(s, const AdminPage())),
     GoRoute(path: '/admin/reports', pageBuilder: (c, s) => _page(s, const AdminReportsPage())),
+    GoRoute(path: '/admin/logs', pageBuilder: (c, s) => _page(s, const ApiLogsPage())),
     GoRoute(
       path: '/legal/:doc',
       pageBuilder: (c, s) => _page(s, LegalPage(doc: s.pathParameters['doc'] ?? 'privacy')),

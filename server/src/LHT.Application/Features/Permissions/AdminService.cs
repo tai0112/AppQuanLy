@@ -187,4 +187,110 @@ public class AdminService(IAppDbContext db, IPermissionService permissions, LHT.
         await db.SaveChangesAsync(ct);
         permissions.InvalidateAll();
     }
+
+    // ----- Nhật ký hệ thống / API -----
+    public async Task<LHT.Application.Features.Dtos.Admin.PagedResult<LHT.Application.Features.Dtos.Admin.ApiLogDto>> GetApiLogsAsync(LHT.Application.Features.Dtos.Admin.ApiLogFilterQuery query, CancellationToken ct)
+    {
+        var q = db.Set<ApiLog>().AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            var s = query.Search.Trim();
+            q = q.Where(x => x.Path.Contains(s) || (x.Username != null && x.Username.Contains(s)) || (x.IpAddress != null && x.IpAddress.Contains(s)) || (x.ErrorMessage != null && x.ErrorMessage.Contains(s)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Method))
+        {
+            var m = query.Method.Trim().ToUpperInvariant();
+            q = q.Where(x => x.Method == m);
+        }
+
+        if (query.StatusCode.HasValue)
+        {
+            q = q.Where(x => x.StatusCode == query.StatusCode.Value);
+        }
+
+        if (query.OnlyErrors == true)
+        {
+            q = q.Where(x => x.StatusCode >= 400);
+        }
+
+        if (query.FromDate.HasValue)
+        {
+            q = q.Where(x => x.CreatedAt >= query.FromDate.Value);
+        }
+
+        if (query.ToDate.HasValue)
+        {
+            q = q.Where(x => x.CreatedAt <= query.ToDate.Value);
+        }
+
+        var total = await q.LongCountAsync(ct);
+        var page = Math.Max(1, query.Page);
+        var pageSize = Math.Clamp(query.PageSize, 1, 100);
+        var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+
+        var items = await q.OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new LHT.Application.Features.Dtos.Admin.ApiLogDto(
+                x.Id,
+                x.CreatedAt,
+                x.UserId,
+                x.Username,
+                x.Method,
+                x.Path,
+                x.QueryString,
+                x.StatusCode,
+                x.DurationMs,
+                x.IpAddress,
+                x.UserAgent,
+                x.RequestBody,
+                x.ResponseBody,
+                x.ErrorMessage))
+            .ToListAsync(ct);
+
+        return new LHT.Application.Features.Dtos.Admin.PagedResult<LHT.Application.Features.Dtos.Admin.ApiLogDto>(items, total, page, pageSize, totalPages);
+    }
+
+    public async Task<LHT.Application.Features.Dtos.Admin.ApiLogDto> GetApiLogDetailAsync(Guid id, CancellationToken ct)
+    {
+        var x = await db.Set<ApiLog>().AsNoTracking().FirstOrDefaultAsync(l => l.Id == id, ct) ?? throw AppException.NotFound();
+        return new LHT.Application.Features.Dtos.Admin.ApiLogDto(
+            x.Id,
+            x.CreatedAt,
+            x.UserId,
+            x.Username,
+            x.Method,
+            x.Path,
+            x.QueryString,
+            x.StatusCode,
+            x.DurationMs,
+            x.IpAddress,
+            x.UserAgent,
+            x.RequestBody,
+            x.ResponseBody,
+            x.ErrorMessage);
+    }
+
+    public async Task<int> ClearApiLogsAsync(int keepDays, CancellationToken ct)
+    {
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-Math.Max(1, keepDays));
+        return await db.Set<ApiLog>().Where(x => x.CreatedAt < cutoff).ExecuteDeleteAsync(ct);
+    }
+
+    public async Task<LHT.Application.Features.Dtos.Admin.ApiLogStatsDto> GetApiLogStatsAsync(CancellationToken ct)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var startOfToday = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.Zero);
+
+        var total = await db.Set<ApiLog>().LongCountAsync(ct);
+        var errors = await db.Set<ApiLog>().Where(x => x.StatusCode >= 400).LongCountAsync(ct);
+        var avgMs = total > 0 ? await db.Set<ApiLog>().AverageAsync(x => (double)x.DurationMs, ct) : 0;
+
+        var todayTotal = await db.Set<ApiLog>().Where(x => x.CreatedAt >= startOfToday).LongCountAsync(ct);
+        var todayErrors = await db.Set<ApiLog>().Where(x => x.CreatedAt >= startOfToday && x.StatusCode >= 400).LongCountAsync(ct);
+
+        return new LHT.Application.Features.Dtos.Admin.ApiLogStatsDto(total, errors, Math.Round(avgMs, 1), todayTotal, todayErrors);
+    }
 }

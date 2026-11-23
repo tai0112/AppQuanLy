@@ -27,6 +27,11 @@ builder.Services.AddSingleton<PresenceTracker>();
 builder.Services.AddSingleton<IRealtimeNotifier, RealtimeNotifier>();
 builder.Services.AddSingleton<IUserIdProvider, SubUserIdProvider>();
 
+// Hàng đợi & xử lý nhật ký API nền
+builder.Services.AddSingleton<ApiLogQueue>();
+builder.Services.AddSingleton<IApiLogQueue>(sp => sp.GetRequiredService<ApiLogQueue>());
+builder.Services.AddHostedService<ApiLogProcessor>();
+
 // Xác thực JWT (dùng cho cả REST và SignalR)
 var jwtKey = config["Jwt:Key"];
 if (string.IsNullOrWhiteSpace(jwtKey)) throw new InvalidOperationException("Thiếu cấu hình Jwt:Key");
@@ -87,6 +92,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<ApiLoggingMiddleware>();
 app.UseCors();
 
 if (app.Environment.IsDevelopment())

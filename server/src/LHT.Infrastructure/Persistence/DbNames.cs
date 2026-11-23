@@ -54,6 +54,7 @@ internal static class DbNames
         ["Role"] = "VaiTro",
         ["UserRole"] = "NguoiDungVaiTro",
         ["RoleOperation"] = "VaiTroChucNang",
+        ["ApiLog"] = "NhatKyApi",
     };
 
     /// <summary>Tên cột riêng cho từng bảng (ưu tiên hơn <see cref="Columns"/>).</summary>
@@ -284,6 +285,17 @@ internal static class DbNames
         ["IsSystem"] = "LaHeThong",
         ["RoleId"] = "VaiTroId",
         ["OperationId"] = "ChucNangId",
+
+        // Nhật ký API
+        ["Method"] = "PhuongThuc",
+        ["QueryString"] = "ThamSo",
+        ["StatusCode"] = "MaTrangThai",
+        ["DurationMs"] = "ThoiGianXuLyMs",
+        ["IpAddress"] = "DiaChiIp",
+        ["UserAgent"] = "TrinhDuyet",
+        ["RequestBody"] = "DuLieuYeuCau",
+        ["ResponseBody"] = "DuLieuTraVe",
+        ["ErrorMessage"] = "ThongDiepLoi",
     };
 
     public static string Table(Type clr)

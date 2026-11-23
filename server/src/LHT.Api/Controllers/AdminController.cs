@@ -76,4 +76,22 @@ public class AdminController(AdminService admin) : BaseApiController
         await admin.SetUserRolesAsync(id, req.Ids, ct);
         return OkResponse(true);
     }
+
+    // ----- Nhật ký hệ thống & API -----
+    [HttpGet("logs"), HasPermission(Perm.QuanTriNhatKy)]
+    public async Task<ActionResult<ApiResponse<LHT.Application.Features.Dtos.Admin.PagedResult<LHT.Application.Features.Dtos.Admin.ApiLogDto>>>> Logs(
+        [FromQuery] LHT.Application.Features.Dtos.Admin.ApiLogFilterQuery query, CancellationToken ct)
+        => OkResponse(await admin.GetApiLogsAsync(query, ct));
+
+    [HttpGet("logs/stats"), HasPermission(Perm.QuanTriNhatKy)]
+    public async Task<ActionResult<ApiResponse<LHT.Application.Features.Dtos.Admin.ApiLogStatsDto>>> LogStats(CancellationToken ct)
+        => OkResponse(await admin.GetApiLogStatsAsync(ct));
+
+    [HttpGet("logs/{id:guid}"), HasPermission(Perm.QuanTriNhatKy)]
+    public async Task<ActionResult<ApiResponse<LHT.Application.Features.Dtos.Admin.ApiLogDto>>> LogDetail(Guid id, CancellationToken ct)
+        => OkResponse(await admin.GetApiLogDetailAsync(id, ct));
+
+    [HttpDelete("logs"), HasPermission(Perm.QuanTriNhatKy)]
+    public async Task<ActionResult<ApiResponse<int>>> ClearLogs([FromQuery] int keepDays = 30, CancellationToken ct = default)
+        => OkResponse(await admin.ClearApiLogsAsync(keepDays, ct));
 }

@@ -29,6 +29,7 @@ class Perm {
   static const qtNguoiDung = 'QUAN_TRI.NGUOI_DUNG';
   static const qtChucNang = 'QUAN_TRI.CHUC_NANG';
   static const qtBaoCao = 'QUAN_TRI.BAO_CAO';
+  static const qtNhatKy = 'QUAN_TRI.NHAT_KY';
 
   /// Chức năng cá nhân dùng được khi chưa đăng nhập (offline).
   static const offline = {giaoDich, taiKhoan, thongKe, danhMuc, dinhMuc, huTietKiem, tienDien, ngayYeu, chuKy, nhacNho, lichTrinh};

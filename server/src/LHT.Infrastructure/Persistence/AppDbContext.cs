@@ -69,9 +69,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RoleOperation> RoleOperations => Set<RoleOperation>();
 
+    // Nhật ký hệ thống
+    public DbSet<ApiLog> ApiLogs => Set<ApiLog>();
+
     /// <summary>Tên cột dạng văn bản dài → nvarchar(max).</summary>
     private static readonly HashSet<string> LongTextColumns =
-        ["Content", "Note", "Description", "Body", "Bio", "RRule"];
+        ["Content", "Note", "Description", "Body", "Bio", "RRule", "RequestBody", "ResponseBody", "ErrorMessage", "QueryString"];
 
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
