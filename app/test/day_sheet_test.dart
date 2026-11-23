@@ -69,18 +69,18 @@ void main() {
     await t.tap(find.descendant(of: find.byWidgetPredicate((w) => w is TableCalendar), matching: find.text('$today')).first);
     await settle(t);
 
-    expect(find.text('3 ô'), findsOneWidget, reason: 'bảng ngày phải mở ra');
+    expect(find.byTooltip('3 ô'), findsOneWidget, reason: 'bảng ngày phải mở ra');
     expect(find.textContaining('7 giao dịch'), findsWidgets);
 
     for (final mode in ['4 ô', 'Danh sách', '3 ô']) {
-      await t.tap(find.text(mode));
+      await t.tap(find.byTooltip(mode));
       await settle(t);
       expect(t.takeException(), isNull, reason: 'chế độ $mode không được lỗi bố cục');
     }
     expect(store.meta('txDayView'), '3', reason: 'nhớ kiểu xem đã chọn');
 
     // Đóng bảng, rồi thử vuốt mép để đổi tháng (cùng một ProviderScope như app thật).
-    Navigator.of(t.element(find.text('3 ô'))).pop();
+    Navigator.of(t.element(find.byTooltip('3 ô'))).pop();
     await settle(t);
     String label(DateTime d) => 'Tháng ${d.month.toString().padLeft(2, '0')}/${d.year}';
     final now = DateTime.now();

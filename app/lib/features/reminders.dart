@@ -461,8 +461,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
   Widget _repeatPanel(ColorScheme scheme) {
     switch (_mode) {
       case ReminderRepeat.weekdays:
-        final firstSunday = TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek == 7;
-        final order = firstSunday ? const [7, 1, 2, 3, 4, 5, 6] : const [1, 2, 3, 4, 5, 6, 7];
+        final order = TimeConfig.of(ref.read(storeProvider)).weekdayOrder;
         return Padding(
           padding: const EdgeInsets.only(top: 14),
           child: Column(
@@ -527,7 +526,7 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
                 firstDay: today,
                 lastDay: DateTime(today.year + 5, 12, 31),
                 focusedDay: _focused.isBefore(today) ? today : _focused,
-                startingDayOfWeek: TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek == 7 ? StartingDayOfWeek.sunday : StartingDayOfWeek.monday,
+                startingDayOfWeek: StartingDayOfWeek.values[TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek - 1],
                 availableCalendarFormats: const {CalendarFormat.month: 'Tháng'},
                 rowHeight: 42,
                 daysOfWeekHeight: 26,

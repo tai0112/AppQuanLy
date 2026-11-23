@@ -35,8 +35,17 @@ class TimeConfig {
   /// Thời lượng mặc định của hoạt động mới (phút).
   final int defaultActivityMinutes;
 
-  /// Ngày đầu tuần trên lịch: 1 = Thứ 2, 7 = Chủ nhật.
+  /// Ngày đầu tuần trên lịch: 1 = Thứ 2 … 7 = Chủ nhật (chọn được cả 7 thứ).
   final int firstDayOfWeek;
+
+  /// Thứ (1 = T2 … 7 = CN) theo đúng thứ tự cột trên lịch, bắt đầu từ ngày đầu tuần.
+  List<int> get weekdayOrder => [for (var i = 0; i < 7; i++) (firstDayOfWeek - 1 + i) % 7 + 1];
+
+  /// Ngày đầu của tuần chứa [d].
+  DateTime weekStart(DateTime d) {
+    final x = DateTime(d.year, d.month, d.day);
+    return DateTime(x.year, x.month, x.day - (x.weekday - firstDayOfWeek + 7) % 7);
+  }
 
   static TimeConfig defaults() => TimeConfig(
     remindOptions: [0, 10, 30, 60, 120, 1440],
@@ -68,7 +77,7 @@ class TimeConfig {
       dayEndHour: optInt('dayEndHour', d.dayEndHour)!,
       snapMinutes: optInt('snapMinutes', d.snapMinutes)!,
       defaultActivityMinutes: optInt('defaultActivityMinutes', d.defaultActivityMinutes)!,
-      firstDayOfWeek: (s?['firstDayOfWeek'] as num?)?.toInt() ?? d.firstDayOfWeek,
+      firstDayOfWeek: ((s?['firstDayOfWeek'] as num?)?.toInt() ?? d.firstDayOfWeek).clamp(1, 7),
     );
   }
 

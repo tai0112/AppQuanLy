@@ -22,7 +22,8 @@ class AppColors {
     Color(0xFF6E56CF),
   ];
 
-  static const palette = <Color>[
+  /// Màu tự gán (avatar, cột thống kê). Giữ cố định để màu avatar của mọi người không đổi khi thêm màu chọn.
+  static const autoPalette = <Color>[
     Color(0xFFE5484D),
     Color(0xFFF76B15),
     Color(0xFFFFC53D),
@@ -35,6 +36,12 @@ class AppColors {
     Color(0xFF8D8D86),
     Color(0xFFAD7F58),
     Color(0xFF46A758),
+  ];
+
+  /// Bảng chọn màu (chủ đề, danh mục, tài khoản…) = màu tự gán + màu thêm.
+  static const palette = <Color>[
+    ...autoPalette,
+    Color(0xFFF4A6C6), // hồng nhạt
   ];
 }
 

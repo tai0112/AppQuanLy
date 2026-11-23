@@ -18,6 +18,7 @@ import 'features/categories.dart';
 import 'features/chat.dart';
 import 'features/cycle.dart';
 import 'features/electricity.dart';
+import 'features/import_mm.dart';
 import 'features/notify_settings.dart';
 import 'features/jars.dart';
 import 'features/love.dart';
@@ -124,7 +125,15 @@ final router = GoRouter(
     GoRoute(path: '/schedule', pageBuilder: (c, s) => _page(s, const SchedulePage())),
     GoRoute(
       path: '/schedule/edit',
-      pageBuilder: (c, s) => _page(s, EventEditPage(id: _extra(s)['id'] as String?, date: _extra(s)['date'] as DateTime?)),
+      pageBuilder: (c, s) => _page(
+        s,
+        EventEditPage(
+          id: _extra(s)['id'] as String?,
+          date: _extra(s)['date'] as DateTime?,
+          endDate: _extra(s)['end'] as DateTime?,
+          timed: _extra(s)['timed'] == true,
+        ),
+      ),
     ),
     GoRoute(
       path: '/schedule/detail',
@@ -156,6 +165,7 @@ final router = GoRouter(
     GoRoute(path: '/settings', pageBuilder: (c, s) => _page(s, const SettingsPage())),
     GoRoute(path: '/settings/menu', pageBuilder: (c, s) => _page(s, const MenuConfigPage())),
     GoRoute(path: '/settings/sync', pageBuilder: (c, s) => _page(s, const SyncStatusPage())),
+    GoRoute(path: '/settings/import-mm', pageBuilder: (c, s) => _page(s, const MoneyManagerImportPage())),
     GoRoute(path: '/settings/notifications', pageBuilder: (c, s) => _page(s, const NotifySettingsPage())),
     GoRoute(path: '/settings/time', pageBuilder: (c, s) => _page(s, const TimeSettingsPage())),
     GoRoute(path: '/admin', pageBuilder: (c, s) => _page(s, const AdminPage())),

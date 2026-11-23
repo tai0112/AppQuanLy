@@ -175,18 +175,27 @@ class LocalStore extends ChangeNotifier {
   // ------------------------------------------------------------------ Ghi
 
   /// Thêm/sửa bản ghi (đánh dấu cần đồng bộ). Trả về bản ghi đã lưu.
-  Map<String, dynamic> put(String entity, Map<String, dynamic> data, {bool notify = true}) {
+  /// [localOnly] = chỉ lưu trên máy, không bao giờ tự đẩy lên server (kể cả khi sửa sau này) cho tới khi gọi [promoteLocalOnly].
+  Map<String, dynamic> put(String entity, Map<String, dynamic> data, {bool notify = true, bool localOnly = false}) {
     final now = DateTime.now().toUtc().toIso8601String();
     final id = (data['id'] as String?) ?? newId();
     final existing = _cache[entity]?[id];
     final rec = <String, dynamic>{...?existing, ...data, 'id': id, 'updatedAt': now};
     rec['createdAt'] ??= now;
+    if (localOnly) rec[kLocalOnly] = true;
     _write(entity, rec);
+    if (rec[kLocalOnly] == true) {
+      if (notify) notifyListeners();
+      return rec;
+    }
     _dirty.put('$entity|$id', 0);
     _unmarkSeed('$entity|$id');
     if (notify) _changed();
     return rec;
   }
+
+  /// Báo thay đổi sau một loạt put(notify: false).
+  void commit() => _changed();
 
   void putAll(String entity, Iterable<Map<String, dynamic>> items) {
     for (final i in items) {
@@ -243,6 +252,54 @@ class LocalStore extends ChangeNotifier {
   }
 
   void markSynced(String entity, String id) => _dirty.delete('$entity|$id');
+
+  // ------------------------------------------------------------------ Chỉ lưu trên máy
+
+  /// Trường đánh dấu bản ghi chỉ lưu trên máy (không gửi lên server; trường bắt đầu bằng "_" cũng bị lọc khi đẩy).
+  static const kLocalOnly = '_localOnly';
+
+  /// Số bản ghi (chưa xoá) đang chỉ lưu trên máy, theo bảng.
+  Map<String, int> localOnlyCounts() {
+    final out = <String, int>{};
+    for (final e in _cache.entries) {
+      final n = e.value.values.where((r) => r[kLocalOnly] == true && r['deletedAt'] == null).length;
+      if (n > 0) out[e.key] = n;
+    }
+    return out;
+  }
+
+  /// Đưa mọi bản ghi "chỉ lưu trên máy" vào hàng đợi đồng bộ, kèm ảnh của chúng (xếp hàng tải lên).
+  void promoteLocalOnly() {
+    final files = <String>{};
+    for (final entity in E.pushOrder) {
+      for (final rec in (_cache[entity]?.values ?? const <Map<String, dynamic>>[]).where((r) => r[kLocalOnly] == true).toList()) {
+        final copy = {...rec}..remove(kLocalOnly);
+        _write(entity, copy);
+        _dirty.put('$entity|${copy['id']}', 0);
+        if (copy['deletedAt'] == null) {
+          for (final e in copy.entries) {
+            if (e.value is String && (e.key == 'fileId' || e.key.endsWith('FileId'))) files.add(e.value as String);
+          }
+        }
+      }
+    }
+    files.forEach(queueUpload);
+    _changed();
+  }
+
+  /// Xếp hàng tải lên một ảnh đã có trong tệp trên máy.
+  void queueUpload(String id) {
+    final local = _localFiles.get(id);
+    if (local == null || _fileMeta.containsKey(id)) return;
+    final mime = local.split('|').first;
+    _fileMeta.put(id, jsonEncode({'mime': mime, 'name': mime == 'image/png' ? 'photo.png' : 'photo.jpg'}));
+  }
+
+  /// Có bản ghi [id] trên máy không (kể cả đã xoá).
+  bool exists(String entity, String id) => _cache[entity]?.containsKey(id) ?? false;
+
+  /// Lưu ảnh vào tệp trên máy mà KHÔNG xếp hàng tải lên (dữ liệu chỉ lưu trên máy).
+  Future<void> saveLocalFile(String id, Uint8List bytes, String mime) => saveDownloadedFile(id, bytes, mime);
 
   /// Bản ghi bị server từ chối: thử lại tối đa 5 lần rồi bỏ cờ.
   void markRejected(String entity, String id, String reason) {

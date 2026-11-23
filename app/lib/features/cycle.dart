@@ -28,6 +28,9 @@ class _CyclePageState extends ConsumerState<CyclePage> {
   int subject = 1;
   DateTime focused = DateTime.now();
 
+  /// Lùi / tiến một tháng trên lịch (lịch tự trượt tới trang mới).
+  void _moveMonth(int delta) => setState(() => focused = DateTime(focused.year, focused.month + delta, 1));
+
   CycleSettings _settings(LocalStore store) {
     final rec = store.all(E.cycleSettings).where((s) => (s['subject'] ?? 1) == subject).firstOrNull;
     return CycleSettings(rec ?? {'subject': subject});
@@ -60,170 +63,175 @@ class _CyclePageState extends ConsumerState<CyclePage> {
         icon: const Icon(Icons.water_drop_rounded),
         label: const Text('Ghi kỳ kinh'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
-        children: [
-          Center(
-            child: PillToggle<int>(
-              value: subject,
-              values: const [1, 2],
-              icons: const [Icons.person_rounded, Icons.favorite_rounded],
-              labels: const ['Bản thân', 'Người yêu'],
-              colors: const [AppColors.cycle, AppColors.love],
-              itemWidth: 116,
-              onChanged: (v) => setState(() => subject = v),
-            ),
-          ),
-          const SizedBox(height: 14),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (c, a) => FadeTransition(
-              opacity: a,
-              child: SlideTransition(
-                position: Tween(begin: const Offset(0, 0.05), end: Offset.zero).animate(a),
-                child: c,
+      // Vuốt từ mép trái / phải màn hình để lùi / tiến một tháng.
+      body: EdgeSwipe(
+        onPrev: () => _moveMonth(-1),
+        onNext: () => _moveMonth(1),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+          children: [
+            Center(
+              child: PillToggle<int>(
+                value: subject,
+                values: const [1, 2],
+                icons: const [Icons.person_rounded, Icons.favorite_rounded],
+                labels: const ['Bản thân', 'Người yêu'],
+                colors: const [AppColors.cycle, AppColors.love],
+                itemWidth: 116,
+                onChanged: (v) => setState(() => subject = v),
               ),
             ),
-            child: KeyedSubtree(key: ValueKey('$subject-${p == null}'), child: p == null ? _emptyCard() : _todayCard(p, periods, settings)),
-          ),
-          if (p != null) ...[
-            const SectionTitle('7 ngày tới'),
-            _weekStrip(p, periods, settings),
-            const SizedBox(height: 12),
-            AppCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.event_available_rounded, color: AppColors.cycle, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text('Kỳ tiếp theo: ${Fmt.date(p.nextStart)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              transitionBuilder: (c, a) => FadeTransition(
+                opacity: a,
+                child: SlideTransition(
+                  position: Tween(begin: const Offset(0, 0.05), end: Offset.zero).animate(a),
+                  child: c,
+                ),
+              ),
+              child: KeyedSubtree(key: ValueKey('$subject-${p == null}'), child: p == null ? _emptyCard() : _todayCard(p, periods, settings)),
+            ),
+            if (p != null) ...[
+              const SectionTitle('7 ngày tới'),
+              _weekStrip(p, periods, settings),
+              const SizedBox(height: 12),
+              AppCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.event_available_rounded, color: AppColors.cycle, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Kỳ tiếp theo: ${Fmt.date(p.nextStart)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
+                    if (p.earliest != p.latest)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 28, top: 2),
+                        child: Text(
+                          'Có thể từ ${Fmt.dateShort(p.earliest)} đến ${Fmt.dateShort(p.latest)}',
+                          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                        ),
                       ),
-                    ],
-                  ),
-                  if (p.earliest != p.latest)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 28, top: 2),
-                      child: Text(
-                        'Có thể từ ${Fmt.dateShort(p.earliest)} đến ${Fmt.dateShort(p.latest)}',
+                    const SizedBox(height: 12),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      childAspectRatio: 2.6,
+                      children: [
+                        _stat(Icons.loop_rounded, 'Chu kỳ TB', '${p.avgCycle.toStringAsFixed(1)} ngày', AppColors.cycle),
+                        _stat(Icons.water_drop_rounded, 'Hành kinh TB', '${p.avgPeriod.toStringAsFixed(1)} ngày', AppColors.cycle),
+                        _stat(Icons.egg_rounded, 'Rụng trứng', Fmt.dateShort(p.ovulation), AppColors.income),
+                        _stat(Icons.spa_rounded, 'Dễ thụ thai', '${Fmt.dateShort(p.fertileStart)}–${Fmt.dateShort(p.fertileEnd)}', AppColors.income),
+                      ],
+                    ),
+                    if (p.calendarFertile != null || p.standardDays == true) const SizedBox(height: 8),
+                    if (p.calendarFertile != null)
+                      Text(
+                        'Phương pháp lịch (Ogino–Knaus): ngày ${p.calendarFertile!.$1} → ${p.calendarFertile!.$2} của chu kỳ',
                         style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                       ),
-                    ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 2.6,
-                    children: [
-                      _stat(Icons.loop_rounded, 'Chu kỳ TB', '${p.avgCycle.toStringAsFixed(1)} ngày', AppColors.cycle),
-                      _stat(Icons.water_drop_rounded, 'Hành kinh TB', '${p.avgPeriod.toStringAsFixed(1)} ngày', AppColors.cycle),
-                      _stat(Icons.egg_rounded, 'Rụng trứng', Fmt.dateShort(p.ovulation), AppColors.income),
-                      _stat(Icons.spa_rounded, 'Dễ thụ thai', '${Fmt.dateShort(p.fertileStart)}–${Fmt.dateShort(p.fertileEnd)}', AppColors.income),
-                    ],
-                  ),
-                  if (p.calendarFertile != null || p.standardDays == true) const SizedBox(height: 8),
-                  if (p.calendarFertile != null)
-                    Text(
-                      'Phương pháp lịch (Ogino–Knaus): ngày ${p.calendarFertile!.$1} → ${p.calendarFertile!.$2} của chu kỳ',
-                      style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                    ),
-                  if (p.standardDays == true)
-                    Text(
-                      'Standard Days Method: ngày 8 → 19 của chu kỳ (chu kỳ đều 26–32 ngày)',
-                      style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                    ),
-                  for (final w in p.warnings)
-                    Container(
-                      margin: const EdgeInsets.only(top: 10),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 18),
-                          const SizedBox(width: 8),
-                          Expanded(child: Text(w, style: const TextStyle(fontSize: 13))),
-                        ],
+                    if (p.standardDays == true)
+                      Text(
+                        'Standard Days Method: ngày 8 → 19 của chu kỳ (chu kỳ đều 26–32 ngày)',
+                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                       ),
-                    ),
-                ],
+                    for (final w in p.warnings)
+                      Container(
+                        margin: const EdgeInsets.only(top: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, color: AppColors.warning, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(w, style: const TextStyle(fontSize: 13))),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            AppCard(
+              padding: const EdgeInsets.all(8),
+              child: TableCalendar(
+                locale: 'vi',
+                // Chỉ nhận vuốt ngang (đổi tháng); vuốt dọc nhường cho cuộn màn hình — bắt đầu vuốt trên lịch vẫn cuộn được.
+                availableGestures: AvailableGestures.horizontalSwipe,
+                firstDay: DateTime(2000),
+                lastDay: DateTime(2100),
+                focusedDay: focused,
+                startingDayOfWeek: StartingDayOfWeek.values[TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek - 1],
+                availableCalendarFormats: const {CalendarFormat.month: 'Tháng'},
+                daysOfWeekHeight: 30,
+                rowHeight: 46,
+                headerStyle: HeaderStyle(
+                  titleCentered: true,
+                  formatButtonVisible: false,
+                  titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  titleTextFormatter: (d, _) => 'Tháng ${d.month}, ${d.year}',
+                  leftChevronIcon: _navIcon(Icons.chevron_left_rounded),
+                  rightChevronIcon: _navIcon(Icons.chevron_right_rounded),
+                ),
+                onPageChanged: (d) => focused = d,
+                onDayLongPressed: (d, _) => _editPeriod(null, start: d),
+                calendarBuilders: CalendarBuilders(
+                  dowBuilder: (c, d) => calendarDow(c, d, CalendarLook.of(store)),
+                  defaultBuilder: (c, d, _) =>
+                      _day(d, inPeriod(dateOnly(d)), predicted(dateOnly(d)), fertile(dateOnly(d)), p != null && isSameDay(d, p.ovulation)),
+                  todayBuilder: (c, d, _) =>
+                      _day(d, inPeriod(dateOnly(d)), predicted(dateOnly(d)), fertile(dateOnly(d)), p != null && isSameDay(d, p.ovulation), today: true),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: [
+                _legend(AppColors.cycle, 'Hành kinh'),
+                _legend(AppColors.cycle.withValues(alpha: 0.35), 'Dự đoán'),
+                _legend(AppColors.income.withValues(alpha: 0.5), 'Dễ thụ thai'),
+                _legend(AppColors.income, 'Rụng trứng'),
+              ],
+            ),
+            const SectionTitle('Các kỳ đã ghi'),
+            for (final (i, x) in periods.indexed)
+              ListTile(
+                leading: const Icon(Icons.water_drop_rounded, color: AppColors.cycle),
+                title: Text('${Fmt.date(x.start)}${x.end != null ? ' → ${Fmt.date(x.end!)}' : ''}'),
+                subtitle: Text(
+                  [
+                    if (i < periods.length - 1) 'Chu kỳ ${x.start.difference(periods[i + 1].start).inDays} ngày',
+                    if (x.flow != null) ['', 'Ít', 'Vừa', 'Nhiều'][x.flow!],
+                    if (x.note?.isNotEmpty == true) x.note!,
+                  ].join(' · '),
+                ),
+                onTap: () => _editPeriod(x),
+              ).stagger(i),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(12)),
+              child: const Text(
+                '⚠️ Dự đoán chỉ mang tính tham khảo, không dùng để tránh thai (phương pháp lịch có tỷ lệ thất bại ~25%/năm khi dùng thông thường). '
+                'Số liệu dựa trên NHS, Cleveland Clinic, womenshealth.gov.',
+                style: TextStyle(fontSize: 12),
               ),
             ),
           ],
-          const SizedBox(height: 12),
-          AppCard(
-            padding: const EdgeInsets.all(8),
-            child: TableCalendar(
-              locale: 'vi',
-              // Chỉ nhận vuốt ngang (đổi tháng); vuốt dọc nhường cho cuộn màn hình — bắt đầu vuốt trên lịch vẫn cuộn được.
-              availableGestures: AvailableGestures.horizontalSwipe,
-              firstDay: DateTime(2000),
-              lastDay: DateTime(2100),
-              focusedDay: focused,
-              startingDayOfWeek: TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek == 7 ? StartingDayOfWeek.sunday : StartingDayOfWeek.monday,
-              availableCalendarFormats: const {CalendarFormat.month: 'Tháng'},
-              daysOfWeekHeight: 30,
-              rowHeight: 46,
-              headerStyle: HeaderStyle(
-                titleCentered: true,
-                formatButtonVisible: false,
-                titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                titleTextFormatter: (d, _) => 'Tháng ${d.month}, ${d.year}',
-                leftChevronIcon: _navIcon(Icons.chevron_left_rounded),
-                rightChevronIcon: _navIcon(Icons.chevron_right_rounded),
-              ),
-              onPageChanged: (d) => focused = d,
-              onDayLongPressed: (d, _) => _editPeriod(null, start: d),
-              calendarBuilders: CalendarBuilders(
-                dowBuilder: (c, d) => calendarDow(c, d, CalendarLook.of(store)),
-                defaultBuilder: (c, d, _) =>
-                    _day(d, inPeriod(dateOnly(d)), predicted(dateOnly(d)), fertile(dateOnly(d)), p != null && isSameDay(d, p.ovulation)),
-                todayBuilder: (c, d, _) =>
-                    _day(d, inPeriod(dateOnly(d)), predicted(dateOnly(d)), fertile(dateOnly(d)), p != null && isSameDay(d, p.ovulation), today: true),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 12,
-            runSpacing: 6,
-            children: [
-              _legend(AppColors.cycle, 'Hành kinh'),
-              _legend(AppColors.cycle.withValues(alpha: 0.35), 'Dự đoán'),
-              _legend(AppColors.income.withValues(alpha: 0.5), 'Dễ thụ thai'),
-              _legend(AppColors.income, 'Rụng trứng'),
-            ],
-          ),
-          const SectionTitle('Các kỳ đã ghi'),
-          for (final (i, x) in periods.indexed)
-            ListTile(
-              leading: const Icon(Icons.water_drop_rounded, color: AppColors.cycle),
-              title: Text('${Fmt.date(x.start)}${x.end != null ? ' → ${Fmt.date(x.end!)}' : ''}'),
-              subtitle: Text(
-                [
-                  if (i < periods.length - 1) 'Chu kỳ ${x.start.difference(periods[i + 1].start).inDays} ngày',
-                  if (x.flow != null) ['', 'Ít', 'Vừa', 'Nhiều'][x.flow!],
-                  if (x.note?.isNotEmpty == true) x.note!,
-                ].join(' · '),
-              ),
-              onTap: () => _editPeriod(x),
-            ).stagger(i),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(12)),
-            child: const Text(
-              '⚠️ Dự đoán chỉ mang tính tham khảo, không dùng để tránh thai (phương pháp lịch có tỷ lệ thất bại ~25%/năm khi dùng thông thường). '
-              'Số liệu dựa trên NHS, Cleveland Clinic, womenshealth.gov.',
-              style: TextStyle(fontSize: 12),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -395,9 +403,13 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                         children: [
                           Icon(phaseIcon(info.phase), size: 13, color: Colors.white),
                           const SizedBox(width: 4),
-                          Text(
-                            'Hôm nay · $levelText',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                          Flexible(
+                            child: Text(
+                              'Hôm nay · $levelText',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                            ),
                           ),
                         ],
                       ),

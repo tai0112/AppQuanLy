@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
 import 'data/background.dart';
+import 'data/widget_launch.dart';
 import 'providers.dart';
 
 Future<void> main() async {
@@ -19,5 +20,6 @@ Future<void> main() async {
     services.sync.start();
     startBackgroundTasks(services);
     runApp(const ProviderScope(child: LhtApp()));
+    listenHomeWidgetLaunch();
   }, (error, stack) => debugPrint('Lỗi không xử lý: $error'));
 }

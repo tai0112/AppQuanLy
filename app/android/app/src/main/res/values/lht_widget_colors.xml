@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="lht_widget_bg">#FFFFFFFF</color>
+    <color name="lht_widget_chip">#FFF3F5F7</color>
+    <color name="lht_widget_text">#FF1C2024</color>
+    <color name="lht_widget_muted">#FF6B7280</color>
+    <color name="lht_widget_expense">#FFE5484D</color>
+    <color name="lht_widget_income">#FF30A46C</color>
+    <color name="lht_widget_love">#FFE93D82</color>
+    <color name="lht_widget_love_bg">#1FE93D82</color>
+    <color name="lht_widget_accent">#FF12A594</color>
+    <color name="lht_widget_seg_on">#2412A594</color>
+    <color name="lht_widget_expense_bg">#1FE5484D</color>
+    <color name="lht_widget_income_bg">#1F30A46C</color>
+</resources>

@@ -143,6 +143,7 @@ class PillToggle<T> extends StatelessWidget {
     required this.values,
     required this.icons,
     this.labels,
+    this.tips,
     this.colors,
     this.itemWidth,
     required this.onChanged,
@@ -152,6 +153,9 @@ class PillToggle<T> extends StatelessWidget {
   final List<T> values;
   final List<IconData> icons;
   final List<String>? labels;
+
+  /// Chữ gợi ý khi nhấn giữ (dùng khi chỉ hiện biểu tượng).
+  final List<String>? tips;
   final List<Color>? colors;
   final ValueChanged<T> onChanged;
 
@@ -184,7 +188,7 @@ class PillToggle<T> extends StatelessWidget {
             children: [
               for (final (i, v) in values.indexed)
                 Tooltip(
-                  message: labels?[i] ?? '',
+                  message: tips?[i] ?? labels?[i] ?? '',
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
                     onTap: () {
@@ -453,7 +457,10 @@ class ColorPickerRow extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: c.toARGB32() == value.toARGB32() ? [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 8)] : null,
                 ),
-                child: c.toARGB32() == value.toARGB32() ? const Icon(Icons.check_rounded, color: Colors.white, size: 18) : null,
+                child: c.toARGB32() == value.toARGB32()
+                    // Màu nhạt (vd hồng nhạt) → dấu ✓ tối để vẫn nhìn rõ
+                    ? Icon(Icons.check_rounded, color: c.computeLuminance() > 0.5 ? Colors.black87 : Colors.white, size: 18)
+                    : null,
               ),
             ),
           ),

@@ -12,6 +12,7 @@ import '../core/theme.dart';
 import '../core/ui.dart';
 import '../data/local_store.dart';
 import '../data/models.dart';
+import '../data/time_config.dart';
 
 import '../providers.dart';
 import 'pickers.dart';
@@ -507,3 +508,46 @@ class InfoTile extends StatelessWidget {
 }
 
 String dateLabel(DateTime d) => Fmt.date(d);
+
+/// Chọn ngày đầu tuần (T2 … CN), lưu ngay vào cài đặt — mọi lịch trong app đổi theo.
+class FirstDayPicker extends ConsumerWidget {
+  const FirstDayPicker({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final store = ref.watchTables(const [E.appSettings]);
+    final cfg = TimeConfig.of(store);
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        for (var wd = 1; wd <= 7; wd++)
+          Tooltip(
+            message: Fmt.weekdays[wd - 1],
+            child: Pressable(
+              onTap: () {
+                if (wd == cfg.firstDayOfWeek) return;
+                HapticFeedback.selectionClick();
+                cfg.copyWith(firstDayOfWeek: wd).save(store);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 240),
+                curve: Curves.easeOutCubic,
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: wd == cfg.firstDayOfWeek ? scheme.primary : scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+                ),
+                child: Text(
+                  Fmt.weekdaysShort[wd - 1],
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: wd == cfg.firstDayOfWeek ? scheme.onPrimary : scheme.onSurfaceVariant),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}

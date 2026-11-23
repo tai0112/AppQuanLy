@@ -20,7 +20,7 @@ import 'common.dart';
 import 'moderation.dart';
 
 /// Màu đại diện cố định theo tên (để mỗi người một màu, lần nào cũng giống nhau).
-Color avatarColor(String name) => AppColors.palette[name.hashCode.abs() % AppColors.palette.length];
+Color avatarColor(String name) => AppColors.autoPalette[name.hashCode.abs() % AppColors.autoPalette.length];
 
 /// Ảnh đại diện người dùng: nền gradient theo tên + chấm online.
 class UserAvatar extends ConsumerWidget {

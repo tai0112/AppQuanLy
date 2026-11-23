@@ -340,10 +340,15 @@ void main() {
     await measureScroll(t, 'Cuộn · Giao dịch lịch', const TransactionsPage());
     await measureScroll(t, 'Cuộn · Thống kê', const StatsPage());
     await measureScroll(t, 'Cuộn · Lịch trình tuần', const SchedulePage());
-    await measureScroll(t, 'Cuộn · Lịch trình tháng', const SchedulePage(), setup: (t) async {
-      await t.tap(find.byIcon(Icons.calendar_month_rounded).first);
-      await t.pump(const Duration(milliseconds: 400));
-    });
+    await measureScroll(
+      t,
+      'Cuộn · Lịch trình tháng',
+      const SchedulePage(),
+      setup: (t) async {
+        await t.tap(find.byIcon(Icons.calendar_month_rounded).first);
+        await t.pump(const Duration(milliseconds: 400));
+      },
+    );
     await measureScroll(t, 'Cuộn · Chi tiết lịch trình', EventDetailPage(id: eventId));
 
     // Kịch bản nặng nhất: vừa thêm 1 giao dịch (bảng giao dịch đổi thật)

@@ -29,3 +29,6 @@ server/src/LHT.Api/uploads/
 *.md
 wwwroot.zip
 dist/
+
+# Bản sao lưu cá nhân (Money Manager)
+*.mmbackup

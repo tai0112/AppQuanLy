@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show FontFeature;
 
+import 'package:flutter/gestures.dart' show DragStartBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -59,7 +60,38 @@ class SchedulePage extends ConsumerStatefulWidget {
 
 class _SchedulePageState extends ConsumerState<SchedulePage> {
   DateTime day = dateOnly(DateTime.now());
-  bool monthView = false;
+
+  /// Kiểu xem: 0 = ngày (dải tuần + danh sách), 1 = cả tuần (lưới giờ), 2 = tháng. Nhớ trên máy.
+  late int view = (int.tryParse(ref.read(storeProvider).meta('scheduleView') ?? '') ?? 0).clamp(0, 2);
+  bool get monthView => view == 2;
+
+  void _setView(int v) {
+    setState(() => view = v);
+    ref.read(storeProvider).setMeta('scheduleView', '$v');
+  }
+
+  /// Bảng nhỏ chọn ngày đầu tuần (dùng chung cho mọi lịch trong app).
+  void _pickFirstDay() => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    sheetAnimationStyle: kSheetAnim,
+    builder: (c) => const SafeArea(
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Ngày đầu tuần', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            SizedBox(height: 4),
+            Text('Áp dụng cho mọi lịch trong ứng dụng', style: TextStyle(fontSize: 12)),
+            SizedBox(height: 16),
+            FirstDayPicker(),
+          ],
+        ),
+      ),
+    ),
+  );
   List<Map<String, dynamic>> invitations = [];
 
   @override
@@ -184,218 +216,244 @@ class _SchedulePageState extends ConsumerState<SchedulePage> {
   Widget build(BuildContext context) {
     final store = ref.watchTables(scheduleTables);
     final scheme = Theme.of(context).colorScheme;
-    final fdw = TimeConfig.of(store).firstDayOfWeek; // 1 = Thứ 2, 7 = Chủ nhật
-    final start = day.subtract(Duration(days: (day.weekday - fdw + 7) % 7));
+    final cfg = TimeConfig.of(store);
+    final fdw = cfg.firstDayOfWeek; // 1 = Thứ 2 … 7 = Chủ nhật
+    final start = cfg.weekStart(day);
     final items = occurrencesIn(store, day, day.add(const Duration(days: 1)));
     return Scaffold(
-      appBar: AppBar(title: const Text('Lịch trình')),
+      appBar: AppBar(
+        title: const Text('Lịch trình'),
+        actions: [IconButton(tooltip: 'Ngày đầu tuần', onPressed: _pickFirstDay, icon: const Icon(Icons.tune_rounded))],
+      ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Thêm lịch',
         onPressed: () => context.push('/schedule/edit', extra: {'date': day}),
         child: const Icon(Icons.add_rounded, size: 30),
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await ref.read(syncProvider).sync();
-          await _loadInvites();
-        },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-          children: [
-            for (final inv in invitations)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: AppCard(
-                  color: scheme.primaryContainer,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${(inv['owner'] as Map)['displayName']} mời bạn tham gia', style: const TextStyle(fontSize: 12)),
-                      Text(inv['title'] as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                      Text(Fmt.dateTime(DateTime.parse(inv['startAt'] as String).toLocal())),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(onPressed: () => _respond(inv['eventId'] as String, false), child: const Text('Từ chối')),
-                          FilledButton(
-                            style: FilledButton.styleFrom(minimumSize: const Size(64, 38)),
-                            onPressed: () => _respond(inv['eventId'] as String, true),
-                            child: const Text('Tham gia'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ).animate().fadeIn().slideY(begin: -0.2),
-              ),
-            // Khối lịch: tiêu đề tháng + Hôm nay + Tuần/Tháng, bên dưới là dải tuần hoặc lịch tháng (chỉ dựng phần đang hiện)
-            AppCard(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      _RoundBtn(icon: Icons.chevron_left_rounded, onTap: () => _shift(-1)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 250),
-                          transitionBuilder: (c, a) => FadeTransition(
-                            opacity: a,
-                            child: SlideTransition(
-                              position: Tween(begin: const Offset(0, 0.3), end: Offset.zero).animate(a),
-                              child: c,
+      // Vuốt từ mép trái / phải màn hình để lùi / tiến một tuần hoặc một tháng (theo kiểu xem).
+      body: EdgeSwipe(
+        onPrev: () => _shift(-1),
+        onNext: () => _shift(1),
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await ref.read(syncProvider).sync();
+            await _loadInvites();
+          },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+            children: [
+              for (final inv in invitations)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: AppCard(
+                    color: scheme.primaryContainer,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${(inv['owner'] as Map)['displayName']} mời bạn tham gia', style: const TextStyle(fontSize: 12)),
+                        Text(inv['title'] as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                        Text(Fmt.dateTime(DateTime.parse(inv['startAt'] as String).toLocal())),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton(onPressed: () => _respond(inv['eventId'] as String, false), child: const Text('Từ chối')),
+                            FilledButton(
+                              style: FilledButton.styleFrom(minimumSize: const Size(64, 38)),
+                              onPressed: () => _respond(inv['eventId'] as String, true),
+                              child: const Text('Tham gia'),
                             ),
-                          ),
-                          child: Column(
-                            key: ValueKey('${day.year}-${day.month}'),
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerLeft,
-                                child: Text('Tháng ${day.month}, ${day.year}', maxLines: 1, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                              ),
-                              Text(
-                                monthView ? 'Chạm một ngày để xem' : 'Vuốt ngang để đổi tuần',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
-                      ),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 220),
-                        transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
-                        child: isSameDay(day, DateTime.now())
-                            ? const SizedBox.shrink()
-                            : Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: Tooltip(
-                                  message: 'Về hôm nay',
-                                  child: Pressable(
-                                    onTap: () => _select(dateOnly(DateTime.now())),
-                                    child: Container(
-                                      width: 34,
-                                      height: 34,
-                                      decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.15), shape: BoxShape.circle),
-                                      child: Icon(Icons.today_rounded, size: 18, color: scheme.primary),
+                      ],
+                    ),
+                  ).animate().fadeIn().slideY(begin: -0.2),
+                ),
+              // Khối lịch: tiêu đề tháng + Hôm nay + Tuần/Tháng, bên dưới là dải tuần hoặc lịch tháng (chỉ dựng phần đang hiện)
+              AppCard(
+                padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                child: Column(
+                  children: [
+                    // Một hàng gọn: [‹ Tháng 12, 2026 ›] … [hôm nay] [Ngày|Tuần|Tháng]
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 42,
+                            decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(21)),
+                            child: Row(
+                              children: [
+                                _RoundBtn(icon: Icons.chevron_left_rounded, onTap: () => _shift(-1), flat: true),
+                                Expanded(
+                                  child: Tooltip(
+                                    message: const ['Vuốt ngang để đổi tuần', 'Chạm ô trống để thêm · giữ lịch để kéo', 'Chạm một ngày để xem'][view],
+                                    child: AnimatedSwitcher(
+                                      duration: const Duration(milliseconds: 250),
+                                      transitionBuilder: (c, a) => FadeTransition(
+                                        opacity: a,
+                                        child: SlideTransition(
+                                          position: Tween(begin: const Offset(0, 0.3), end: Offset.zero).animate(a),
+                                          child: c,
+                                        ),
+                                      ),
+                                      child: FittedBox(
+                                        key: ValueKey('${day.year}-${day.month}'),
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          'Tháng ${day.month}, ${day.year}',
+                                          maxLines: 1,
+                                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                      ),
-                      PillToggle<bool>(
-                        value: monthView,
-                        values: const [false, true],
-                        icons: const [Icons.view_week_rounded, Icons.calendar_month_rounded],
-                        onChanged: (v) => setState(() => monthView = v),
-                      ),
-                      const SizedBox(width: 6),
-                      _RoundBtn(icon: Icons.chevron_right_rounded, onTap: () => _shift(1)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Tuần ↔ tháng: chiều cao co giãn mượt + mờ chéo; lịch tháng là lưới tự vẽ (nhẹ, không dùng PageView) để không khựng
-                  AnimatedSize(
-                    duration: const Duration(milliseconds: 380),
-                    curve: Curves.easeInOutCubic,
-                    alignment: Alignment.topCenter,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 260),
-                      switchInCurve: Curves.easeOut,
-                      switchOutCurve: Curves.easeIn,
-                      layoutBuilder: (cur, prev) => Stack(alignment: Alignment.topCenter, children: [...prev, ?cur]),
-                      transitionBuilder: (c, a) => FadeTransition(
-                        opacity: a,
-                        child: ScaleTransition(scale: Tween(begin: 0.98, end: 1.0).animate(a), alignment: Alignment.topCenter, child: c),
-                      ),
-                      child: GestureDetector(
-                        key: ValueKey(monthView),
-                        onHorizontalDragEnd: (d) {
-                          final v = d.primaryVelocity ?? 0;
-                          if (v.abs() > 200) _shift(v < 0 ? 1 : -1);
-                        },
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 280),
-                          layoutBuilder: (cur, prev) => Stack(alignment: Alignment.topCenter, children: [...prev, ?cur]),
-                          transitionBuilder: (c, a) {
-                            final inc = c.key == ValueKey(monthView ? DateTime(day.year, day.month) : start);
-                            return FadeTransition(
-                              opacity: a,
-                              child: SlideTransition(
-                                position: Tween(begin: Offset((inc ? _dir : -_dir) * 0.25, 0), end: Offset.zero).animate(a),
-                                child: c,
-                              ),
-                            );
-                          },
-                          child: monthView
-                              ? _MonthGrid(
-                                  key: ValueKey(DateTime(day.year, day.month)),
-                                  month: DateTime(day.year, day.month),
-                                  selected: day,
-                                  firstDayOfWeek: fdw,
-                                  store: store,
-                                  onSelect: _select,
-                                )
-                              : Row(
-                                  key: ValueKey(start),
-                                  children: [for (var i = 0; i < 7; i++) Expanded(child: _weekCell(store, start.add(Duration(days: i))))],
+                                _RoundBtn(icon: Icons.chevron_right_rounded, onTap: () => _shift(1), flat: true),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
+                          child: isSameDay(day, DateTime.now())
+                              ? const SizedBox.shrink()
+                              : Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: Tooltip(
+                                    message: 'Về hôm nay',
+                                    child: Pressable(
+                                      onTap: () => _select(dateOnly(DateTime.now())),
+                                      child: Container(
+                                        width: 34,
+                                        height: 34,
+                                        decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.15), shape: BoxShape.circle),
+                                        child: Icon(Icons.today_rounded, size: 18, color: scheme.primary),
+                                      ),
+                                    ),
+                                  ),
                                 ),
+                        ),
+                        PillToggle<int>(
+                          value: view,
+                          values: const [0, 1, 2],
+                          icons: const [Icons.view_day_rounded, Icons.view_week_rounded, Icons.calendar_month_rounded],
+                          tips: const ['Ngày', 'Cả tuần', 'Tháng'],
+                          onChanged: _setView,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Tuần ↔ tháng: chiều cao co giãn mượt + mờ chéo; lịch tháng là lưới tự vẽ (nhẹ, không dùng PageView) để không khựng
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 380),
+                      curve: Curves.easeInOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 260),
+                        switchInCurve: Curves.easeOut,
+                        switchOutCurve: Curves.easeIn,
+                        layoutBuilder: (cur, prev) => Stack(alignment: Alignment.topCenter, children: [...prev, ?cur]),
+                        transitionBuilder: (c, a) => FadeTransition(
+                          opacity: a,
+                          child: ScaleTransition(scale: Tween(begin: 0.98, end: 1.0).animate(a), alignment: Alignment.topCenter, child: c),
+                        ),
+                        child: GestureDetector(
+                          key: ValueKey(view),
+                          onHorizontalDragEnd: (d) {
+                            final v = d.primaryVelocity ?? 0;
+                            if (v.abs() > 200) _shift(v < 0 ? 1 : -1);
+                          },
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 280),
+                            layoutBuilder: (cur, prev) => Stack(alignment: Alignment.topCenter, children: [...prev, ?cur]),
+                            transitionBuilder: (c, a) {
+                              final inc = c.key == ValueKey(monthView ? DateTime(day.year, day.month) : (view, start));
+                              return FadeTransition(
+                                opacity: a,
+                                child: SlideTransition(
+                                  position: Tween(begin: Offset((inc ? _dir : -_dir) * 0.25, 0), end: Offset.zero).animate(a),
+                                  child: c,
+                                ),
+                              );
+                            },
+                            child: monthView
+                                ? _MonthGrid(
+                                    key: ValueKey(DateTime(day.year, day.month)),
+                                    month: DateTime(day.year, day.month),
+                                    selected: day,
+                                    firstDayOfWeek: fdw,
+                                    store: store,
+                                    onSelect: _select,
+                                  )
+                                : view == 1
+                                ? _WeekGrid(
+                                    key: ValueKey((view, start)),
+                                    start: start,
+                                    selected: day,
+                                    onOpenDay: (d) {
+                                      _select(d);
+                                      _setView(0);
+                                    },
+                                  )
+                                : Row(
+                                    key: ValueKey((view, start)),
+                                    children: [for (var i = 0; i < 7; i++) Expanded(child: _weekCell(store, start.add(Duration(days: i))))],
+                                  ),
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            // Chuyển ngày: cả phần danh sách trượt theo hướng (ngày sau → từ phải, ngày trước → từ trái), từng thẻ hiện lần lượt
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 320),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              layoutBuilder: (cur, prev) => Stack(alignment: Alignment.topCenter, children: [...prev, ?cur]),
-              transitionBuilder: (c, a) {
-                final incoming = c.key == ValueKey(day);
-                return FadeTransition(
-                  opacity: a,
-                  child: SlideTransition(
-                    position: Tween(begin: Offset((incoming ? _dir : -_dir) * 0.18, 0), end: Offset.zero).animate(a),
-                    child: c,
+              if (view != 1)
+                // Chuyển ngày: cả phần danh sách trượt theo hướng (ngày sau → từ phải, ngày trước → từ trái), từng thẻ hiện lần lượt
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 320),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  layoutBuilder: (cur, prev) => Stack(alignment: Alignment.topCenter, children: [...prev, ?cur]),
+                  transitionBuilder: (c, a) {
+                    final incoming = c.key == ValueKey(day);
+                    return FadeTransition(
+                      opacity: a,
+                      child: SlideTransition(
+                        position: Tween(begin: Offset((incoming ? _dir : -_dir) * 0.18, 0), end: Offset.zero).animate(a),
+                        child: c,
+                      ),
+                    );
+                  },
+                  child: Column(
+                    key: ValueKey(day),
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SectionTitle(
+                        Fmt.dayHeader(day),
+                        trailing: items.isEmpty
+                            ? null
+                            : Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                                child: Text(
+                                  '${items.length} lịch trình',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary),
+                                ),
+                              ),
+                      ),
+                      if (items.isEmpty)
+                        const EmptyState(icon: Icons.event_available_rounded, title: 'Chưa có lịch trình', subtitle: 'Bấm nút + để lên kế hoạch cho ngày này')
+                      else
+                        for (final (i, (o, e)) in items.indexed)
+                          _TimelineItem(occurrence: o, day: day, event: e, last: i == items.length - 1)
+                              .animate(delay: (70 * i + 60).ms)
+                              .fadeIn(duration: 320.ms)
+                              .slideX(begin: 0.08 * _dir, end: 0, duration: 380.ms, curve: Curves.easeOutCubic),
+                    ],
                   ),
-                );
-              },
-              child: Column(
-                key: ValueKey(day),
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SectionTitle(
-                    Fmt.dayHeader(day),
-                    trailing: items.isEmpty
-                        ? null
-                        : Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                            decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                            child: Text(
-                              '${items.length} lịch trình',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary),
-                            ),
-                          ),
-                  ),
-                  if (items.isEmpty)
-                    const EmptyState(icon: Icons.event_available_rounded, title: 'Chưa có lịch trình', subtitle: 'Bấm nút + để lên kế hoạch cho ngày này')
-                  else
-                    for (final (i, (o, e)) in items.indexed)
-                      _TimelineItem(occurrence: o, day: day, event: e, last: i == items.length - 1)
-                          .animate(delay: (70 * i + 60).ms)
-                          .fadeIn(duration: 320.ms)
-                          .slideX(begin: 0.08 * _dir, end: 0, duration: 380.ms, curve: Curves.easeOutCubic),
-                ],
-              ),
-            ),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -467,18 +525,21 @@ class _MonthGrid extends StatelessWidget {
 }
 
 class _RoundBtn extends StatelessWidget {
-  const _RoundBtn({required this.icon, required this.onTap});
+  const _RoundBtn({required this.icon, required this.onTap, this.flat = false});
   final IconData icon;
   final VoidCallback onTap;
+
+  /// Không nền (nằm trong một khối đã có nền).
+  final bool flat;
 
   @override
   Widget build(BuildContext context) => Pressable(
     onTap: onTap,
     child: Container(
-      width: 34,
-      height: 34,
-      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, shape: BoxShape.circle),
-      child: Icon(icon, size: 22),
+      width: flat ? 38 : 34,
+      height: flat ? 42 : 34,
+      decoration: flat ? null : BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, shape: BoxShape.circle),
+      child: Icon(icon, size: flat ? 26 : 22),
     ),
   );
 }
@@ -682,9 +743,15 @@ class _Pill extends StatelessWidget {
 }
 
 class EventEditPage extends ConsumerStatefulWidget {
-  const EventEditPage({super.key, this.id, this.date});
+  const EventEditPage({super.key, this.id, this.date, this.endDate, this.timed = false});
   final String? id;
   final DateTime? date;
+
+  /// Giờ kết thúc khi tạo bằng cách quét khoảng giờ trên lưới tuần.
+  final DateTime? endDate;
+
+  /// true: [date] đã có giờ cụ thể (chạm vào ô giờ trên lưới tuần) → dùng đúng giờ đó.
+  final bool timed;
 
   @override
   ConsumerState<EventEditPage> createState() => _EventEditPageState();
@@ -721,7 +788,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
   void initState() {
     super.initState();
     final d = widget.date ?? DateTime.now();
-    start = DateTime(d.year, d.month, d.day, (DateTime.now().hour + 1).clamp(0, 23));
+    start = widget.timed ? d : DateTime(d.year, d.month, d.day, (DateTime.now().hour + 1).clamp(0, 23));
+    if (widget.timed) end = widget.endDate ?? d.add(Duration(minutes: TimeConfig.of(ref.read(storeProvider)).defaultActivityMinutes));
     final rec = ref.read(storeProvider).get(E.events, widget.id);
     if (rec != null) {
       final e = EventRec(rec);
@@ -3369,4 +3437,619 @@ class _EventDayCell extends StatelessWidget {
       ),
     );
   }
+}
+
+// ============================================================================ Xem cả tuần (lưới giờ kiểu Google Calendar)
+
+/// Một khối lịch trình trên lưới tuần (đã cắt theo ngày).
+class _Blk {
+  _Blk(this.e, this.occurrence, this.col, this.start, this.end);
+  final EventRec e;
+  final DateTime occurrence;
+  final int col; // cột ngày 0..6
+  final int start, end; // phút trong ngày
+  int lane = 0, lanes = 1; // xếp cạnh nhau khi trùng giờ
+
+  /// Nhận diện ổn định qua các lần dựng lại (để kéo không bị mất).
+  String get key => '${e.id}|${occurrence.toIso8601String()}|$col';
+}
+
+/// Lưới tuần: 7 cột ngày × trục giờ. Chạm ô trống → khung "+ giờ" (chạm lần nữa để thêm); chạm lịch → xem;
+/// giữ rồi kéo lịch → dời ngày/giờ (bước theo cài đặt "làm tròn"). Lịch cả ngày nằm ở hàng trên cùng.
+class _WeekGrid extends ConsumerStatefulWidget {
+  const _WeekGrid({super.key, required this.start, required this.selected, required this.onOpenDay});
+  final DateTime start;
+  final DateTime selected;
+  final ValueChanged<DateTime> onOpenDay;
+
+  @override
+  ConsumerState<_WeekGrid> createState() => _WeekGridState();
+}
+
+class _WeekGridState extends ConsumerState<_WeekGrid> {
+  static const _hourH = 46.0, _gutter = 30.0;
+
+  /// Khung "thêm mới": (cột, phút bắt đầu, phút kết thúc).
+  (int, int, int)? _ghost;
+  int? _anchor; // phút bắt đầu khi đang giữ-kéo ô trống để quét khoảng giờ
+  String? _drag; // khoá của khối đang kéo dời
+  (int, int) _dragSnap = (0, 0); // (lệch ngày, lệch phút) đang xem trước
+  String? _sel; // lịch đang chọn (id|cột) → hiện núm kéo giãn thời lượng
+  int? _resizeEnd; // phút kết thúc đang xem trước khi kéo núm
+  double _resizeDy = 0;
+  Timer? _tick;
+
+  @override
+  void initState() {
+    super.initState();
+    // Vạch "bây giờ" chỉ cần nhích mỗi phút, và chỉ khi tuần đang xem có hôm nay.
+    final today = dateOnly(DateTime.now());
+    if (!today.isBefore(widget.start) && today.isBefore(widget.start.add(const Duration(days: 7)))) {
+      _tick = Timer.periodic(const Duration(minutes: 1), (_) => mounted ? setState(() {}) : null);
+    }
+  }
+
+  @override
+  void dispose() {
+    _tick?.cancel();
+    super.dispose();
+  }
+
+  DateTime _day(int col) => DateTime(widget.start.year, widget.start.month, widget.start.day + col);
+
+  void _open(_Blk b) => context.push('/schedule/detail', extra: {'id': b.e.id, 'occurrence': b.occurrence});
+
+  /// Mở màn thêm lịch với đúng ngày, giờ bắt đầu và giờ kết thúc của khung.
+  void _add((int, int, int) g) {
+    final d = _day(g.$1);
+    DateTime at(int m) => DateTime(d.year, d.month, d.day, m ~/ 60, m % 60);
+    setState(() => _ghost = null);
+    context.push('/schedule/edit', extra: {'date': at(g.$2), 'end': at(g.$3), 'timed': true});
+  }
+
+  /// Dời lịch theo (lệch ngày, lệch phút); hoạt động theo giờ của các ngày bị dời cũng đi theo.
+  void _move(_Blk b, int dDays, int dMin) {
+    final store = ref.read(storeProvider);
+    final rec = store.get(E.events, b.e.id);
+    if (rec == null) return;
+    final shift = Duration(days: dDays, minutes: dMin);
+    final e = EventRec(rec);
+    store.put(E.events, {...rec, 'startAt': e.startAt.add(shift).toUtc().toIso8601String(), 'endAt': e.endAt?.add(shift).toUtc().toIso8601String()});
+    if (dDays != 0) {
+      for (final it in store.all(E.eventItems).map(EventItemRec.new).where((i) => i.eventId == e.id && i.occurrenceDate != null).toList()) {
+        final od = DateTime.tryParse(it.occurrenceDate!);
+        if (od != null) store.put(E.eventItems, {...it.m, 'occurrenceDate': Fmt.isoDate(od.add(Duration(days: dDays)))});
+      }
+    }
+    HapticFeedback.mediumImpact();
+  }
+
+  /// Kéo giãn: đổi giờ kết thúc thêm [dMin] phút.
+  void _resize(_Blk b, int dMin) {
+    final store = ref.read(storeProvider);
+    final rec = store.get(E.events, b.e.id);
+    if (rec == null || dMin == 0) return;
+    final e = EventRec(rec);
+    final end = (e.endAt ?? e.startAt.add(const Duration(hours: 1))).add(Duration(minutes: dMin));
+    store.put(E.events, {...rec, 'endAt': end.toUtc().toIso8601String()});
+    HapticFeedback.mediumImpact();
+  }
+
+  String _selKey(_Blk b) => '${b.e.id}|${b.col}';
+
+  @override
+  Widget build(BuildContext context) {
+    final store = ref.watchTables(scheduleTables);
+    final scheme = Theme.of(context).colorScheme;
+    final look = CalendarLook.of(store);
+    final cfg = TimeConfig.of(store);
+    final step = cfg.snapMinutes;
+    final today = dateOnly(DateTime.now());
+    final now = DateTime.now();
+
+    // Gom lịch của 7 ngày: cả ngày → hàng trên; có giờ → khối trên lưới (cắt theo ngày).
+    final allDay = List.generate(7, (_) => <(DateTime, EventRec)>[]);
+    final blocks = <_Blk>[];
+    var minH = cfg.dayStartHour, maxH = cfg.dayEndHour;
+    for (var c = 0; c < 7; c++) {
+      final d = _day(c);
+      for (final (o, e) in occurrencesIn(store, d, d.add(const Duration(days: 1)))) {
+        final dur = e.endAt == null ? const Duration(hours: 1) : e.endAt!.difference(e.startAt);
+        if (e.isAllDay || dur.inHours >= 24) {
+          allDay[c].add((o, e));
+          continue;
+        }
+        final s = o.isBefore(d) ? 0 : o.difference(d).inMinutes;
+        final en = (o.add(dur).difference(d).inMinutes).clamp(s + 15, 24 * 60);
+        blocks.add(_Blk(e, o, c, s, en));
+        if (s ~/ 60 < minH) minH = s ~/ 60;
+        if ((en + 59) ~/ 60 > maxH) maxH = (en + 59) ~/ 60;
+      }
+    }
+    minH = minH.clamp(0, 23);
+    maxH = maxH.clamp(minH + 1, 24);
+    // Xếp làn: các lịch chồng giờ trong cùng ngày chia đều bề ngang cột.
+    for (var c = 0; c < 7; c++) {
+      final day = blocks.where((b) => b.col == c).toList()..sort((a, b) => a.start != b.start ? a.start.compareTo(b.start) : b.end.compareTo(a.end));
+      var group = <_Blk>[];
+      final laneEnds = <int>[];
+      var groupEnd = -1;
+      void flush() {
+        for (final b in group) {
+          b.lanes = laneEnds.length;
+        }
+        group = [];
+        laneEnds.clear();
+      }
+
+      for (final b in day) {
+        if (b.start >= groupEnd) flush();
+        var lane = laneEnds.indexWhere((end) => end <= b.start);
+        if (lane < 0) {
+          lane = laneEnds.length;
+          laneEnds.add(b.end);
+        } else {
+          laneEnds[lane] = b.end;
+        }
+        b.lane = lane;
+        group.add(b);
+        if (b.end > groupEnd) groupEnd = b.end;
+      }
+      flush();
+    }
+
+    final hasAllDay = allDay.any((l) => l.isNotEmpty);
+    final bodyH = (maxH - minH) * _hourH;
+    double yOf(int minute) => (minute - minH * 60) / 60 * _hourH;
+    int minuteAt(double y, {bool up = false}) {
+      final raw = minH * 60 + y / _hourH * 60;
+      final m = (up ? (raw / step).round() : (raw / step).floor()) * step; // kéo: làm tròn gần nhất
+      return m.clamp(minH * 60, maxH * 60);
+    }
+
+    return LayoutBuilder(
+      builder: (context, cons) {
+        final colW = (cons.maxWidth - _gutter) / 7;
+        int colAt(double x) => ((x - _gutter) / colW).floor().clamp(0, 6);
+
+        Widget header() => Row(
+          children: [
+            const SizedBox(width: _gutter),
+            for (var c = 0; c < 7; c++)
+              Builder(
+                builder: (_) {
+                  final d = _day(c);
+                  final isToday = d == today, sel = d == widget.selected;
+                  final wc = look.weekdayColor(d.weekday, scheme);
+                  return SizedBox(
+                    width: colW,
+                    child: Pressable(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        widget.onOpenDay(d);
+                      },
+                      child: Column(
+                        children: [
+                          Text(
+                            Fmt.weekdaysShort[d.weekday - 1],
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: isToday ? scheme.primary : (wc ?? scheme.onSurfaceVariant)),
+                          ),
+                          const SizedBox(height: 3),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 250),
+                            width: 30,
+                            height: 30,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isToday ? scheme.primary : null,
+                              border: sel && !isToday ? Border.all(color: scheme.primary, width: 1.5) : null,
+                            ),
+                            child: Text(
+                              '${d.day}',
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: isToday ? scheme.onPrimary : null),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        );
+
+        Widget allDayRow() => Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: _gutter,
+                child: Text('Cả\nngày', style: TextStyle(fontSize: 9, height: 1.1, color: scheme.onSurfaceVariant)),
+              ),
+              for (var c = 0; c < 7; c++)
+                SizedBox(
+                  width: colW,
+                  child: Column(
+                    children: [
+                      for (final (o, e) in allDay[c].take(2))
+                        Pressable(
+                          onTap: () => context.push('/schedule/detail', extra: {'id': e.id, 'occurrence': o}),
+                          child: Container(
+                            height: 18,
+                            margin: const EdgeInsets.fromLTRB(1, 0, 1, 2),
+                            padding: const EdgeInsets.symmetric(horizontal: 3),
+                            alignment: Alignment.centerLeft,
+                            decoration: BoxDecoration(color: hexColor(e.color, scheme.primary), borderRadius: BorderRadius.circular(5)),
+                            child: Text(
+                              e.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                              style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      if (allDay[c].length > 2)
+                        Text(
+                          '+${allDay[c].length - 2}',
+                          style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700, color: scheme.primary),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+
+        /// Núm tròn kéo dọc để giãn/co giờ kết thúc (dùng cho lịch đang chọn và khung thêm mới).
+        Widget handle({
+          required Color color,
+          required double left,
+          required double top,
+          required VoidCallback onStart,
+          required ValueChanged<double> onDy,
+          required VoidCallback onEnd,
+        }) => Positioned(
+          left: left - 14,
+          top: top - 14,
+          width: 28,
+          height: 28,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            dragStartBehavior: DragStartBehavior.down, // tính từ lúc chạm → núm bám đúng ngón tay
+            onVerticalDragStart: (_) => onStart(),
+            onVerticalDragUpdate: (u) => onDy(u.delta.dy),
+            onVerticalDragEnd: (_) => onEnd(),
+            onVerticalDragCancel: onEnd,
+            child: Center(
+              child: Container(
+                width: 14,
+                height: 14,
+                decoration: BoxDecoration(
+                  color: scheme.surface,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: color, width: 2.5),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4)],
+                ),
+              ).animate().scale(duration: 200.ms, curve: Curves.easeOutBack),
+            ),
+          ),
+        );
+
+        Widget block(_Blk b) {
+          final dragging = b.key == _drag;
+          final selected = _sel == _selKey(b);
+          final color = hexColor(b.e.color, scheme.primary);
+          final w = colW / b.lanes;
+          final (dd, dm) = dragging ? _dragSnap : (0, 0);
+          final col = (b.col + dd).clamp(0, 6);
+          final s = b.start + dm;
+          final e = selected && _resizeEnd != null ? _resizeEnd! : b.end + dm;
+          final h = (yOf(e) - yOf(s)).clamp(18.0, double.infinity);
+          final wide = dragging || selected;
+          final timeText = wide ? '${timeStr((s ~/ 60, s % 60))}–${timeStr((e ~/ 60, e % 60))}' : timeStr((s ~/ 60, s % 60));
+          return AnimatedPositioned(
+            key: ValueKey(b.key),
+            duration: Duration(milliseconds: dragging || _resizeEnd != null ? 90 : 220),
+            curve: Curves.easeOutCubic,
+            left: _gutter + col * colW + (wide ? 1 : b.lane * w + 1),
+            top: yOf(s) + 1,
+            width: (wide ? colW : w) - 2,
+            height: h - 2,
+            child: GestureDetector(
+              onTap: () => _open(b),
+              onLongPressStart: (_) {
+                if (b.e.rrule != null) {
+                  showToast(context, 'Lịch lặp lại: mở lịch để đổi giờ');
+                  return;
+                }
+                HapticFeedback.mediumImpact();
+                setState(() {
+                  _ghost = null;
+                  _sel = _selKey(b);
+                  _drag = b.key;
+                  _dragSnap = (0, 0);
+                });
+              },
+              onLongPressMoveUpdate: (m) {
+                if (_drag != b.key) return;
+                final dDays = ((b.col + (m.offsetFromOrigin.dx / colW).round()).clamp(0, 6)) - b.col;
+                final dur = b.end - b.start;
+                var dMin = ((m.offsetFromOrigin.dy / _hourH * 60) / step).round() * step;
+                dMin = dMin.clamp(minH * 60 - b.start, maxH * 60 - dur - b.start);
+                if ((dDays, dMin) != _dragSnap) {
+                  HapticFeedback.selectionClick();
+                  setState(() => _dragSnap = (dDays, dMin));
+                }
+              },
+              onLongPressEnd: (_) {
+                if (_drag != b.key) return;
+                final (dDays, dMin) = _dragSnap;
+                // Giữ lịch ở trạng thái chọn (ở cột mới) để kéo núm giãn giờ ngay sau đó.
+                setState(() {
+                  _drag = null;
+                  _sel = '${b.e.id}|${(b.col + dDays).clamp(0, 6)}';
+                });
+                if (dDays != 0 || dMin != 0) _move(b, dDays, dMin);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding: const EdgeInsets.fromLTRB(3, 2, 2, 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: wide ? 1 : 0.9),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: wide ? Colors.white : scheme.surface.withValues(alpha: 0.7), width: wide ? 1.5 : 0.8),
+                  boxShadow: wide ? [BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 12, offset: const Offset(0, 4))] : null,
+                ),
+                child: ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.topLeft,
+                    maxHeight: double.infinity, // khung co giãn khi kéo: chữ thừa bị cắt, không báo tràn
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          b.e.title,
+                          maxLines: ((h - 8 - (h > 30 || wide ? 11 : 0)) / 11.5).floor().clamp(1, 6),
+                          overflow: TextOverflow.clip,
+                          style: const TextStyle(fontSize: 10, height: 1.15, fontWeight: FontWeight.w700, color: Colors.white),
+                        ),
+                        if (h > 30 || wide)
+                          Text(
+                            timeText,
+                            maxLines: 1,
+                            overflow: TextOverflow.clip,
+                            style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.9)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        final selBlk = blocks.where((b) => _sel == _selKey(b) && b.key != _drag).firstOrNull;
+        final todayCol = today.difference(widget.start).inDays;
+        final nowMin = now.hour * 60 + now.minute;
+        final g = _ghost;
+        return Column(
+          children: [
+            header(),
+            if (hasAllDay) allDayRow(),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: bodyH,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                // Chạm ô trống: bỏ chọn; nếu không có gì đang chọn → hiện khung "+ giờ" (mặc định 1 giờ).
+                onTapUp: (t) {
+                  final p = t.localPosition;
+                  if (p.dx < _gutter) return;
+                  if (_sel != null) return setState(() => _sel = null);
+                  final col = colAt(p.dx);
+                  final s = (minuteAt(p.dy) ~/ 30 * 30).clamp(minH * 60, maxH * 60 - 30);
+                  HapticFeedback.selectionClick();
+                  setState(() => _ghost = (col, s, (s + 60).clamp(s + 30, 24 * 60)));
+                },
+                // Giữ ô trống rồi kéo lên/xuống: quét khoảng giờ cho lịch mới, thả tay là mở màn thêm.
+                onLongPressStart: (d) {
+                  final p = d.localPosition;
+                  if (p.dx < _gutter) return;
+                  final s = minuteAt(p.dy);
+                  HapticFeedback.mediumImpact();
+                  setState(() {
+                    _sel = null;
+                    _anchor = s;
+                    _ghost = (colAt(p.dx), s, (s + (step < 30 ? 30 : step)).clamp(s + step, 24 * 60));
+                  });
+                },
+                onLongPressMoveUpdate: (d) {
+                  final a = _anchor, cur = _ghost;
+                  if (a == null || cur == null) return;
+                  final m = minuteAt(d.localPosition.dy, up: true);
+                  final next = m > a ? (cur.$1, a, m.clamp(a + step, 24 * 60)) : (cur.$1, (m - step).clamp(minH * 60, a), a + step);
+                  if (next != cur) {
+                    HapticFeedback.selectionClick();
+                    setState(() => _ghost = next);
+                  }
+                },
+                onLongPressEnd: (_) {
+                  final cur = _ghost;
+                  if (_anchor == null || cur == null) return;
+                  _anchor = null;
+                  _add(cur);
+                },
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _WeekLinesPainter(
+                          hours: maxH - minH,
+                          hourH: _hourH,
+                          gutter: _gutter,
+                          line: scheme.outlineVariant.withValues(alpha: 0.45),
+                          todayCol: todayCol >= 0 && todayCol < 7 ? todayCol : null,
+                          todayTint: scheme.primary.withValues(alpha: 0.05),
+                        ),
+                      ),
+                    ),
+                    for (var h = minH + 1; h < maxH; h++)
+                      Positioned(
+                        left: 0,
+                        width: _gutter - 4,
+                        top: (h - minH) * _hourH - 6,
+                        child: Text(
+                          '$h:00',
+                          textAlign: TextAlign.right,
+                          style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant, fontFeatures: const [FontFeature.tabularFigures()]),
+                        ),
+                      ),
+                    for (final b in blocks)
+                      if (b.key != _drag) block(b),
+                    if (todayCol >= 0 && todayCol < 7 && nowMin >= minH * 60 && nowMin <= maxH * 60)
+                      Positioned(
+                        left: _gutter + todayCol * colW - 4,
+                        width: colW + 4,
+                        top: yOf(nowMin) - 4,
+                        height: 8,
+                        child: IgnorePointer(
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(color: AppColors.expense, shape: BoxShape.circle),
+                              ),
+                              Expanded(child: Container(height: 2, color: AppColors.expense)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    // Khung "thêm mới": chạm để mở màn thêm, kéo núm dưới để đổi giờ kết thúc
+                    if (g != null)
+                      AnimatedPositioned(
+                        key: const ValueKey('ghost'),
+                        duration: const Duration(milliseconds: 90),
+                        left: _gutter + g.$1 * colW + 1,
+                        top: yOf(g.$2) + 1,
+                        width: colW - 2,
+                        height: yOf(g.$3) - yOf(g.$2) - 2,
+                        child: GestureDetector(
+                          onTap: () => _add(g),
+                          child: TweenAnimationBuilder<double>(
+                            key: ValueKey((g.$1, _anchor == null)),
+                            tween: Tween(begin: 0.85, end: 1),
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutBack,
+                            builder: (_, v, child) => Transform.scale(
+                              scale: v,
+                              child: Opacity(opacity: ((v - 0.85) / 0.15).clamp(0, 1), child: child),
+                            ),
+                            child: Container(
+                              alignment: Alignment.topCenter,
+                              padding: const EdgeInsets.only(top: 3),
+                              decoration: BoxDecoration(
+                                color: scheme.primary.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: scheme.primary, width: 1.4),
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.add_rounded, size: 16, color: scheme.primary),
+                                    Text(
+                                      '${timeStr((g.$2 ~/ 60, g.$2 % 60))}\n${timeStr((g.$3 ~/ 60, g.$3 % 60))}',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(fontSize: 10, height: 1.2, fontWeight: FontWeight.w700, color: scheme.primary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (g != null && _anchor == null)
+                      handle(
+                        color: scheme.primary,
+                        left: _gutter + (g.$1 + 1) * colW - 8,
+                        top: yOf(g.$3),
+                        onStart: () => _resizeDy = 0,
+                        onDy: (dy) {
+                          _resizeDy += dy;
+                          final m = (g.$3 + ((_resizeDy / _hourH * 60) / step).round() * step).clamp(g.$2 + step, maxH * 60);
+                          if (m != _ghost!.$3) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _ghost = (g.$1, g.$2, m));
+                            _resizeDy = 0;
+                          }
+                        },
+                        onEnd: () {},
+                      ),
+                    // Khối đang kéo vẽ sau cùng để nổi lên trên
+                    for (final b in blocks)
+                      if (b.key == _drag) block(b),
+                    if (selBlk != null)
+                      handle(
+                        color: hexColor(selBlk.e.color, scheme.primary),
+                        left: _gutter + (selBlk.col + 1) * colW - 8,
+                        top: yOf(_resizeEnd ?? selBlk.end),
+                        onStart: () {
+                          _resizeDy = 0;
+                          setState(() => _resizeEnd = selBlk.end);
+                        },
+                        onDy: (dy) {
+                          _resizeDy += dy;
+                          final m = (selBlk.end + ((_resizeDy / _hourH * 60) / step).round() * step).clamp(selBlk.start + step, maxH * 60);
+                          if (m != _resizeEnd) {
+                            HapticFeedback.selectionClick();
+                            setState(() => _resizeEnd = m);
+                          }
+                        },
+                        onEnd: () {
+                          final m = _resizeEnd;
+                          setState(() => _resizeEnd = null);
+                          if (m != null) _resize(selBlk, m - selBlk.end);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _WeekLinesPainter extends CustomPainter {
+  _WeekLinesPainter({required this.hours, required this.hourH, required this.gutter, required this.line, required this.todayCol, required this.todayTint});
+  final int hours;
+  final double hourH, gutter;
+  final Color line, todayTint;
+  final int? todayCol;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final colW = (size.width - gutter) / 7;
+    if (todayCol != null) canvas.drawRect(Rect.fromLTWH(gutter + todayCol! * colW, 0, colW, size.height), Paint()..color = todayTint);
+    final p = Paint()
+      ..color = line
+      ..strokeWidth = 0.8;
+    for (var h = 0; h <= hours; h++) {
+      canvas.drawLine(Offset(gutter, h * hourH), Offset(size.width, h * hourH), p);
+    }
+    for (var c = 0; c <= 7; c++) {
+      canvas.drawLine(Offset(gutter + c * colW, 0), Offset(gutter + c * colW, size.height), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WeekLinesPainter o) => o.hours != hours || o.line != line || o.todayCol != todayCol || o.todayTint != todayTint;
 }

@@ -163,16 +163,39 @@ Future<void> _updateHomeWidget(Services s) async {
     final t = f.totals(f.inRange(from, to));
     final love = s.store.all(E.loveCounters).map(LoveCounter.new).firstOrNull;
     final today = dateOnly(DateTime.now());
-    final events = s.store
-        .all(E.events)
-        .map(EventRec.new)
-        .expand((e) => Recurrence.occurrences(e, today, today.add(const Duration(days: 1))).map((o) => '${Fmt.time(o)} ${e.title}'))
-        .take(3)
-        .join('\n');
+    String day(DateTime d) => '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    // Lịch 7 ngày tới (mỗi dòng: ngày|giờ|tiêu đề) → widget tự lọc "hôm nay" kể cả khi app không mở qua ngày mới.
+    final events =
+        s.store
+            .all(E.events)
+            .map(EventRec.new)
+            .expand((e) => Recurrence.occurrences(e, today, today.add(const Duration(days: 7))).map((o) => (o, e.title)))
+            .toList()
+          ..sort((a, b) => a.$1.compareTo(b.$1));
+    final lines = events.take(40).map((x) => '${day(x.$1)}|${Fmt.time(x.$1)}|${x.$2.replaceAll('\n', ' ')}').join('\n');
+    // Chi tiêu từng ngày cho biểu đồ cột (bao trọn kỳ tháng + tuần hiện tại) — widget tự cắt theo Tuần/Tháng.
+    final tc = TimeConfig.of(s.store);
+    final ws = tc.weekStart(today);
+    final cFrom = ws.isBefore(from) ? ws : from;
+    final wEnd = ws.add(const Duration(days: 7));
+    final cTo = wEnd.isAfter(to) ? wEnd : to;
+    final daily = <String, double>{};
+    for (final t in f.inRange(cFrom, cTo)) {
+      if (t.type == TxType.expense) daily.update(day(f.at(t)), (v) => v + f.toBase(t), ifAbsent: () => f.toBase(t));
+    }
+    final cur = f.currency(f.baseCurrency);
+    await HomeWidget.saveWidgetData<String>('daily_expense', daily.entries.map((e) => '${e.key}|${e.value}').join('\n'));
+    await HomeWidget.saveWidgetData<int>('first_day_of_week', tc.firstDayOfWeek);
+    await HomeWidget.saveWidgetData<int>('month_start_day', f.monthStartDay);
+    await HomeWidget.saveWidgetData<String>('cur_symbol', cur?.symbol ?? f.baseCurrency);
+    await HomeWidget.saveWidgetData<bool>('cur_before', cur?.symbolBefore ?? false);
+    await HomeWidget.saveWidgetData<int>('cur_decimals', cur?.decimals ?? 0);
+    await HomeWidget.saveWidgetData<String>('month_label', 'Tháng ${Fmt.month(from)}');
+    await HomeWidget.saveWidgetData<String>('month_end', day(to)); // hết kỳ → widget ẩn số cũ
     await HomeWidget.saveWidgetData<String>('month_expense', f.money(t.expense));
     await HomeWidget.saveWidgetData<String>('month_income', f.money(t.income));
-    await HomeWidget.saveWidgetData<String>('love_days', love == null ? '' : '${Love.days(love.startDate)} ngày');
-    await HomeWidget.saveWidgetData<String>('today_events', events.isEmpty ? 'Không có lịch trình' : events);
+    await HomeWidget.saveWidgetData<String>('love_start', love == null ? '' : day(love.startDate));
+    await HomeWidget.saveWidgetData<String>('events', lines);
     await HomeWidget.updateWidget(iOSName: 'LHTWidget', androidName: 'LHTWidgetProvider');
   } catch (_) {
     // Widget chưa được thêm vào máy → bỏ qua.

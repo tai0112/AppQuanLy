@@ -34,6 +34,10 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
   String? drillParent;
   int touched = -1;
 
+  /// Tháng đem ra so sánh; null = tháng liền trước tháng đang xem (tự đi theo khi đổi tháng).
+  DateTime? cmpMonth;
+  bool cmpAll = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,8 +69,11 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
     final f = ref.watch(financeProvider);
     final (from, to) = f.monthRange(month);
     final list = f.inRange(from, to);
-    final (pFrom, pTo) = f.monthRange(DateTime(month.year, month.month - 1, 15));
-    final prev = f.totals(f.inRange(pFrom, pTo));
+    final cmp = cmpMonth ?? DateTime(month.year, month.month - 1, 15);
+    final (pFrom, pTo) = f.monthRange(cmp);
+    final prevList = f.inRange(pFrom, pTo);
+    final prev = f.totals(prevList);
+    final cmpLabel = cmpMonth == null ? 'tháng trước' : 'tháng ${Fmt.month(pFrom)}';
     final cur = f.totals(list);
     final groups = f.byCategory(list, type, parentId: drillParent);
     final total = groups.fold(0.0, (s, g) => s + g.amount);
@@ -91,15 +98,29 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
               ),
             ),
             IconButton(onPressed: () => setState(() => month = DateTime(month.year, month.month + 1, 15)), icon: const Icon(Icons.chevron_right_rounded)),
+            const SizedBox(width: 4),
+            // Nút so sánh ngay đầu trang: bấm để chọn tháng đem ra so sánh.
+            Tooltip(
+              message: 'So sánh với tháng khác',
+              child: ActionChip(
+                visualDensity: VisualDensity.compact,
+                avatar: const Icon(Icons.compare_arrows_rounded, size: 16),
+                label: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(cmpMonth == null ? 'Tháng trước' : Fmt.month(pFrom), key: ValueKey(pFrom)),
+                ),
+                onPressed: () => _pickCompareMonth(f, from, pFrom),
+              ),
+            ),
           ],
         ),
         Row(
           children: [
-            _StatBox('Thu', cur.income, AppColors.income, f),
+            _StatBox('Thu', cur.income, AppColors.income, f, prev: prev.income, upIsGood: true),
             const SizedBox(width: 8),
-            _StatBox('Chi', cur.expense, AppColors.expense, f),
+            _StatBox('Chi', cur.expense, AppColors.expense, f, prev: prev.expense, upIsGood: false),
             const SizedBox(width: 8),
-            _StatBox('Tiết kiệm', cur.income - cur.expense, Theme.of(context).colorScheme.primary, f),
+            _StatBox('Tiết kiệm', cur.income - cur.expense, Theme.of(context).colorScheme.primary, f, prev: prev.income - prev.expense, upIsGood: true),
           ],
         ),
         const SizedBox(height: 10),
@@ -108,7 +129,7 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
             Expanded(
               child: CountText(
                 values: [diff.abs()],
-                text: (cv) => '${type == TxType.expense ? 'Chi' : 'Thu'} ${diff >= 0 ? 'tăng' : 'giảm'} ${f.money(cv[0])} so với tháng trước',
+                text: (cv) => '${type == TxType.expense ? 'Chi' : 'Thu'} ${diff >= 0 ? 'tăng' : 'giảm'} ${f.money(cv[0])} so với $cmpLabel',
                 style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
@@ -174,7 +195,7 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                         for (final (i, g) in groups.indexed)
                           PieChartSectionData(
                             value: g.amount,
-                            color: hexColor(g.category?.color, AppColors.palette[i % AppColors.palette.length]),
+                            color: hexColor(g.category?.color, AppColors.autoPalette[i % AppColors.autoPalette.length]),
                             radius: touched == i ? 62 : 52,
                             title: total == 0 ? '' : '${(g.amount / total * 100).toStringAsFixed(0)}%',
                             titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
@@ -225,12 +246,339 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
             ],
           ),
         ),
+        const SectionTitle('So sánh'),
+        _compareCard(f, from, pFrom, cur, prev, list, prevList),
         const SectionTitle('Theo ngày'),
         AppCard(
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
           child: _MonthCalendar(from: from, daily: daily, color: color, onTapDay: (d) => _showDay(d, list)),
         ),
       ],
+    );
+  }
+
+  /// Thẻ so sánh tháng đang xem với một tháng tuỳ chọn: tổng Thu / Chi / Tiết kiệm và từng danh mục.
+  Widget _compareCard(
+    Finance f,
+    DateTime from,
+    DateTime pFrom,
+    ({double income, double expense}) cur,
+    ({double income, double expense}) prev,
+    List<Txn> list,
+    List<Txn> prevList,
+  ) {
+    final scheme = Theme.of(context).colorScheme;
+    final a = {for (final g in f.byCategory(list, type)) g.category?.id: g};
+    final b = {for (final g in f.byCategory(prevList, type)) g.category?.id: g};
+    final keys = {...a.keys, ...b.keys}.toList()
+      ..sort((x, y) {
+        final mx = [a[x]?.amount ?? 0, b[x]?.amount ?? 0].reduce((p, q) => p > q ? p : q);
+        final my = [a[y]?.amount ?? 0, b[y]?.amount ?? 0].reduce((p, q) => p > q ? p : q);
+        return my.compareTo(mx);
+      });
+    final maxAmt = keys.isEmpty
+        ? 0.0
+        : [
+            for (final k in keys) ...[a[k]?.amount ?? 0, b[k]?.amount ?? 0],
+          ].reduce((p, q) => p > q ? p : q);
+    final shown = cmpAll ? keys : keys.take(6).toList();
+    final color = type == TxType.expense ? AppColors.expense : AppColors.income;
+
+    Widget row(String label, double now, double then, Color c, {required bool upIsGood}) {
+      final d = now - then;
+      final good = d == 0 ? null : (d > 0) == upIsGood;
+      final dc = good == null ? scheme.onSurfaceVariant : (good ? AppColors.income : AppColors.expense);
+      final pct = then == 0 ? null : d / then.abs() * 100;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 72,
+              child: Text(
+                label,
+                style: TextStyle(color: c, fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AnimatedAmount(
+                    value: now,
+                    format: f.money,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  AnimatedAmount(
+                    value: then,
+                    format: f.money,
+                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(color: dc.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    '${d > 0
+                        ? '+'
+                        : d < 0
+                        ? '−'
+                        : ''}${Fmt.compact(d.abs())}',
+                    style: TextStyle(color: dc, fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                  if (pct != null) Text('${pct > 0 ? '+' : ''}${pct.toStringAsFixed(pct.abs() >= 10 ? 0 : 1)}%', style: TextStyle(color: dc, fontSize: 11)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: Fmt.month(from),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      TextSpan(
+                        text: '  so với',
+                        style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (cmpMonth != null)
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Về tháng trước',
+                  onPressed: () => setState(() => cmpMonth = null),
+                  icon: const Icon(Icons.restart_alt_rounded, size: 20),
+                ),
+              ActionChip(
+                avatar: const Icon(Icons.compare_arrows_rounded, size: 16),
+                label: Text(Fmt.month(pFrom)),
+                onPressed: () => _pickCompareMonth(f, from, pFrom),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          row('Thu', cur.income, prev.income, AppColors.income, upIsGood: true),
+          row('Chi', cur.expense, prev.expense, AppColors.expense, upIsGood: false),
+          row('Tiết kiệm', cur.income - cur.expense, prev.income - prev.expense, scheme.primary, upIsGood: true),
+          const Divider(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Text('${type == TxType.expense ? 'Chi' : 'Thu'} theo danh mục', style: const TextStyle(fontWeight: FontWeight.w700)),
+              ),
+              _legendDot(color, Fmt.month(from)),
+              const SizedBox(width: 10),
+              _legendDot(scheme.outline, Fmt.month(pFrom)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (keys.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: Text('Chưa có dữ liệu')),
+            )
+          else
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: Column(
+                children: [for (final k in shown) _cmpCategoryRow(f, (a[k] ?? b[k])!.category, a[k]?.amount ?? 0, b[k]?.amount ?? 0, maxAmt, color, scheme)],
+              ),
+            ),
+          if (keys.length > 6) TextButton(onPressed: () => setState(() => cmpAll = !cmpAll), child: Text(cmpAll ? 'Thu gọn' : 'Xem tất cả (${keys.length})')),
+        ],
+      ),
+    );
+  }
+
+  Widget _legendDot(Color c, String label) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+      ),
+      const SizedBox(width: 4),
+      Text(label, style: const TextStyle(fontSize: 11)),
+    ],
+  );
+
+  Widget _cmpCategoryRow(Finance f, Category? c, double now, double then, double maxAmt, Color color, ColorScheme scheme) {
+    final d = now - then;
+    // Chi tăng là xấu, thu tăng là tốt.
+    final good = d == 0 ? null : (d > 0) == (type == TxType.income);
+    final dc = good == null ? scheme.onSurfaceVariant : (good ? AppColors.income : AppColors.expense);
+    Widget bar(double v, Color c) => ClipRRect(
+      borderRadius: BorderRadius.circular(3),
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0, end: maxAmt == 0 ? 0 : v / maxAmt),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+        builder: (_, x, _) => LinearProgressIndicator(value: x, minHeight: 5, color: c, backgroundColor: scheme.surfaceContainerHighest),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          CircleIcon(icon: c?.icon, color: hexColor(c?.color), size: 32),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        c?.name ?? 'Không có danh mục',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                    Text('${Fmt.compact(now)} / ${Fmt.compact(then)}', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                bar(now, color),
+                const SizedBox(height: 3),
+                bar(then, scheme.outline),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 52,
+            child: Text(
+              d == 0 ? '—' : '${d > 0 ? '+' : '−'}${Fmt.compact(d.abs())}',
+              textAlign: TextAlign.end,
+              style: TextStyle(color: dc, fontWeight: FontWeight.w700, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Chọn tháng để so sánh: lưới 12 tháng, đổi năm bằng mũi tên. Tháng đang xem bị khoá.
+  void _pickCompareMonth(Finance f, DateTime from, DateTime pFrom) {
+    var y = pFrom.year;
+    final curKey = (from.year, from.month);
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      sheetAnimationStyle: kSheetAnim,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('So sánh với tháng', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      IconButton.filledTonal(onPressed: () => setSheet(() => y--), icon: const Icon(Icons.chevron_left_rounded)),
+                      Expanded(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          child: Text(
+                            'Năm $y',
+                            key: ValueKey(y),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                          ),
+                        ),
+                      ),
+                      IconButton.filledTonal(onPressed: () => setSheet(() => y++), icon: const Icon(Icons.chevron_right_rounded)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  GridView.count(
+                    crossAxisCount: 4,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 8,
+                    crossAxisSpacing: 8,
+                    childAspectRatio: 1.8,
+                    children: [
+                      for (var m = 1; m <= 12; m++)
+                        Builder(
+                          builder: (_) {
+                            final (mFrom, _) = f.monthRange(DateTime(y, m, 15));
+                            final isCur = (mFrom.year, mFrom.month) == curKey;
+                            final sel = mFrom.year == pFrom.year && mFrom.month == pFrom.month;
+                            return Pressable(
+                              scale: 0.95,
+                              onTap: isCur
+                                  ? null
+                                  : () {
+                                      HapticFeedback.selectionClick();
+                                      final prevOf = DateTime(month.year, month.month - 1, 15);
+                                      setState(() {
+                                        // Chọn đúng tháng liền trước → quay về chế độ tự đi theo.
+                                        cmpMonth = (y == prevOf.year && m == prevOf.month) ? null : DateTime(y, m, 15);
+                                        cmpAll = false;
+                                      });
+                                      Navigator.pop(ctx);
+                                    },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: sel ? scheme.primary : scheme.surfaceContainerHighest.withValues(alpha: isCur ? 0.4 : 1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  'Th $m',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: sel
+                                        ? scheme.onPrimary
+                                        : isCur
+                                        ? scheme.onSurfaceVariant.withValues(alpha: 0.4)
+                                        : scheme.onSurface,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -494,11 +842,34 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
 }
 
 class _StatBox extends StatelessWidget {
-  const _StatBox(this.label, this.value, this.color, this.f);
+  const _StatBox(this.label, this.value, this.color, this.f, {this.prev, this.upIsGood = true});
   final String label;
   final double value;
   final Color color;
   final Finance f;
+
+  /// Giá trị của tháng so sánh; có thì hiện dòng chênh lệch nhỏ bên dưới.
+  final double? prev;
+  final bool upIsGood;
+
+  Widget _delta(BuildContext context) {
+    final d = value - prev!;
+    final scheme = Theme.of(context).colorScheme;
+    final dc = d == 0 ? scheme.onSurfaceVariant : ((d > 0) == upIsGood ? AppColors.income : AppColors.expense);
+    final pct = prev == 0 ? null : d / prev!.abs() * 100;
+    final text = d == 0
+        ? '= không đổi'
+        : '${d > 0 ? '▲' : '▼'} ${pct == null ? Fmt.compact(d.abs()) : '${pct.abs().toStringAsFixed(pct.abs() >= 10 ? 0 : 1)}%'}';
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: Text(
+        text,
+        key: ValueKey(text),
+        maxLines: 1,
+        style: TextStyle(color: dc, fontSize: 11, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Expanded(
@@ -521,6 +892,7 @@ class _StatBox extends StatelessWidget {
               style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16),
             ),
           ),
+          if (prev != null) ...[const SizedBox(height: 2), _delta(context)],
         ],
       ),
     ),

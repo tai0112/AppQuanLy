@@ -16,6 +16,7 @@ import '../data/sync.dart';
 import '../data/calendar_look.dart';
 import '../data/time_config.dart';
 import '../providers.dart';
+import 'common.dart';
 import 'registry.dart';
 import 'shell.dart';
 import 'social.dart';
@@ -189,6 +190,14 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
             title: 'Đồng bộ & bộ nhớ đệm',
             keywords: 'dong bo sync offline',
             onTap: () => context.push('/settings/sync'),
+          ),
+          _S(
+            icon: Icons.move_to_inbox_rounded,
+            color: const Color(0xFFF76B15),
+            title: 'Nhập từ Money Manager',
+            subtitle: 'Giao dịch, tài khoản, danh mục & ảnh từ file .mmbackup',
+            keywords: 'nhap import money manager mmbackup sao luu khoi phuc chuyen du lieu',
+            onTap: () => context.push('/settings/import-mm'),
           ),
           _S(
             icon: Icons.dns_rounded,
@@ -1410,17 +1419,9 @@ class TimeSettingsPage extends ConsumerWidget {
           FormSection(
             title: 'Lịch',
             children: [
-              ListTile(
-                title: const Text('Ngày đầu tuần'),
-                trailing: SegmentedButton<int>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: 1, label: Text('Thứ 2')),
-                    ButtonSegment(value: 7, label: Text('Chủ nhật')),
-                  ],
-                  selected: {cfg.firstDayOfWeek},
-                  onSelectionChanged: (s) => save(cfg.copyWith(firstDayOfWeek: s.first)),
-                ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 14),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Ngày đầu tuần'), SizedBox(height: 10), FirstDayPicker()]),
               ),
             ],
           ),
