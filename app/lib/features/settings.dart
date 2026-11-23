@@ -481,16 +481,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         title: const Text('Địa chỉ máy chủ'),
         content: TextField(
           controller: c,
-          decoration: const InputDecoration(hintText: 'http://192.168.1.10:5000'),
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(hintText: AppConfig.prodApiUrl, helperText: 'Để trống = máy chủ mặc định'),
         ),
         actions: [
+          TextButton(onPressed: () => c.text = '', child: const Text('Mặc định')),
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
           FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Lưu')),
         ],
       ),
     );
     if (ok == true) {
-      api.baseUrl = c.text;
+      if (c.text.trim().isEmpty) {
+        ref.read(storeProvider).setMeta('apiUrl', null); // về địa chỉ mặc định của bản build
+      } else {
+        api.baseUrl = c.text;
+      }
       final alive = await api.ping();
       if (context.mounted) showToast(context, alive ? 'Kết nối máy chủ thành công' : 'Không kết nối được máy chủ', error: !alive);
     }
