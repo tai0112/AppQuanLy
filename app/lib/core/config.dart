@@ -2,7 +2,10 @@ import 'package:flutter/foundation.dart';
 
 /// Cấu hình chung. Địa chỉ server có thể đổi trong Cài đặt (lưu ở máy).
 class AppConfig {
-  /// Truyền khi build: --dart-define=API_URL=http://192.168.1.10:5000
+  /// Máy chủ chính thức (bản phát hành iOS / Android dùng mặc định).
+  static const prodApiUrl = 'https://api.lehuutai.xyz';
+
+  /// Ghi đè khi build: --dart-define=API_URL=http://192.168.1.10:5000
   static const _envUrl = String.fromEnvironment('API_URL');
 
   static String defaultApiUrl() {
@@ -12,7 +15,9 @@ class AppConfig {
       final origin = Uri.base.origin;
       return origin.contains(':5000') || !origin.contains('localhost') ? origin : 'http://localhost:5000';
     }
-    // Android emulator truy cập máy host qua 10.0.2.2; iOS simulator dùng localhost.
+    // Bản phát hành (App Store, APK release) → máy chủ chính thức.
+    if (kReleaseMode) return prodApiUrl;
+    // Chạy debug: Android emulator truy cập máy host qua 10.0.2.2; iOS simulator dùng localhost.
     if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:5000';
     return 'http://localhost:5000';
   }

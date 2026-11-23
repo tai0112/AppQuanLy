@@ -35,7 +35,7 @@ Future<DateTime?> showModernDatePicker(
 /// Chỉ chọn giờ (bánh xe 24h).
 Future<TimeOfDay?> showModernTimePicker(BuildContext context, {required TimeOfDay initial, String title = 'Chọn giờ'}) {
   HapticFeedback.selectionClick();
-  var h = initial.hour, m = initial.minute;
+  var h = (initial.hour % 24 + 24) % 24, m = (initial.minute % 60 + 60) % 60;
   return showModalBottomSheet<TimeOfDay>(
     context: context,
     showDragHandle: true,
@@ -52,7 +52,7 @@ Future<TimeOfDay?> showModernTimePicker(BuildContext context, {required TimeOfDa
             _TimeWheels(hour: h, minute: m, onChanged: (a, b) => (h, m) = (a, b)),
             const SizedBox(height: 16),
             _Actions(
-              onDone: () => Navigator.pop(ctx, TimeOfDay(hour: h, minute: m)),
+              onDone: () => Navigator.pop(ctx, TimeOfDay(hour: (h % 24 + 24) % 24, minute: (m % 60 + 60) % 60)),
             ),
           ],
         ),
@@ -75,7 +75,7 @@ class _DatePickerSheet extends ConsumerStatefulWidget {
 class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
   late DateTime selected = dateOnly(widget.initial);
   late DateTime month = DateTime(widget.initial.year, widget.initial.month);
-  late int hour = widget.initial.hour, minute = widget.initial.minute;
+  late int hour = (widget.initial.hour % 24 + 24) % 24, minute = (widget.initial.minute % 60 + 60) % 60;
   bool monthMode = false; // đang ở lưới chọn tháng/năm
   late int yearView = month.year;
   int dir = 1; // hướng trượt khi đổi tháng
@@ -237,7 +237,7 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
                 ),
               ],
               const SizedBox(height: 16),
-              _Actions(onDone: () => Navigator.pop(context, DateTime(selected.year, selected.month, selected.day, hour, minute))),
+              _Actions(onDone: () => Navigator.pop(context, DateTime(selected.year, selected.month, selected.day, (hour % 24 + 24) % 24, (minute % 60 + 60) % 60))),
             ],
           ),
         ),
@@ -416,9 +416,9 @@ class _TimeWheels extends StatefulWidget {
 }
 
 class _TimeWheelsState extends State<_TimeWheels> {
-  late final _hc = FixedExtentScrollController(initialItem: widget.hour);
-  late final _mc = FixedExtentScrollController(initialItem: widget.minute);
-  late int h = widget.hour, m = widget.minute;
+  late final _hc = FixedExtentScrollController(initialItem: (widget.hour % 24 + 24) % 24);
+  late final _mc = FixedExtentScrollController(initialItem: (widget.minute % 60 + 60) % 60);
+  late int h = (widget.hour % 24 + 24) % 24, m = (widget.minute % 60 + 60) % 60;
 
   @override
   void dispose() {
@@ -438,7 +438,7 @@ class _TimeWheelsState extends State<_TimeWheels> {
         selectionOverlay: const SizedBox.shrink(),
         onSelectedItemChanged: (i) {
           HapticFeedback.selectionClick();
-          on(i);
+          on((i % count + count) % count);
         },
         children: [
           for (var i = 0; i < count; i++)

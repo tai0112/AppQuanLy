@@ -92,6 +92,7 @@ final router = GoRouter(
   routes: [
     GoRoute(path: '/', pageBuilder: (c, s) => _page(s, const AppShell())),
     GoRoute(path: '/login', pageBuilder: (c, s) => _page(s, const AuthPage())),
+    GoRoute(path: '/register', pageBuilder: (c, s) => _page(s, const AuthPage(startWithRegister: true))),
     GoRoute(path: '/transactions', pageBuilder: (c, s) => _page(s, const TransactionsPage())),
     GoRoute(
       path: '/tx/edit',
