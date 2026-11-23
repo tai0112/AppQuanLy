@@ -91,6 +91,10 @@ public class ApiLoggingMiddleware(RequestDelegate next, IApiLogQueue queue, ILog
             {
                 logger.LogDebug(ex, "Không thể sao chép response body cho {Path}", path);
             }
+            finally
+            {
+                context.Response.Body = originalBodyStream;
+            }
 
             // Trích xuất thông tin người dùng sau khi Authentication Middleware đã chạy
             Guid? userId = null;

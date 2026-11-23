@@ -3509,3 +3509,119 @@ END;
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261123111323_NhatKyApi'
+)
+BEGIN
+    CREATE TABLE [NhatKyApi] (
+        [Id] uniqueidentifier NOT NULL,
+        [NguoiDungId] uniqueidentifier NULL,
+        [TenDangNhap] nvarchar(100) NULL,
+        [PhuongThuc] nvarchar(10) NOT NULL,
+        [DuongDan] nvarchar(300) NOT NULL,
+        [ThamSo] nvarchar(max) NULL,
+        [MaTrangThai] int NOT NULL,
+        [ThoiGianXuLyMs] bigint NOT NULL,
+        [DiaChiIp] nvarchar(64) NULL,
+        [TrinhDuyet] nvarchar(500) NULL,
+        [DuLieuYeuCau] nvarchar(max) NULL,
+        [DuLieuTraVe] nvarchar(max) NULL,
+        [ThongDiepLoi] nvarchar(max) NULL,
+        [NgayTao] datetimeoffset NOT NULL,
+        [NgayCapNhat] datetimeoffset NOT NULL,
+        [NgayXoa] datetimeoffset NULL,
+        CONSTRAINT [PK_NhatKyApi] PRIMARY KEY ([Id])
+    );
+    DECLARE @defaultSchema60 AS sysname;
+    SET @defaultSchema60 = SCHEMA_NAME();
+    DECLARE @description60 AS sql_variant;
+    SET @description60 = N'Nhật ký truy cập và gọi API của hệ thống';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi';
+    SET @description60 = N'Khoá chính (UUID v7 do app sinh)';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'Id';
+    SET @description60 = N'Mã người dùng (nếu đã đăng nhập)';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'NguoiDungId';
+    SET @description60 = N'Tên đăng nhập';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'TenDangNhap';
+    SET @description60 = N'Phương thức HTTP: GET, POST, PUT, DELETE...';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'PhuongThuc';
+    SET @description60 = N'Đường dẫn API';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'DuongDan';
+    SET @description60 = N'Tham số truy vấn';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'ThamSo';
+    SET @description60 = N'Mã trạng thái HTTP: 200, 400, 401, 500...';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'MaTrangThai';
+    SET @description60 = N'Thời gian xử lý tính bằng mili-giây';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'ThoiGianXuLyMs';
+    SET @description60 = N'Địa chỉ IP client';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'DiaChiIp';
+    SET @description60 = N'Trình duyệt hoặc ứng dụng gọi API';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'TrinhDuyet';
+    SET @description60 = N'Nội dung body gửi lên (đã che mật khẩu)';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'DuLieuYeuCau';
+    SET @description60 = N'Nội dung phản hồi hoặc thông điệp lỗi';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'DuLieuTraVe';
+    SET @description60 = N'Chi tiết lỗi / Exception nếu có';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'ThongDiepLoi';
+    SET @description60 = N'Thời điểm tạo (UTC)';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'NgayTao';
+    SET @description60 = N'Thời điểm sửa gần nhất (UTC) - dùng để đồng bộ';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'NgayCapNhat';
+    SET @description60 = N'Thời điểm xoá mềm (UTC), NULL = chưa xoá';
+    EXEC sp_addextendedproperty 'MS_Description', @description60, 'SCHEMA', @defaultSchema60, 'TABLE', N'NhatKyApi', 'COLUMN', N'NgayXoa';
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261123111323_NhatKyApi'
+)
+BEGIN
+    CREATE INDEX [IX_NhatKyApi_DuongDan] ON [NhatKyApi] ([DuongDan]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261123111323_NhatKyApi'
+)
+BEGIN
+    CREATE INDEX [IX_NhatKyApi_MaTrangThai] ON [NhatKyApi] ([MaTrangThai]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261123111323_NhatKyApi'
+)
+BEGIN
+    CREATE INDEX [IX_NhatKyApi_NgayCapNhat] ON [NhatKyApi] ([NgayCapNhat]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261123111323_NhatKyApi'
+)
+BEGIN
+    CREATE INDEX [IX_NhatKyApi_NgayTao] ON [NhatKyApi] ([NgayTao]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261123111323_NhatKyApi'
+)
+BEGIN
+    CREATE INDEX [IX_NhatKyApi_NguoiDungId] ON [NhatKyApi] ([NguoiDungId]);
+END;
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20261123111323_NhatKyApi'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20261123111323_NhatKyApi', N'10.0.15');
+END;
+
+COMMIT;
+GO
+

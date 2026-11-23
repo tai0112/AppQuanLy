@@ -104,7 +104,7 @@ class SyncEngine extends ChangeNotifier {
 
   bool get _cycleSyncEnabled => store.all(E.cycleSettings).any((s) => s['syncEnabled'] == true);
 
-  Future<void> sync() async {
+  Future<void> sync({bool forceFull = false}) async {
     if (!api.isLoggedIn) {
       _setState(SyncState.localOnly);
       return;
@@ -119,7 +119,7 @@ class SyncEngine extends ChangeNotifier {
       await _uploadFiles();
       await _push();
       await _sendOutbox();
-      await _pull();
+      await _pull(forceFull: forceFull);
       await _downloadFiles();
       ensureActivityTemplates(store);
       ensureEventCategories(store); // tài khoản cũ chưa có danh mục lịch trình → tạo sau khi đã lấy dữ liệu server
@@ -136,6 +136,12 @@ class SyncEngine extends ChangeNotifier {
       _running = false;
       _runQueued();
     }
+  }
+
+  /// Đặt lại mốc đồng bộ và kéo lại toàn bộ dữ liệu từ máy chủ.
+  Future<void> resetAndPullAll() async {
+    store.setMeta('lastPulledAt', null);
+    await sync(forceFull: true);
   }
 
   /// Lần đầu đăng nhập: lấy dữ liệu server trước; nếu tài khoản đã có dữ liệu thì bỏ dữ liệu mặc định chưa sửa trên máy.
@@ -241,8 +247,8 @@ class SyncEngine extends ChangeNotifier {
     }
   }
 
-  Future<void> _pull() async {
-    final since = store.meta('lastPulledAt');
+  Future<void> _pull({bool forceFull = false}) async {
+    final since = forceFull ? null : store.meta('lastPulledAt');
     final res = await api.get<Map<String, dynamic>>('/sync/pull', query: since == null ? null : {'since': since});
     _apply(res['changes'] as Map<String, dynamic>? ?? {});
     store.setMeta('lastPulledAt', res['serverTime'] as String);

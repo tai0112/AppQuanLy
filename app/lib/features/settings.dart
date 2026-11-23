@@ -1276,10 +1276,48 @@ class SyncStatusPage extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: sync.state == SyncState.syncing ? null : () => sync.sync(),
-            icon: const Icon(Icons.sync_rounded),
-            label: const Text('Đồng bộ ngay'),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: sync.state == SyncState.syncing ? null : () => sync.sync(),
+                  icon: const Icon(Icons.sync_rounded),
+                  label: const Text('Đồng bộ ngay'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: sync.state == SyncState.syncing
+                      ? null
+                      : () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Đồng bộ lại toàn bộ?'),
+                              content: const Text(
+                                'App sẽ đặt lại mốc thời gian và kéo lại toàn bộ dữ liệu từ máy chủ về máy này. Các dữ liệu chưa đẩy lên vẫn được bảo lưu.',
+                              ),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
+                                FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Đồng ý')),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await sync.resetAndPullAll();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Đã đồng bộ lại toàn bộ dữ liệu')),
+                              );
+                            }
+                          }
+                        },
+                  icon: const Icon(Icons.cloud_download_rounded),
+                  label: const Text('Tải lại toàn bộ'),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (dirty.isNotEmpty) ...[

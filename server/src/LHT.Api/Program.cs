@@ -91,8 +91,8 @@ using (var scope = app.Services.CreateScope())
     await scope.ServiceProvider.GetRequiredService<PermissionSeeder>().SeedAsync();
 }
 
-app.UseMiddleware<ExceptionMiddleware>();
 app.UseMiddleware<ApiLoggingMiddleware>();
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseCors();
 
 if (app.Environment.IsDevelopment())
