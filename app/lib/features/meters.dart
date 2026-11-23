@@ -89,7 +89,7 @@ class MeterLogic {
       'currencyCode': acc.currencyCode,
       'accountId': acc.id,
       'categoryId': categoryId,
-      'occurredAt': at.toUtc().toIso8601String(),
+      'occurredAt': toIso8601WithOffset(at),
       'note': note,
     });
     return rec['id'] as String;

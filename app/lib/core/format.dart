@@ -70,7 +70,22 @@ class Fmt {
   static String isoDate(DateTime d) => '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 }
 
-DateTime dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+DateTime dateOnly(DateTime d) {
+  final l = d.toLocal();
+  return DateTime(l.year, l.month, l.day);
+}
+
+/// Chuyển DateTime thành chuỗi ISO-8601 kèm múi giờ địa phương (VD: 2026-11-23T17:00:00.000+07:00).
+/// Giúp server (SQL Server datetimeoffset) lưu đúng giờ địa phương và offset thay vì bị đổi thành UTC +00:00.
+String toIso8601WithOffset(DateTime d) {
+  final l = d.toLocal();
+  final offset = l.timeZoneOffset;
+  final sign = offset.isNegative ? '-' : '+';
+  final h = offset.inHours.abs().toString().padLeft(2, '0');
+  final m = (offset.inMinutes.abs() % 60).toString().padLeft(2, '0');
+  final base = l.toIso8601String().replaceAll('Z', '');
+  return '$base$sign$h:$m';
+}
 
 /// Hiển thị số trong ô nhập: 1250000 → "1.250.000", 12.5 → "12,5".
 String amountText(num? v) {

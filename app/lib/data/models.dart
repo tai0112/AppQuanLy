@@ -20,7 +20,7 @@ DateTime? _cached(Map<String, DateTime> cache, String s, DateTime? Function(Stri
 }
 
 DateTime? _dt(Object? v) => v == null ? null : _cached(_dtCache, v as String, (s) => DateTime.tryParse(s)?.toLocal());
-DateTime? _d(Object? v) => v == null ? null : _cached(_dCache, v as String, DateTime.tryParse);
+DateTime? _d(Object? v) => v == null ? null : _cached(_dCache, v as String, (s) => DateTime.tryParse(s)?.toLocal());
 double _num(Object? v) => v == null ? 0 : (v as num).toDouble();
 
 class TxType {

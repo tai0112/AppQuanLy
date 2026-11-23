@@ -28,7 +28,9 @@ final txAddDate = ValueNotifier<DateTime?>(null);
 /// Giữ giờ hiện tại nhưng đổi sang ngày [day].
 DateTime atDay(DateTime? day) {
   final now = DateTime.now();
-  return day == null ? now : DateTime(day.year, day.month, day.day, now.hour, now.minute);
+  if (day == null) return now;
+  final l = day.toLocal();
+  return DateTime(l.year, l.month, l.day, now.hour, now.minute);
 }
 
 /// Một dòng giao dịch.
@@ -1644,7 +1646,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
           ? (parseAmount(toAmount.text) > 0 ? parseAmount(toAmount.text) : f.convert(value, account!.currencyCode, toAccount!.currencyCode))
           : null,
       'categoryId': type == TxType.transfer ? null : category!.id,
-      'occurredAt': at.toUtc().toIso8601String(),
+      'occurredAt': toIso8601WithOffset(at),
       'note': note.text.trim().isEmpty ? null : note.text.trim(),
       'eventId': eventId,
     });

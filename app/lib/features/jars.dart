@@ -492,7 +492,7 @@ class JarDetailPage extends ConsumerWidget {
                     'accountId': acc?.id,
                     'amount': deposit ? v : -v,
                     'note': note.text.trim().isEmpty ? null : note.text.trim(),
-                    'occurredAt': DateTime.now().toUtc().toIso8601String(),
+                    'occurredAt': toIso8601WithOffset(DateTime.now()),
                   });
                   Navigator.pop(ctx);
                   if (deposit && f.jarSaved(j.id) + v >= j.target && j.target > 0) {

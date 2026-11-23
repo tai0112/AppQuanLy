@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/format.dart';
 import 'local_store.dart';
 import 'sqlite_reader.dart';
 
@@ -309,7 +310,7 @@ Future<MmImportResult> importMoneyManager(LocalStore store, MmBackup b, {require
       'toAccountId': null,
       'toAmount': null,
       'categoryId': t.categoryUid == null ? null : catIds[t.categoryUid],
-      'occurredAt': _when(t.date, t.created).toUtc().toIso8601String(),
+      'occurredAt': toIso8601WithOffset(_when(t.date, t.created)),
       'note': (t.note ?? '').trim().isEmpty ? null : t.note!.trim(),
     });
     net[acc] = (net[acc] ?? 0) + (t.income ? amount : -amount);
@@ -352,7 +353,7 @@ Future<MmImportResult> importMoneyManager(LocalStore store, MmBackup b, {require
       'toAccountId': to,
       'toAmount': toAmount,
       'categoryId': null,
-      'occurredAt': _when(t.date, t.created).toUtc().toIso8601String(),
+      'occurredAt': toIso8601WithOffset(_when(t.date, t.created)),
       'note': (t.note ?? '').trim().isEmpty ? null : t.note!.trim(),
     });
     net[from] = (net[from] ?? 0) - amount;

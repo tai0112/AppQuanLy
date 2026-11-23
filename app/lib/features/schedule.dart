@@ -830,8 +830,8 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
     final saved = store.put(E.events, {
       ...?existing,
       'title': title.text.trim(),
-      'startAt': start.toUtc().toIso8601String(),
-      'endAt': end?.toUtc().toIso8601String(),
+      'startAt': toIso8601WithOffset(start),
+      'endAt': end != null ? toIso8601WithOffset(end!) : null,
       'isAllDay': allDay,
       'location': location.text.trim().isEmpty ? null : location.text.trim(),
       'note': note.text.trim().isEmpty ? null : note.text.trim(),
@@ -3514,7 +3514,7 @@ class _WeekGridState extends ConsumerState<_WeekGrid> {
     if (rec == null) return;
     final shift = Duration(days: dDays, minutes: dMin);
     final e = EventRec(rec);
-    store.put(E.events, {...rec, 'startAt': e.startAt.add(shift).toUtc().toIso8601String(), 'endAt': e.endAt?.add(shift).toUtc().toIso8601String()});
+    store.put(E.events, {...rec, 'startAt': toIso8601WithOffset(e.startAt.add(shift)), 'endAt': e.endAt != null ? toIso8601WithOffset(e.endAt!.add(shift)) : null});
     if (dDays != 0) {
       for (final it in store.all(E.eventItems).map(EventItemRec.new).where((i) => i.eventId == e.id && i.occurrenceDate != null).toList()) {
         final od = DateTime.tryParse(it.occurrenceDate!);
@@ -3531,7 +3531,7 @@ class _WeekGridState extends ConsumerState<_WeekGrid> {
     if (rec == null || dMin == 0) return;
     final e = EventRec(rec);
     final end = (e.endAt ?? e.startAt.add(const Duration(hours: 1))).add(Duration(minutes: dMin));
-    store.put(E.events, {...rec, 'endAt': end.toUtc().toIso8601String()});
+    store.put(E.events, {...rec, 'endAt': toIso8601WithOffset(end)});
     HapticFeedback.mediumImpact();
   }
 
