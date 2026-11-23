@@ -559,32 +559,54 @@ class _ProfileCard extends ConsumerWidget {
       return AppCard(
         gradient: gradient,
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.cloud_off_rounded, color: Colors.white),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Đang dùng offline',
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.cloud_off_rounded, color: Colors.white),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Đang dùng offline',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+                      ),
+                      Text('Đăng nhập để sao lưu, đồng bộ nhiều máy và kết nối bạn bè', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    ],
                   ),
-                  Text('Đăng nhập để sao lưu, đồng bộ nhiều máy và kết nối bạn bè', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: hero, minimumSize: const Size(64, 40)),
-              onPressed: () => context.push('/login'),
-              child: const Text('Đăng nhập', style: TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white70),
+                      minimumSize: const Size(64, 42),
+                    ),
+                    onPressed: () => context.push('/register'),
+                    child: const Text('Tạo tài khoản', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: hero, minimumSize: const Size(64, 42)),
+                    onPressed: () => context.push('/login'),
+                    child: const Text('Đăng nhập', style: TextStyle(fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -876,14 +898,17 @@ class _ThemeOption extends StatelessWidget {
 
 /// Đăng nhập / đăng ký.
 class AuthPage extends ConsumerStatefulWidget {
-  const AuthPage({super.key});
+  const AuthPage({super.key, this.startWithRegister = false});
+
+  /// Mở thẳng vào form đăng ký (nút "Tạo tài khoản").
+  final bool startWithRegister;
 
   @override
   ConsumerState<AuthPage> createState() => _AuthPageState();
 }
 
 class _AuthPageState extends ConsumerState<AuthPage> {
-  bool register = false;
+  late bool register = widget.startWithRegister;
   bool busy = false;
   bool hide = true;
   bool agree = false;
