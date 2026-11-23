@@ -121,6 +121,7 @@ class SyncEngine extends ChangeNotifier {
       await _sendOutbox();
       await _pull(forceFull: forceFull);
       await _downloadFiles();
+      _healOrphanTransactions();
       ensureActivityTemplates(store);
       ensureEventCategories(store); // tài khoản cũ chưa có danh mục lịch trình → tạo sau khi đã lấy dữ liệu server
       lastSyncedAt = DateTime.now();
@@ -158,6 +159,7 @@ class SyncEngine extends ChangeNotifier {
       store.setMeta('lastPulledAt', null);
       final res = await api.get<Map<String, dynamic>>('/sync/pull');
       final changes = (res['changes'] as Map<String, dynamic>? ?? {});
+      _remapLocalReferences(changes);
       if ((changes[E.categories] as List?)?.isNotEmpty == true) store.dropUntouchedSeeds();
       _apply(changes);
       store.setMeta('lastPulledAt', res['serverTime'] as String);
@@ -165,6 +167,157 @@ class SyncEngine extends ChangeNotifier {
     } catch (e) {
       debugPrint('firstSyncAfterLogin error: $e');
       // Không để lỗi đồng bộ ban đầu chặn luồng đăng nhập
+    }
+  }
+
+  /// Ánh xạ lại ID danh mục / tài khoản cho các giao dịch local chưa sync trước khi dropUntouchedSeeds.
+  void _remapLocalReferences(Map<String, dynamic> changes) {
+    final rawCats = changes[E.categories] as List?;
+    final rawAccs = changes[E.accounts] as List?;
+    final serverCats = rawCats?.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList() ?? [];
+    final serverAccs = rawAccs?.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList() ?? [];
+
+    if (serverCats.isEmpty && serverAccs.isEmpty) return;
+
+    for (final tx in store.all(E.transactions)) {
+      var updated = false;
+      final m = Map<String, dynamic>.from(tx);
+
+      // 1. Ánh xạ Danh mục
+      final catId = m['categoryId'] as String?;
+      if (catId != null && serverCats.isNotEmpty) {
+        final exact = serverCats.any((c) => c['id'] == catId);
+        if (!exact) {
+          final localCat = store.get(E.categories, catId);
+          final catName = (m['categoryName'] ?? localCat?['name'])?.toString().trim().toLowerCase();
+          final catType = localCat?['type'] ?? m['type'];
+          if (catName != null && catName.isNotEmpty) {
+            final match = serverCats.firstWhere(
+              (c) => c['name']?.toString().trim().toLowerCase() == catName &&
+                     (catType == null || c['type'] == null || c['type'] == catType),
+              orElse: () => <String, dynamic>{},
+            );
+            if (match.isNotEmpty) {
+              m['categoryId'] = match['id'];
+              m['categoryName'] = match['name'];
+              updated = true;
+            }
+          }
+        }
+      }
+
+      // 2. Ánh xạ Tài khoản nguồn
+      final accId = m['accountId'] as String?;
+      if (accId != null && serverAccs.isNotEmpty) {
+        final exact = serverAccs.any((a) => a['id'] == accId);
+        if (!exact) {
+          final localAcc = store.get(E.accounts, accId);
+          final accName = (m['accountName'] ?? localAcc?['name'])?.toString().trim().toLowerCase();
+          if (accName != null && accName.isNotEmpty) {
+            final match = serverAccs.firstWhere(
+              (a) => a['name']?.toString().trim().toLowerCase() == accName,
+              orElse: () => <String, dynamic>{},
+            );
+            if (match.isNotEmpty) {
+              m['accountId'] = match['id'];
+              m['accountName'] = match['name'];
+              updated = true;
+            }
+          }
+        }
+      }
+
+      // 3. Ánh xạ Tài khoản đích (chuyển khoản)
+      final toAccId = m['toAccountId'] as String?;
+      if (toAccId != null && serverAccs.isNotEmpty) {
+        final exact = serverAccs.any((a) => a['id'] == toAccId);
+        if (!exact) {
+          final localToAcc = store.get(E.accounts, toAccId);
+          final toAccName = (m['toAccountName'] ?? localToAcc?['name'])?.toString().trim().toLowerCase();
+          if (toAccName != null && toAccName.isNotEmpty) {
+            final match = serverAccs.firstWhere(
+              (a) => a['name']?.toString().trim().toLowerCase() == toAccName,
+              orElse: () => <String, dynamic>{},
+            );
+            if (match.isNotEmpty) {
+              m['toAccountId'] = match['id'];
+              m['toAccountName'] = match['name'];
+              updated = true;
+            }
+          }
+        }
+      }
+
+      if (updated) {
+        store.put(E.transactions, m, notify: false);
+      }
+    }
+  }
+
+  /// Tự động khắc phục các giao dịch có CategoryId hoặc AccountId không tồn tại trong store (orphan) bằng cách tìm theo tên.
+  void _healOrphanTransactions() {
+    final categories = store.all(E.categories);
+    final accounts = store.all(E.accounts);
+    if (categories.isEmpty && accounts.isEmpty) return;
+
+    for (final tx in store.all(E.transactions)) {
+      var updated = false;
+      final m = Map<String, dynamic>.from(tx);
+
+      final catId = m['categoryId'] as String?;
+      if (catId != null && store.get(E.categories, catId) == null) {
+        final catName = m['categoryName']?.toString().trim().toLowerCase();
+        final catType = m['type'];
+        if (catName != null && catName.isNotEmpty) {
+          final match = categories.firstWhere(
+            (c) => c['name']?.toString().trim().toLowerCase() == catName &&
+                   (catType == null || c['type'] == null || c['type'] == catType),
+            orElse: () => <String, dynamic>{},
+          );
+          if (match.isNotEmpty) {
+            m['categoryId'] = match['id'];
+            updated = true;
+          }
+        }
+      }
+
+      final accId = m['accountId'] as String?;
+      if (accId != null && store.get(E.accounts, accId) == null) {
+        final accName = m['accountName']?.toString().trim().toLowerCase();
+        if (accName != null && accName.isNotEmpty) {
+          final match = accounts.firstWhere(
+            (a) => a['name']?.toString().trim().toLowerCase() == accName,
+            orElse: () => <String, dynamic>{},
+          );
+          if (match.isNotEmpty) {
+            m['accountId'] = match['id'];
+            updated = true;
+          }
+        }
+      }
+
+      final toAccId = m['toAccountId'] as String?;
+      if (toAccId != null && store.get(E.accounts, toAccId) == null) {
+        final toAccName = m['toAccountName']?.toString().trim().toLowerCase();
+        if (toAccName != null && toAccName.isNotEmpty) {
+          final match = accounts.firstWhere(
+            (a) => a['name']?.toString().trim().toLowerCase() == toAccName,
+            orElse: () => <String, dynamic>{},
+          );
+          if (match.isNotEmpty) {
+            m['toAccountId'] = match['id'];
+            updated = true;
+          }
+        }
+      }
+
+      if (updated) {
+        final wasDirty = store.isDirty(E.transactions, m['id'] as String);
+        store.put(E.transactions, m, notify: false);
+        if (!wasDirty) {
+          store.markSynced(E.transactions, m['id'] as String);
+        }
+      }
     }
   }
 
@@ -208,7 +361,7 @@ class SyncEngine extends ChangeNotifier {
       final chunk = all.sublist(i, i + 200 > all.length ? all.length : i + 200);
       final res = await api.post<Map<String, dynamic>>('/sync/push', {
         'changes': [
-          for (final r in chunk) {'entity': r.entity, 'data': _clean(r.data)},
+          for (final r in chunk) {'entity': r.entity, 'data': _prepareData(r.entity, r.data)},
         ],
       });
       final accepted = (res['accepted'] as List?)?.map((x) => x.toString()).toSet() ?? <String>{};
@@ -225,6 +378,32 @@ class SyncEngine extends ChangeNotifier {
         }
       }
     }
+  }
+
+  Map<String, dynamic> _prepareData(String entity, Map<String, dynamic> data) {
+    final clean = _clean(data);
+    if (entity == E.transactions) {
+      final catId = clean['categoryId'] as String?;
+      if (catId != null) {
+        final cat = store.get(E.categories, catId);
+        if (cat != null) {
+          clean['categoryName'] ??= cat['name'];
+          clean['categoryIcon'] ??= cat['icon'];
+          clean['categoryColor'] ??= cat['color'];
+        }
+      }
+      final accId = clean['accountId'] as String?;
+      if (accId != null) {
+        final acc = store.get(E.accounts, accId);
+        if (acc != null) clean['accountName'] ??= acc['name'];
+      }
+      final toAccId = clean['toAccountId'] as String?;
+      if (toAccId != null) {
+        final toAcc = store.get(E.accounts, toAccId);
+        if (toAcc != null) clean['toAccountName'] ??= toAcc['name'];
+      }
+    }
+    return clean;
   }
 
   /// Bỏ các trường chỉ dùng trên máy (bắt đầu bằng "_").

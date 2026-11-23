@@ -258,7 +258,7 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
 
     /// <summary>
     /// Tự động tìm và ánh xạ lại Danh mục / Tài khoản khi ID không tồn tại trên DB.
-    /// Tìm theo tên danh mục (nếu có), hoặc theo ghi chú, hoặc fallback về danh mục hợp lệ.
+    /// Tìm theo tên danh mục (nếu có), hoặc theo ghi chú, hoặc tự tạo mới theo đúng ID/Tên từ client.
     /// </summary>
     private async Task ResolveTransactionReferencesAsync(Guid me, Transaction tx, JsonElement data, CancellationToken ct)
     {
@@ -270,24 +270,35 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
         // 1. Ánh xạ Danh mục (CategoryId)
         if (tx.CategoryId.HasValue && tx.CategoryId.Value != Guid.Empty)
         {
-            var catExists = await db.Set<Category>().AnyAsync(c => c.Id == tx.CategoryId.Value && c.UserId == me, ct);
+            var catExists = db.Set<Category>().Local.Any(c => c.Id == tx.CategoryId.Value && c.UserId == me)
+                || await db.Set<Category>().AnyAsync(c => c.Id == tx.CategoryId.Value && c.UserId == me, ct);
             if (!catExists)
             {
                 Category? matched = null;
-                // Tìm theo tên danh mục
+                var targetCatType = (CategoryType)tx.Type;
+
+                // 1.1 Tìm theo tên danh mục (cùng loại chi/thu)
                 if (!string.IsNullOrWhiteSpace(categoryName))
                 {
                     var nameTrim = categoryName.Trim();
-                    matched = await db.Set<Category>()
-                        .FirstOrDefaultAsync(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && c.Name.ToLower() == nameTrim.ToLower(), ct);
+                    matched = db.Set<Category>().Local
+                        .FirstOrDefault(c => c.UserId == me && c.Type == targetCatType && c.Name.Equals(nameTrim, StringComparison.OrdinalIgnoreCase))
+                        ?? await db.Set<Category>()
+                            .FirstOrDefaultAsync(c => c.UserId == me && c.Type == targetCatType && c.Name.ToLower() == nameTrim.ToLower(), ct)
+                        ?? db.Set<Category>().Local
+                            .FirstOrDefault(c => c.UserId == me && c.Name.Equals(nameTrim, StringComparison.OrdinalIgnoreCase))
+                        ?? await db.Set<Category>()
+                            .FirstOrDefaultAsync(c => c.UserId == me && c.Name.ToLower() == nameTrim.ToLower(), ct);
                 }
 
-                // Tìm theo ghi chú nếu ghi chú có nhắc đến tên danh mục
+                // 1.2 Tìm theo ghi chú nếu ghi chú có nhắc đến tên danh mục
                 if (matched == null && !string.IsNullOrWhiteSpace(tx.Note))
                 {
-                    var noteTrim = tx.Note.Trim();
-                    matched = await db.Set<Category>()
-                        .FirstOrDefaultAsync(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && (c.Name.ToLower() == noteTrim.ToLower() || noteTrim.ToLower().Contains(c.Name.ToLower())), ct);
+                    var noteTrim = tx.Note.Trim().ToLower();
+                    matched = db.Set<Category>().Local
+                        .FirstOrDefault(c => c.UserId == me && c.Type == targetCatType && (c.Name.ToLower() == noteTrim || noteTrim.Contains(c.Name.ToLower())))
+                        ?? await db.Set<Category>()
+                            .FirstOrDefaultAsync(c => c.UserId == me && c.Type == targetCatType && (c.Name.ToLower() == noteTrim || noteTrim.Contains(c.Name.ToLower())), ct);
                 }
 
                 if (matched != null)
@@ -296,15 +307,17 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
                 }
                 else if (!string.IsNullOrWhiteSpace(categoryName))
                 {
-                    // Tự động tạo danh mục theo tên nếu chưa có
+                    // Tự động tạo danh mục theo tên và giữ đúng CategoryId của client
+                    var icon = data.TryGetProperty("categoryIcon", out var icEl) && icEl.ValueKind == JsonValueKind.String ? icEl.GetString() : (tx.Type == TransactionType.Income ? "payments" : "restaurant");
+                    var color = data.TryGetProperty("categoryColor", out var colEl) && colEl.ValueKind == JsonValueKind.String ? colEl.GetString() : (tx.Type == TransactionType.Income ? "#30A46C" : "#F76B15");
                     var newCat = new Category
                     {
-                        Id = Guid.NewGuid(),
+                        Id = tx.CategoryId.Value,
                         UserId = me,
                         Name = categoryName.Trim(),
-                        Type = (CategoryType)tx.Type,
-                        Icon = tx.Type == TransactionType.Income ? "payments" : "restaurant",
-                        Color = tx.Type == TransactionType.Income ? "#30A46C" : "#F76B15",
+                        Type = targetCatType,
+                        Icon = icon,
+                        Color = color,
                         CreatedAt = clock.GetUtcNow(),
                         UpdatedAt = clock.GetUtcNow()
                     };
@@ -314,11 +327,17 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
                 else
                 {
                     // Fallback về danh mục "Khác" hoặc danh mục đầu tiên cùng loại
-                    var fallback = await db.Set<Category>()
-                        .Where(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && c.Name == "Khác")
-                        .FirstOrDefaultAsync(ct)
+                    var fallback = db.Set<Category>().Local
+                        .FirstOrDefault(c => c.UserId == me && c.Type == targetCatType && c.Name == "Khác")
                         ?? await db.Set<Category>()
-                            .Where(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && c.ParentId == null)
+                            .Where(c => c.UserId == me && c.Type == targetCatType && c.Name == "Khác")
+                            .FirstOrDefaultAsync(ct)
+                        ?? db.Set<Category>().Local
+                            .Where(c => c.UserId == me && c.Type == targetCatType && c.ParentId == null)
+                            .OrderBy(c => c.SortOrder)
+                            .FirstOrDefault()
+                        ?? await db.Set<Category>()
+                            .Where(c => c.UserId == me && c.Type == targetCatType && c.ParentId == null)
                             .OrderBy(c => c.SortOrder)
                             .FirstOrDefaultAsync(ct);
                     tx.CategoryId = fallback?.Id;
@@ -330,8 +349,11 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
             // Giao dịch thu/chi chưa có CategoryId, thử tìm theo tên nếu có
             if (!string.IsNullOrWhiteSpace(categoryName))
             {
-                var matched = await db.Set<Category>()
-                    .FirstOrDefaultAsync(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && c.Name.ToLower() == categoryName.Trim().ToLower(), ct);
+                var targetCatType = (CategoryType)tx.Type;
+                var matched = db.Set<Category>().Local
+                    .FirstOrDefault(c => c.UserId == me && c.Type == targetCatType && c.Name.Equals(categoryName.Trim(), StringComparison.OrdinalIgnoreCase))
+                    ?? await db.Set<Category>()
+                        .FirstOrDefaultAsync(c => c.UserId == me && c.Type == targetCatType && c.Name.ToLower() == categoryName.Trim().ToLower(), ct);
                 if (matched != null) tx.CategoryId = matched.Id;
             }
         }
@@ -339,28 +361,52 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
         // 2. Ánh xạ Tài khoản nguồn (AccountId)
         if (tx.AccountId != Guid.Empty)
         {
-            var accExists = await db.Set<Account>().AnyAsync(a => a.Id == tx.AccountId && a.UserId == me, ct);
+            var accExists = db.Set<Account>().Local.Any(a => a.Id == tx.AccountId && a.UserId == me)
+                || await db.Set<Account>().AnyAsync(a => a.Id == tx.AccountId && a.UserId == me, ct);
             if (!accExists)
             {
                 Account? matchedAcc = null;
                 if (!string.IsNullOrWhiteSpace(accountName))
                 {
                     var accTrim = accountName.Trim();
-                    matchedAcc = await db.Set<Account>()
-                        .FirstOrDefaultAsync(a => a.UserId == me && a.Name.ToLower() == accTrim.ToLower(), ct);
+                    matchedAcc = db.Set<Account>().Local
+                        .FirstOrDefault(a => a.UserId == me && a.Name.Equals(accTrim, StringComparison.OrdinalIgnoreCase))
+                        ?? await db.Set<Account>()
+                            .FirstOrDefaultAsync(a => a.UserId == me && a.Name.ToLower() == accTrim.ToLower(), ct);
                 }
 
                 if (matchedAcc != null)
                 {
                     tx.AccountId = matchedAcc.Id;
                 }
+                else if (!string.IsNullOrWhiteSpace(accountName))
+                {
+                    var newAcc = new Account
+                    {
+                        Id = tx.AccountId,
+                        UserId = me,
+                        Name = accountName.Trim(),
+                        CurrencyCode = string.IsNullOrEmpty(tx.CurrencyCode) ? "VND" : tx.CurrencyCode,
+                        Type = AccountType.Cash,
+                        Color = "#30A46C",
+                        Icon = "payments",
+                        CreatedAt = clock.GetUtcNow(),
+                        UpdatedAt = clock.GetUtcNow()
+                    };
+                    db.Set<Account>().Add(newAcc);
+                    tx.AccountId = newAcc.Id;
+                }
                 else
                 {
                     // Fallback về tài khoản mặc định/đầu tiên của user
-                    var fallbackAcc = await db.Set<Account>()
+                    var fallbackAcc = db.Set<Account>().Local
                         .Where(a => a.UserId == me)
                         .OrderBy(a => a.SortOrder)
-                        .FirstOrDefaultAsync(ct);
+                        .FirstOrDefault()
+                        ?? await db.Set<Account>()
+                            .Where(a => a.UserId == me)
+                            .OrderBy(a => a.SortOrder)
+                            .FirstOrDefaultAsync(ct);
                     if (fallbackAcc != null)
                     {
                         tx.AccountId = fallbackAcc.Id;
@@ -373,11 +419,30 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
         // 3. Ánh xạ Tài khoản nhận (ToAccountId)
         if (tx.ToAccountId.HasValue && tx.ToAccountId.Value != Guid.Empty)
         {
-            var toAccExists = await db.Set<Account>().AnyAsync(a => a.Id == tx.ToAccountId.Value && a.UserId == me, ct);
+            var toAccExists = db.Set<Account>().Local.Any(a => a.Id == tx.ToAccountId.Value && a.UserId == me)
+                || await db.Set<Account>().AnyAsync(a => a.Id == tx.ToAccountId.Value && a.UserId == me, ct);
             if (!toAccExists)
             {
-                tx.ToAccountId = null;
-                tx.ToAmount = null;
+                var toAccountName = data.TryGetProperty("toAccountName", out var tan) && tan.ValueKind == JsonValueKind.String ? tan.GetString() : null;
+                Account? matchedToAcc = null;
+                if (!string.IsNullOrWhiteSpace(toAccountName))
+                {
+                    var toTrim = toAccountName.Trim();
+                    matchedToAcc = db.Set<Account>().Local
+                        .FirstOrDefault(a => a.UserId == me && a.Name.Equals(toTrim, StringComparison.OrdinalIgnoreCase))
+                        ?? await db.Set<Account>()
+                            .FirstOrDefaultAsync(a => a.UserId == me && a.Name.ToLower() == toTrim.ToLower(), ct);
+                }
+
+                if (matchedToAcc != null)
+                {
+                    tx.ToAccountId = matchedToAcc.Id;
+                }
+                else
+                {
+                    tx.ToAccountId = null;
+                    tx.ToAmount = null;
+                }
             }
         }
     }
