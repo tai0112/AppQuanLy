@@ -45,4 +45,10 @@ public class Transaction : OwnedEntity
 
     [System.Text.Json.Serialization.JsonIgnore] public Account? Account { get; set; }
     [System.Text.Json.Serialization.JsonIgnore] public Category? Category { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? CategoryName { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? AccountName { get; set; }
 }

@@ -104,6 +104,7 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
                     {
                         db.ChangeTracker.Clear();
                         var msg = ex.InnerException?.Message ?? ex.Message;
+                        Console.WriteLine($"[Sync Rejected] Entity: {change.Entity}, Id: {id}, Error: {msg}");
                         reason = msg.Contains("duplicate key", StringComparison.OrdinalIgnoreCase) ? "conflict" : "invalid";
                     }
                 }
@@ -153,6 +154,11 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
         T incoming;
         try { incoming = data.Deserialize<T>(Json)!; }
         catch (JsonException) { return "invalid"; }
+
+        if (incoming is Transaction tx)
+        {
+            await ResolveTransactionReferencesAsync(me, tx, data, ct);
+        }
 
         var existing = await db.Set<T>().IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == incoming.Id, ct);
 
@@ -249,4 +255,130 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
         => db.Set<Event>().Local.Any(e => e.Id == eventId && e.UserId == me)
            || await db.Set<Event>().AnyAsync(e => e.Id == eventId && e.UserId == me, ct)
            || await db.Set<EventParticipant>().AnyAsync(p => p.EventId == eventId && p.ParticipantUserId == me && p.Status == ParticipantStatus.Accepted, ct);
+
+    /// <summary>
+    /// Tự động tìm và ánh xạ lại Danh mục / Tài khoản khi ID không tồn tại trên DB.
+    /// Tìm theo tên danh mục (nếu có), hoặc theo ghi chú, hoặc fallback về danh mục hợp lệ.
+    /// </summary>
+    private async Task ResolveTransactionReferencesAsync(Guid me, Transaction tx, JsonElement data, CancellationToken ct)
+    {
+        var categoryName = tx.CategoryName
+            ?? (data.TryGetProperty("categoryName", out var cn) && cn.ValueKind == JsonValueKind.String ? cn.GetString() : null);
+        var accountName = tx.AccountName
+            ?? (data.TryGetProperty("accountName", out var an) && an.ValueKind == JsonValueKind.String ? an.GetString() : null);
+
+        // 1. Ánh xạ Danh mục (CategoryId)
+        if (tx.CategoryId.HasValue && tx.CategoryId.Value != Guid.Empty)
+        {
+            var catExists = await db.Set<Category>().AnyAsync(c => c.Id == tx.CategoryId.Value && c.UserId == me, ct);
+            if (!catExists)
+            {
+                Category? matched = null;
+                // Tìm theo tên danh mục
+                if (!string.IsNullOrWhiteSpace(categoryName))
+                {
+                    var nameTrim = categoryName.Trim();
+                    matched = await db.Set<Category>()
+                        .FirstOrDefaultAsync(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && c.Name.ToLower() == nameTrim.ToLower(), ct);
+                }
+
+                // Tìm theo ghi chú nếu ghi chú có nhắc đến tên danh mục
+                if (matched == null && !string.IsNullOrWhiteSpace(tx.Note))
+                {
+                    var noteTrim = tx.Note.Trim();
+                    matched = await db.Set<Category>()
+                        .FirstOrDefaultAsync(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && (c.Name.ToLower() == noteTrim.ToLower() || noteTrim.ToLower().Contains(c.Name.ToLower())), ct);
+                }
+
+                if (matched != null)
+                {
+                    tx.CategoryId = matched.Id;
+                }
+                else if (!string.IsNullOrWhiteSpace(categoryName))
+                {
+                    // Tự động tạo danh mục theo tên nếu chưa có
+                    var newCat = new Category
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = me,
+                        Name = categoryName.Trim(),
+                        Type = (CategoryType)tx.Type,
+                        Icon = tx.Type == TransactionType.Income ? "payments" : "restaurant",
+                        Color = tx.Type == TransactionType.Income ? "#30A46C" : "#F76B15",
+                        CreatedAt = clock.GetUtcNow(),
+                        UpdatedAt = clock.GetUtcNow()
+                    };
+                    db.Set<Category>().Add(newCat);
+                    tx.CategoryId = newCat.Id;
+                }
+                else
+                {
+                    // Fallback về danh mục "Khác" hoặc danh mục đầu tiên cùng loại
+                    var fallback = await db.Set<Category>()
+                        .Where(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && c.Name == "Khác")
+                        .FirstOrDefaultAsync(ct)
+                        ?? await db.Set<Category>()
+                            .Where(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && c.ParentId == null)
+                            .OrderBy(c => c.SortOrder)
+                            .FirstOrDefaultAsync(ct);
+                    tx.CategoryId = fallback?.Id;
+                }
+            }
+        }
+        else if (tx.Type != TransactionType.Transfer)
+        {
+            // Giao dịch thu/chi chưa có CategoryId, thử tìm theo tên nếu có
+            if (!string.IsNullOrWhiteSpace(categoryName))
+            {
+                var matched = await db.Set<Category>()
+                    .FirstOrDefaultAsync(c => c.UserId == me && (byte)c.Type == (byte)tx.Type && c.Name.ToLower() == categoryName.Trim().ToLower(), ct);
+                if (matched != null) tx.CategoryId = matched.Id;
+            }
+        }
+
+        // 2. Ánh xạ Tài khoản nguồn (AccountId)
+        if (tx.AccountId != Guid.Empty)
+        {
+            var accExists = await db.Set<Account>().AnyAsync(a => a.Id == tx.AccountId && a.UserId == me, ct);
+            if (!accExists)
+            {
+                Account? matchedAcc = null;
+                if (!string.IsNullOrWhiteSpace(accountName))
+                {
+                    var accTrim = accountName.Trim();
+                    matchedAcc = await db.Set<Account>()
+                        .FirstOrDefaultAsync(a => a.UserId == me && a.Name.ToLower() == accTrim.ToLower(), ct);
+                }
+
+                if (matchedAcc != null)
+                {
+                    tx.AccountId = matchedAcc.Id;
+                }
+                else
+                {
+                    // Fallback về tài khoản mặc định/đầu tiên của user
+                    var fallbackAcc = await db.Set<Account>()
+                        .Where(a => a.UserId == me)
+                        .OrderBy(a => a.SortOrder)
+                        .FirstOrDefaultAsync(ct);
+                    if (fallbackAcc != null)
+                    {
+                        tx.AccountId = fallbackAcc.Id;
+                        if (string.IsNullOrEmpty(tx.CurrencyCode)) tx.CurrencyCode = fallbackAcc.CurrencyCode;
+                    }
+                }
+            }
+        }
+
+        // 3. Ánh xạ Tài khoản nhận (ToAccountId)
+        if (tx.ToAccountId.HasValue && tx.ToAccountId.Value != Guid.Empty)
+        {
+            var toAccExists = await db.Set<Account>().AnyAsync(a => a.Id == tx.ToAccountId.Value && a.UserId == me, ct);
+            if (!toAccExists)
+            {
+                tx.ToAccountId = null;
+                tx.ToAmount = null;
+            }
+        }
+    }
 }

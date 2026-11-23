@@ -82,6 +82,8 @@ extension type Txn(Map<String, dynamic> m) {
   String? get toAccountId => m['toAccountId'];
   double? get toAmount => m['toAmount'] == null ? null : _num(m['toAmount']);
   String? get categoryId => m['categoryId'];
+  String? get categoryName => m['categoryName'];
+  String? get accountName => m['accountName'];
   DateTime get occurredAt => _dt(m['occurredAt']) ?? DateTime.now();
   String? get note => m['note'];
   String? get eventId => m['eventId'];

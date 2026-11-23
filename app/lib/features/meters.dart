@@ -88,7 +88,9 @@ class MeterLogic {
       'amount': amount,
       'currencyCode': acc.currencyCode,
       'accountId': acc.id,
+      'accountName': acc.name,
       'categoryId': categoryId,
+      'categoryName': f.category(categoryId)?.name,
       'occurredAt': toIso8601WithOffset(at),
       'note': note,
     });

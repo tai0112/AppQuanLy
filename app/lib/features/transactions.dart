@@ -48,7 +48,7 @@ class TxTile extends ConsumerWidget {
     final acc = f.account(txn.accountId);
     final hasPhoto = f.hasPhoto(txn.id); // tra sẵn, không quét toàn bộ ảnh cho từng dòng
     final isTransfer = txn.type == TxType.transfer;
-    final title = isTransfer ? 'Chuyển khoản' : (cat?.name ?? 'Không có danh mục');
+    final title = isTransfer ? 'Chuyển khoản' : (cat?.name ?? txn.categoryName ?? 'Không có danh mục');
     final sub = [
       if (isTransfer) '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' else acc?.name ?? '',
       if (txn.note?.isNotEmpty == true) txn.note!,
@@ -1053,7 +1053,7 @@ class _TxGridCard extends ConsumerWidget {
     final isTransfer = txn.type == TxType.transfer;
     final cat = f.category(txn.categoryId);
     final color = isTransfer ? AppColors.transfer : hexColor(cat?.color, txColor(txn.type));
-    final title = isTransfer ? 'Chuyển khoản' : (cat?.name ?? 'Không có danh mục');
+    final title = isTransfer ? 'Chuyển khoản' : (cat?.name ?? txn.categoryName ?? 'Không có danh mục');
     final sign = switch (txn.type) {
       TxType.expense => '-',
       TxType.income => '+',
@@ -1641,11 +1641,14 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
       'amount': value,
       'currencyCode': account!.currencyCode,
       'accountId': account!.id,
+      'accountName': account!.name,
       'toAccountId': type == TxType.transfer ? toAccount!.id : null,
+      'toAccountName': type == TxType.transfer ? toAccount?.name : null,
       'toAmount': crossCurrency
           ? (parseAmount(toAmount.text) > 0 ? parseAmount(toAmount.text) : f.convert(value, account!.currencyCode, toAccount!.currencyCode))
           : null,
       'categoryId': type == TxType.transfer ? null : category!.id,
+      'categoryName': type == TxType.transfer ? null : category?.name,
       'occurredAt': toIso8601WithOffset(at),
       'note': note.text.trim().isEmpty ? null : note.text.trim(),
       'eventId': eventId,
