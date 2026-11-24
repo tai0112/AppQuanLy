@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart' show SynchronousFuture;
+import 'package:flutter/foundation.dart' show SynchronousFuture, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -97,12 +97,29 @@ class FileImage2 extends ConsumerWidget {
   final BoxFit fit;
   final double radius;
 
+  static final _inFlight = <String>{};
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final store = ref.read(storeProvider);
-    return store.hasLocalFile(fileId)
-        ? AppImage(image: StoredImage(fileId, store), fit: fit, radius: radius)
-        : AppImage(url: ref.read(apiProvider).fileUrl(fileId), fit: fit, radius: radius);
+    final store = ref.watch(storeProvider);
+    if (store.hasLocalFile(fileId)) {
+      return AppImage(image: StoredImage(fileId, store), fit: fit, radius: radius);
+    }
+    // Nếu chưa có trong cache phiên, kích hoạt nạp ngầm để lần tới mở xem sẽ có sẵn tức thì 0ms
+    if (!kIsWeb) {
+      _cacheInBackground(ref, fileId);
+    }
+    return AppImage(url: ref.read(apiProvider).fileUrl(fileId), fit: fit, radius: radius);
+  }
+
+  static void _cacheInBackground(WidgetRef ref, String fid) {
+    if (fid.isEmpty || _inFlight.contains(fid)) return;
+    _inFlight.add(fid);
+    ref.read(apiProvider).download(fid).then((f) async {
+      if (f != null) {
+        await ref.read(storeProvider).saveDownloadedFile(fid, f.bytes, f.mime);
+      }
+    }).catchError((_) {}).whenComplete(() => _inFlight.remove(fid));
   }
 }
 

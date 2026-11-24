@@ -120,13 +120,15 @@ class SyncEngine extends ChangeNotifier {
       await _push();
       await _sendOutbox();
       await _pull(forceFull: forceFull);
-      await _downloadFiles();
       _healOrphanTransactions();
       ensureActivityTemplates(store);
       ensureEventCategories(store); // tài khoản cũ chưa có danh mục lịch trình → tạo sau khi đã lấy dữ liệu server
       lastSyncedAt = DateTime.now();
       lastError = null;
       _setState(SyncState.idle);
+
+      // Tải ảnh ngầm không chặn luồng đăng nhập hay đồng bộ dữ liệu chính
+      unawaited(_downloadFiles());
     } on ApiException catch (e) {
       lastError = e.message;
       _setState(e.offline ? SyncState.offline : SyncState.error);
@@ -160,7 +162,9 @@ class SyncEngine extends ChangeNotifier {
       final res = await api.get<Map<String, dynamic>>('/sync/pull');
       final changes = (res['changes'] as Map<String, dynamic>? ?? {});
       _remapLocalReferences(changes);
-      if ((changes[E.categories] as List?)?.isNotEmpty == true) store.dropUntouchedSeeds();
+      if ((changes[E.categories] as List?)?.isNotEmpty == true || (changes[E.accounts] as List?)?.isNotEmpty == true) {
+        store.dropUntouchedSeeds();
+      }
       _apply(changes);
       store.setMeta('lastPulledAt', res['serverTime'] as String);
       await sync();
@@ -178,6 +182,7 @@ class SyncEngine extends ChangeNotifier {
     final serverAccs = rawAccs?.whereType<Map>().map((m) => Map<String, dynamic>.from(m)).toList() ?? [];
 
     if (serverCats.isEmpty && serverAccs.isEmpty) return;
+    final remappedOldAccIds = <String>{};
 
     for (final tx in store.all(E.transactions)) {
       var updated = false;
@@ -221,6 +226,7 @@ class SyncEngine extends ChangeNotifier {
             if (match.isNotEmpty) {
               m['accountId'] = match['id'];
               m['accountName'] = match['name'];
+              remappedOldAccIds.add(accId);
               updated = true;
             }
           }
@@ -242,6 +248,7 @@ class SyncEngine extends ChangeNotifier {
             if (match.isNotEmpty) {
               m['toAccountId'] = match['id'];
               m['toAccountName'] = match['name'];
+              remappedOldAccIds.add(toAccId);
               updated = true;
             }
           }
@@ -250,6 +257,33 @@ class SyncEngine extends ChangeNotifier {
 
       if (updated) {
         store.put(E.transactions, m, notify: false);
+      }
+    }
+
+    // 4. Dọn dẹp tài khoản local cũ đã chuyển hết giao dịch sang tài khoản server
+    for (final oldId in remappedOldAccIds) {
+      final hasRemainingTxs = store.all(E.transactions).any((t) => t['accountId'] == oldId || t['toAccountId'] == oldId);
+      if (!hasRemainingTxs) {
+        store.remove(E.accounts, oldId);
+      }
+    }
+
+    // 5. Nếu có tài khoản local trùng tên với tài khoản server mà không có bất kỳ giao dịch nào, tự động xoá
+    if (serverAccs.isNotEmpty) {
+      for (final localAcc in store.all(E.accounts)) {
+        final localId = localAcc['id'] as String;
+        final localName = localAcc['name']?.toString().trim().toLowerCase();
+        if (localName == null || localName.isEmpty) continue;
+        final serverMatch = serverAccs.firstWhere(
+          (s) => s['name']?.toString().trim().toLowerCase() == localName,
+          orElse: () => <String, dynamic>{},
+        );
+        if (serverMatch.isNotEmpty && serverMatch['id'] != localId) {
+          final hasTxs = store.all(E.transactions).any((t) => t['accountId'] == localId || t['toAccountId'] == localId);
+          if (!hasTxs) {
+            store.remove(E.accounts, localId);
+          }
+        }
       }
     }
   }
@@ -330,28 +364,54 @@ class SyncEngine extends ChangeNotifier {
     }
   }
 
-  /// Tải về từng ảnh còn thiếu (mỗi lúc 1 ảnh trong RAM, ghi ngay xuống tệp), rồi dọn tệp ảnh không còn dùng.
+  /// Tải về các ảnh còn thiếu cho Session Cache dưới nền (ưu tiên ảnh lịch giao dịch trước).
   Future<void> _downloadFiles() async {
-    final missing = store.missingFiles();
+    if (kIsWeb) {
+      await store.pruneLocalFiles(immediate: true);
+      return;
+    }
+    final missing = store.prioritizedMissingFiles();
     final gone = (store.meta('goneFiles') ?? '').split(',').where((s) => s.isNotEmpty).toSet();
     final todo = missing.where((id) => !gone.contains(id)).toList();
+    if (todo.isEmpty) {
+      await store.pruneLocalFiles(immediate: true);
+      return;
+    }
+
     try {
-      for (final (i, id) in todo.indexed) {
-        fileProgress = (i, todo.length);
-        notifyListeners();
-        final f = await api.download(id);
-        if (f == null) {
-          gone.add(id); // server không còn ảnh này → không thử lại mỗi lần
-        } else {
-          await store.saveDownloadedFile(id, f.bytes, f.mime);
+      var done = 0;
+      fileProgress = (0, todo.length);
+      notifyListeners();
+
+      const concurrency = 3;
+      var index = 0;
+
+      Future<void> worker() async {
+        while (true) {
+          final i = index++;
+          if (i >= todo.length) break;
+          final id = todo[i];
+          try {
+            final f = await api.download(id);
+            if (f == null) {
+              gone.add(id);
+            } else {
+              await store.saveDownloadedFile(id, f.bytes, f.mime);
+            }
+          } catch (_) {}
+          done++;
+          fileProgress = (done, todo.length);
+          notifyListeners();
         }
       }
+
+      await Future.wait(List.generate(concurrency, (_) => worker()));
     } finally {
       fileProgress = null;
       store.setMeta('goneFiles', gone.isEmpty ? null : gone.join(','));
-      if (todo.isNotEmpty) store.notifyRemoteApplied(); // ảnh đã có trên máy → màn hình chuyển sang đọc tệp
+      if (todo.isNotEmpty) store.notifyRemoteApplied();
     }
-    await store.pruneLocalFiles();
+    await store.pruneLocalFiles(immediate: true);
   }
 
   Future<void> _push() async {

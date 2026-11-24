@@ -209,6 +209,18 @@ class LocalStore extends ChangeNotifier {
     final existing = _cache[entity]?[id];
     if (existing == null) return;
     put(entity, {...existing, 'deletedAt': DateTime.now().toUtc().toIso8601String()});
+    // Tự động xoá mềm các bản ghi con đính kèm ảnh
+    if (entity == E.transactions) {
+      final atts = all(E.attachments).where((a) => a['ownerId'] == id).toList();
+      for (final a in atts) {
+        remove(E.attachments, a['id'] as String);
+      }
+    } else if (entity == E.events) {
+      final photos = all(E.eventPhotos).where((p) => p['eventId'] == id).toList();
+      for (final p in photos) {
+        remove(E.eventPhotos, p['id'] as String);
+      }
+    }
   }
 
   void _write(String entity, Map<String, dynamic> rec) {
@@ -431,9 +443,24 @@ class LocalStore extends ChangeNotifier {
     final sig = _epoch * 1000000 + _entityVer.values.fold<int>(0, (a, b) => a + b);
     if (sig == _refSig) return _refCache;
     final out = <String>{};
-    for (final entity in _cache.values) {
-      for (final rec in entity.values) {
+    for (final entry in _cache.entries) {
+      final entityName = entry.key;
+      for (final rec in entry.value.values) {
         if (rec['deletedAt'] != null) continue;
+        if (entityName == E.attachments) {
+          final ownerId = rec['ownerId'] as String?;
+          final ownerType = rec['ownerType'] as int?;
+          if (ownerType == 1 && ownerId != null) {
+            final tx = get(E.transactions, ownerId);
+            if (tx == null) continue;
+          }
+        } else if (entityName == E.eventPhotos) {
+          final eventId = rec['eventId'] as String?;
+          if (eventId != null) {
+            final ev = get(E.events, eventId);
+            if (ev == null) continue;
+          }
+        }
         for (final e in rec.entries) {
           if (e.value is String && (e.key == 'fileId' || e.key.endsWith('FileId'))) out.add(e.value as String);
         }
@@ -452,18 +479,69 @@ class LocalStore extends ChangeNotifier {
       if (!hasLocalFile(id)) id,
   ];
 
-  /// Xoá tệp ảnh không còn bản ghi nào dùng (bản ghi đã xoá). Ảnh chờ tải lên luôn được giữ;
-  /// ảnh mới lưu trong 1 giờ cũng giữ (có thể đang nằm trong form chưa bấm Lưu).
-  Future<void> pruneLocalFiles() async {
+  /// Danh sách fileId cần tải về theo thứ tự ưu tiên:
+  /// 1. Ảnh của các giao dịch trong 60 ngày gần nhất (tháng này và tháng trước để lướt lịch mượt 100%).
+  /// 2. Toàn bộ các ảnh còn lại.
+  List<String> prioritizedMissingFiles() {
+    final missing = missingFiles().toSet();
+    if (missing.isEmpty) return const [];
+
+    final priority = <String>[];
+    final now = DateTime.now();
+    final cutoff = now.subtract(const Duration(days: 60));
+
+    // 1. Ảnh của các giao dịch gần đây (cho Lịch giao dịch)
+    for (final a in all(E.attachments)) {
+      final fid = a['fileId'] as String?;
+      if (fid != null && missing.contains(fid)) {
+        final tx = get(E.transactions, a['ownerId'] as String? ?? '');
+        if (tx != null) {
+          final date = DateTime.tryParse(tx['date'] as String? ?? '');
+          if (date != null && date.isAfter(cutoff)) {
+            priority.add(fid);
+            missing.remove(fid);
+          }
+        }
+      }
+    }
+
+    // 2. Các ảnh còn lại
+    priority.addAll(missing);
+    return priority;
+  }
+
+  /// Xoá tệp ảnh không còn bản ghi nào dùng (bản ghi đã xoá). Ảnh chờ tải lên luôn được giữ.
+  Future<void> pruneLocalFiles({bool immediate = true}) async {
     final used = referencedFileIds();
-    final cutoff = DateTime.now().subtract(const Duration(hours: 1)).millisecondsSinceEpoch;
+    // Nếu immediate = true (mặc định), dọn dẹp ngay các ảnh không còn bản ghi nào tham chiếu.
+    final cutoff = immediate
+        ? DateTime.now().millisecondsSinceEpoch + 1000
+        : DateTime.now().subtract(const Duration(minutes: 5)).millisecondsSinceEpoch;
     for (final id in _localFiles.keys.cast<String>().toList()) {
+      if (_fileMeta.containsKey(id)) continue; // ảnh đang chờ upload luôn giữ
       final at = int.tryParse(_localFiles.get(id)!.split('|').last) ?? 0;
-      if (!used.contains(id) && at < cutoff) {
+      if (!used.contains(id) && (immediate || at < cutoff)) {
         await _localFiles.delete(id);
         await _blobs.delete(id);
       }
     }
+  }
+
+  /// Có lưu ảnh ngoại tuyến trên máy không (mặc định false: chỉ dùng server để tiết kiệm dung lượng).
+  bool get offlineImages => meta('offlineImages') == 'true';
+  void setOfflineImages(bool enable) {
+    setMeta('offlineImages', enable ? 'true' : 'false');
+    notifyListeners();
+  }
+
+  /// Dọn sạch toàn bộ ảnh đã lưu trong máy (chỉ giữ lại ảnh mới tạo đang chờ tải lên server).
+  Future<void> clearDownloadedFiles() async {
+    for (final id in _localFiles.keys.cast<String>().toList()) {
+      if (_fileMeta.containsKey(id)) continue;
+      await _localFiles.delete(id);
+      await _blobs.delete(id);
+    }
+    notifyListeners();
   }
 
   // ------------------------------------------------------------------ Outbox (bài viết/tin nhắn offline)

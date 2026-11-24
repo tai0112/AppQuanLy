@@ -15,7 +15,7 @@ namespace LHT.Application.Features.Sync;
 /// - Pull: app lấy mọi bản ghi có UpdatedAt &gt; mốc lần trước (gồm bản ghi đã xoá để app xoá theo).
 /// Lịch trình được chia sẻ: người tham gia cũng pull được, người có quyền sửa cũng push được.
 /// </summary>
-public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier realtime)
+public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier realtime, IFileStorage storage)
 {
     /// <summary>Danh sách bảng được đồng bộ, theo thứ tự phụ thuộc (bảng cha trước).</summary>
     public static readonly (string Name, Type Type, bool PullOnly)[] Entities =
@@ -77,11 +77,41 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
 
         var accepted = new List<Guid>();
         var sharedEvents = new HashSet<Guid>();
+        var candidateFileIds = new HashSet<Guid>();
 
         // Lượt 1: lưu cả lô. Nếu lỗi → lượt 2 lưu từng bản ghi để tách bản ghi lỗi.
         var batchRejected = new List<SyncRejected>();
         foreach (var (change, id) in ordered)
         {
+            if (change.Entity == "attachments" && change.Data.TryGetProperty("fileId", out var fidEl) && fidEl.TryGetGuid(out var fid))
+            {
+                candidateFileIds.Add(fid);
+            }
+            else if (change.Entity == "eventPhotos" && change.Data.TryGetProperty("fileId", out var pidEl) && pidEl.TryGetGuid(out var pid))
+            {
+                candidateFileIds.Add(pid);
+            }
+            else if (change.Entity == "transactions" && change.Data.TryGetProperty("deletedAt", out var dAt) && dAt.ValueKind != JsonValueKind.Null)
+            {
+                var atts = await db.Set<Attachment>().Where(a => a.OwnerId == id && a.OwnerType == AttachmentOwnerType.Transaction && a.DeletedAt == null).ToListAsync(ct);
+                var now = clock.GetUtcNow();
+                foreach (var a in atts)
+                {
+                    a.DeletedAt = now;
+                    candidateFileIds.Add(a.FileId);
+                }
+            }
+            else if (change.Entity == "events" && change.Data.TryGetProperty("deletedAt", out var dAtEv) && dAtEv.ValueKind != JsonValueKind.Null)
+            {
+                var photos = await db.Set<EventPhoto>().Where(p => p.EventId == id && p.DeletedAt == null).ToListAsync(ct);
+                var now = clock.GetUtcNow();
+                foreach (var p in photos)
+                {
+                    p.DeletedAt = now;
+                    candidateFileIds.Add(p.FileId);
+                }
+            }
+
             var reason = await RunUpsert(me, change, sharedEvents, ct);
             if (reason is null) accepted.Add(id); else batchRejected.Add(new(change.Entity, id, reason));
         }
@@ -112,6 +142,12 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
             }
         }
         rejected.AddRange(batchRejected);
+
+        // Dọn dẹp các tệp ảnh mồ côi (không còn bản ghi nào tham chiếu)
+        if (candidateFileIds.Count > 0)
+        {
+            await CleanOrphanFilesAsync(candidateFileIds, ct);
+        }
 
         // Báo cho những người cùng lịch trình chung để họ pull lại.
         if (sharedEvents.Count > 0)
@@ -442,6 +478,50 @@ public class SyncService(IAppDbContext db, TimeProvider clock, IRealtimeNotifier
                 {
                     tx.ToAccountId = null;
                     tx.ToAmount = null;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Dọn dẹp các tệp ảnh mồ côi (không còn bất kỳ entity nào tham chiếu) khỏi ổ đĩa và CSDL.
+    /// </summary>
+    private async Task CleanOrphanFilesAsync(IEnumerable<Guid> fileIds, CancellationToken ct)
+    {
+        foreach (var fid in fileIds)
+        {
+            if (fid == Guid.Empty) continue;
+
+            // Kiểm tra xem còn entity nào còn tham chiếu đến file này không
+            var isReferenced = await db.Set<Attachment>().AnyAsync(a => a.FileId == fid && a.DeletedAt == null, ct)
+                || await db.Set<EventPhoto>().AnyAsync(p => p.FileId == fid && p.DeletedAt == null, ct)
+                || await db.Set<User>().AnyAsync(u => u.AvatarFileId == fid && u.DeletedAt == null, ct)
+                || await db.Set<Conversation>().AnyAsync(c => c.AvatarFileId == fid && c.DeletedAt == null, ct)
+                || await db.Set<Event>().AnyAsync(e => e.CoverFileId == fid && e.DeletedAt == null, ct)
+                || await db.Set<SavingsJar>().AnyAsync(j => j.CoverFileId == fid && j.DeletedAt == null, ct)
+                || await db.Set<Plan>().AnyAsync(p => p.CoverFileId == fid && p.DeletedAt == null, ct)
+                || await db.Set<LoveCounter>().AnyAsync(l => (l.MyPhotoFileId == fid || l.PartnerPhotoFileId == fid) && l.DeletedAt == null, ct);
+
+            if (!isReferenced)
+            {
+                var storedFile = await db.Set<StoredFile>().FirstOrDefaultAsync(f => f.Id == fid, ct);
+                if (storedFile is not null)
+                {
+                    try
+                    {
+                        await storage.DeleteAsync(storedFile.Path, ct);
+                        if (!string.IsNullOrEmpty(storedFile.ThumbPath))
+                        {
+                            await storage.DeleteAsync(storedFile.ThumbPath, ct);
+                        }
+                        db.Set<StoredFile>().Remove(storedFile);
+                        await db.SaveChangesAsync(ct);
+                        Console.WriteLine($"[Orphan Cleaned] FileId: {fid}, Path: {storedFile.Path}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"[Orphan Cleanup Error] {storedFile.Path}: {ex.Message}");
+                    }
                 }
             }
         }

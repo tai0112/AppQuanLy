@@ -244,24 +244,262 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           const SizedBox(height: 8),
           IconPickerGrid(value: icon, color: color, onChanged: (i) => setState(() => icon = i)),
           const SizedBox(height: 24),
-          FilledButton(
-            onPressed: () {
-              if (name.text.trim().isEmpty) return showToast(context, 'Nhập tên tài khoản', error: true);
-              ref.read(storeProvider).put(E.accounts, {
-                if (widget.id != null) 'id': widget.id,
-                'name': name.text.trim(),
-                'type': type,
-                'icon': icon,
-                'color': colorHex(color),
-                'currencyCode': currency,
-                'openingBalance': parseAmount(balance.text),
-                'includeInTotal': includeInTotal,
-                'isArchived': archived,
-                'sortOrder': widget.id == null ? f.accounts.length + 1 : Account(ref.read(storeProvider).get(E.accounts, widget.id)!).sortOrder,
-              });
-              Navigator.of(context).maybePop();
-            },
-            child: const Text('Lưu'),
+          Row(
+            children: [
+              if (widget.id != null) ...[
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.expense,
+                    minimumSize: const Size(64, 48),
+                    side: const BorderSide(color: AppColors.expense),
+                  ),
+                  onPressed: () => _deleteAccount(context, ref, f),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Xoá'),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                  onPressed: () {
+                    if (name.text.trim().isEmpty) return showToast(context, 'Nhập tên tài khoản', error: true);
+                    ref.read(storeProvider).put(E.accounts, {
+                      if (widget.id != null) 'id': widget.id,
+                      'name': name.text.trim(),
+                      'type': type,
+                      'icon': icon,
+                      'color': colorHex(color),
+                      'currencyCode': currency,
+                      'openingBalance': parseAmount(balance.text),
+                      'includeInTotal': includeInTotal,
+                      'isArchived': archived,
+                      'sortOrder': widget.id == null ? f.accounts.length + 1 : Account(ref.read(storeProvider).get(E.accounts, widget.id)!).sortOrder,
+                    });
+                    Navigator.of(context).maybePop();
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Lưu'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteAccount(BuildContext context, WidgetRef ref, dynamic f) async {
+    final accId = widget.id;
+    if (accId == null) return;
+    final store = ref.read(storeProvider);
+    final currentAcc = store.get(E.accounts, accId);
+    if (currentAcc == null) return;
+    final accName = currentAcc['name']?.toString() ?? 'Tài khoản';
+
+    // 1. Kiểm tra số lượng tài khoản hoạt động
+    final otherAccounts = (f.accounts as List<Account>).where((a) => a.id != accId).toList();
+    if (otherAccounts.isEmpty) {
+      showToast(context, 'Cần giữ lại ít nhất 1 tài khoản hoạt động', error: true);
+      return;
+    }
+
+    // 2. Kiểm tra các giao dịch liên quan
+    final relatedTxs = (f.transactions as List<Txn>).where((t) => t.accountId == accId || t.toAccountId == accId).toList();
+
+    if (relatedTxs.isEmpty) {
+      final ok = await confirm(
+        context,
+        'Xoá tài khoản "$accName"?',
+        message: 'Tài khoản này sẽ bị xoá khỏi danh sách.',
+        danger: true,
+        ok: 'Xoá',
+      );
+      if (ok) {
+        _performDelete(store, accId);
+        if (context.mounted) Navigator.of(context).maybePop();
+      }
+      return;
+    }
+
+    // 3. Có giao dịch liên quan: mở BottomSheet lựa chọn
+    if (!context.mounted) return;
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => _DeleteAccountSheet(
+        accName: accName,
+        txCount: relatedTxs.length,
+        otherAccounts: otherAccounts,
+        onConfirm: (targetAccountId) {
+          if (targetAccountId != null) {
+            // Chuyển toàn bộ giao dịch sang tài khoản đích
+            final targetAcc = store.get(E.accounts, targetAccountId);
+            final targetName = targetAcc?['name']?.toString();
+            for (final tx in relatedTxs) {
+              final m = Map<String, dynamic>.from(tx.m);
+              var changed = false;
+              if (m['accountId'] == accId) {
+                m['accountId'] = targetAccountId;
+                if (targetName != null) m['accountName'] = targetName;
+                changed = true;
+              }
+              if (m['toAccountId'] == accId) {
+                m['toAccountId'] = targetAccountId;
+                if (targetName != null) m['toAccountName'] = targetName;
+                changed = true;
+              }
+              if (changed) {
+                store.put(E.transactions, m, notify: false);
+              }
+            }
+          }
+          _performDelete(store, accId);
+          Navigator.of(ctx).pop();
+          if (context.mounted) Navigator.of(context).maybePop();
+        },
+      ),
+    );
+  }
+
+  void _performDelete(LocalStore store, String accId) {
+    store.remove(E.accounts, accId);
+    // Nếu tài khoản xoá là defaultAccountId, xóa bỏ cài đặt này để hệ thống dùng tài khoản đầu tiên
+    final settingsList = store.all(E.appSettings);
+    if (settingsList.isNotEmpty) {
+      final s = settingsList.first;
+      if (s['defaultAccountId'] == accId) {
+        store.put(E.appSettings, {...s, 'defaultAccountId': null});
+      }
+    }
+  }
+}
+
+class _DeleteAccountSheet extends StatefulWidget {
+  const _DeleteAccountSheet({
+    required this.accName,
+    required this.txCount,
+    required this.otherAccounts,
+    required this.onConfirm,
+  });
+
+  final String accName;
+  final int txCount;
+  final List<Account> otherAccounts;
+  final void Function(String? targetAccountId) onConfirm;
+
+  @override
+  State<_DeleteAccountSheet> createState() => _DeleteAccountSheetState();
+}
+
+class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
+  int _mode = 0; // 0: Chuyển sang tài khoản khác rồi xoá, 1: Xoá và giữ nguyên lịch sử
+  String? _targetAccountId;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.otherAccounts.isNotEmpty) {
+      _targetAccountId = widget.otherAccounts.first.id;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: AppColors.expense, size: 28),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Xoá tài khoản "${widget.accName}"?',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Tài khoản này đang có ${widget.txCount} giao dịch. Vui lòng chọn cách xử lý:',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 16),
+          RadioListTile<int>(
+            value: 0,
+            groupValue: _mode,
+            onChanged: (v) => setState(() => _mode = v!),
+            title: const Text('Chuyển tất cả giao dịch sang tài khoản khác rồi xoá', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Khuyên dùng để số dư và lịch sử giao dịch không bị lệch.'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (_mode == 0 && widget.otherAccounts.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 32, bottom: 8),
+              child: DropdownButtonFormField<String>(
+                value: _targetAccountId,
+                decoration: const InputDecoration(
+                  labelText: 'Tài khoản đích nhận giao dịch',
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  for (final a in widget.otherAccounts)
+                    DropdownMenuItem(
+                      value: a.id,
+                      child: Row(
+                        children: [
+                          CircleIcon(icon: a.icon, color: hexColor(a.color), size: 24),
+                          const SizedBox(width: 8),
+                          Text(a.name),
+                        ],
+                      ),
+                    ),
+                ],
+                onChanged: (v) => setState(() => _targetAccountId = v),
+              ),
+            ),
+          RadioListTile<int>(
+            value: 1,
+            groupValue: _mode,
+            onChanged: (v) => setState(() => _mode = v!),
+            title: const Text('Xoá tài khoản và giữ nguyên lịch sử', style: TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: const Text('Các giao dịch cũ vẫn lưu tên tài khoản nhưng tài khoản sẽ bị xoá khỏi danh mục.'),
+            contentPadding: EdgeInsets.zero,
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Huỷ'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+                  onPressed: () {
+                    if (_mode == 0 && _targetAccountId == null) {
+                      return;
+                    }
+                    widget.onConfirm(_mode == 0 ? _targetAccountId : null);
+                  },
+                  child: const Text('Xác nhận xoá'),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -337,65 +575,162 @@ class CurrenciesPage extends ConsumerWidget {
     final symbol = TextEditingController(text: c?.symbol);
     final decimals = TextEditingController(text: '${c?.decimals ?? 0}');
     var before = c?.symbolBefore ?? false;
-    await showDialog(
+
+    await showModalBottomSheet(
+      sheetAnimationStyle: kSheetAnim,
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, set) => AlertDialog(
-          title: Text(c == null ? 'Thêm tiền tệ' : 'Sửa ${c.code}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: code,
-                  enabled: c == null,
-                  decoration: const InputDecoration(labelText: 'Mã (VD: JPY)'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Tên'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: symbol,
-                  decoration: const InputDecoration(labelText: 'Ký hiệu (VD: ¥)'),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: decimals,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Số chữ số thập phân'),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: before,
-                  onChanged: (v) => set(() => before = v),
-                  title: const Text('Ký hiệu đứng trước số'),
-                ),
-              ],
+        builder: (ctx, set) {
+          final scheme = Theme.of(ctx).colorScheme;
+          final sym = symbol.text.trim().isEmpty ? (code.text.trim().isEmpty ? '₫' : code.text.trim()) : symbol.text.trim();
+          final dec = int.tryParse(decimals.text) ?? 0;
+          final sampleNumber = dec > 0 ? '1.234.567,89' : '1.234.567';
+          final preview = before ? '$sym $sampleNumber' : '$sampleNumber $sym';
+
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 8,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
-            FilledButton(
-              onPressed: () {
-                if (code.text.trim().isEmpty) return;
-                ref.read(storeProvider).put(E.currencies, {
-                  if (c != null) 'id': c.id,
-                  'code': code.text.trim().toUpperCase(),
-                  'name': name.text.trim().isEmpty ? code.text.trim().toUpperCase() : name.text.trim(),
-                  'symbol': symbol.text.trim().isEmpty ? code.text.trim().toUpperCase() : symbol.text.trim(),
-                  'decimals': int.tryParse(decimals.text) ?? 0,
-                  'symbolPosition': before ? 2 : 1,
-                  'isBase': c?.isBase ?? false,
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text('Lưu'),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.currency_exchange_rounded, color: scheme.primary, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          c == null ? 'Thêm tiền tệ mới' : 'Sửa ${c.code}',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Live Preview Card
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: scheme.primary.withValues(alpha: 0.15),
+                          child: Text(sym, style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800)),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name.text.trim().isEmpty ? 'Tên tiền tệ' : name.text.trim(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                              Text('Định dạng hiển thị: $preview', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: code,
+                    enabled: c == null,
+                    textCapitalization: TextCapitalization.characters,
+                    onChanged: (_) => set(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Mã tiền tệ (VD: JPY, USD, EUR)',
+                      prefixIcon: Icon(Icons.code_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: name,
+                    onChanged: (_) => set(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Tên tiền tệ (VD: Yên Nhật)',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: symbol,
+                          onChanged: (_) => set(() {}),
+                          decoration: const InputDecoration(
+                            labelText: r'Ký hiệu (VD: ¥, $, €)',
+                            prefixIcon: Icon(Icons.monetization_on_outlined),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: decimals,
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => set(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Chữ số thập phân',
+                            prefixIcon: Icon(Icons.pin_outlined),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    child: SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                      value: before,
+                      onChanged: (v) => set(() => before = v),
+                      title: const Text('Ký hiệu đứng trước số', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(before ? 'Ví dụ: \$ 100' : 'Ví dụ: 100 ₫'),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () {
+                      if (code.text.trim().isEmpty) return;
+                      ref.read(storeProvider).put(E.currencies, {
+                        if (c != null) 'id': c.id,
+                        'code': code.text.trim().toUpperCase(),
+                        'name': name.text.trim().isEmpty ? code.text.trim().toUpperCase() : name.text.trim(),
+                        'symbol': symbol.text.trim().isEmpty ? code.text.trim().toUpperCase() : symbol.text.trim(),
+                        'decimals': int.tryParse(decimals.text) ?? 0,
+                        'symbolPosition': before ? 2 : 1,
+                        'isBase': c?.isBase ?? false,
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Lưu tiền tệ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -408,60 +743,146 @@ class CurrenciesPage extends ConsumerWidget {
     var to = f.baseCurrency;
     final rate = TextEditingController();
     var date = DateTime.now();
-    await showDialog(
+
+    await showModalBottomSheet(
+      sheetAnimationStyle: kSheetAnim,
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, set) => AlertDialog(
-          title: const Text('Thêm tỷ giá'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
+        builder: (ctx, set) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 8,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('1 '),
-                  DropdownButton<String>(
-                    value: from,
-                    items: [for (final c in codes) DropdownMenuItem(value: c, child: Text(c))],
-                    onChanged: (v) => set(() => from = v!),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.trending_up_rounded, color: scheme.primary, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Text(
+                          'Thêm tỷ giá hối đoái',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
                   ),
-                  const Text('  =  '),
-                  DropdownButton<String>(
-                    value: to,
-                    items: [for (final c in codes) DropdownMenuItem(value: c, child: Text(c))],
-                    onChanged: (v) => set(() => to = v!),
+                  const SizedBox(height: 20),
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('1 ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: from,
+                              items: [for (final c in codes) DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontWeight: FontWeight.w700)))],
+                              onChanged: (v) => set(() => from = v!),
+                            ),
+                          ),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Icon(Icons.arrow_forward_rounded),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: DropdownButtonHideUnderline(
+                            child: DropdownButton<String>(
+                              value: to,
+                              items: [for (final c in codes) DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontWeight: FontWeight.w700)))],
+                              onChanged: (v) => set(() => to = v!),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: rate,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Tỷ giá (1 $from bằng bao nhiêu $to)',
+                      prefixIcon: const Icon(Icons.calculate_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  AppCard(
+                    onTap: () async {
+                      final d = await pickDateTime(ctx, date, withTime: false);
+                      if (d != null) set(() => date = d);
+                    },
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.today_rounded),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Áp dụng từ ngày', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                              Text(Fmt.date(date), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () {
+                      final r = double.tryParse(rate.text.replaceAll(',', '.'));
+                      if (r == null || r <= 0 || from == to) {
+                        return showToast(ctx, 'Vui lòng nhập tỷ giá hợp lệ và 2 loại tiền khác nhau', error: true);
+                      }
+                      ref.read(storeProvider).put(E.exchangeRates, {'fromCode': from, 'toCode': to, 'rate': r, 'effectiveDate': Fmt.isoDate(date)});
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Lưu tỷ giá', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                   ),
                 ],
               ),
-              TextField(
-                controller: rate,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(labelText: 'Tỷ giá'),
-              ),
-              const SizedBox(height: 8),
-              InfoTile(
-                icon: Icons.today,
-                label: 'Từ ngày',
-                value: Fmt.date(date),
-                onTap: () async {
-                  final d = await pickDateTime(ctx, date, withTime: false);
-                  if (d != null) set(() => date = d);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Huỷ')),
-            FilledButton(
-              onPressed: () {
-                final r = double.tryParse(rate.text.replaceAll(',', '.'));
-                if (r == null || r <= 0 || from == to) return;
-                ref.read(storeProvider).put(E.exchangeRates, {'fromCode': from, 'toCode': to, 'rate': r, 'effectiveDate': Fmt.isoDate(date)});
-                Navigator.pop(ctx);
-              },
-              child: const Text('Lưu'),
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }

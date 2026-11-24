@@ -428,43 +428,117 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _changePassword(BuildContext context, WidgetRef ref) async {
     final current = TextEditingController(), next = TextEditingController(), again = TextEditingController();
+    var hideCurrent = true, hideNext = true, hideAgain = true;
     String? error;
-    final ok = await showDialog<bool>(
+
+    final ok = await showModalBottomSheet<bool>(
+      sheetAnimationStyle: kSheetAnim,
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, set) => AlertDialog(
-          title: const Text('Đổi mật khẩu'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: current,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại'),
-              ),
-              TextField(
-                controller: next,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Mật khẩu mới (tối thiểu 6 ký tự)'),
-              ),
-              TextField(
-                controller: again,
-                obscureText: true,
-                decoration: InputDecoration(labelText: 'Nhập lại mật khẩu mới', errorText: error),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
-            FilledButton(
-              onPressed: () {
-                if (next.text != again.text) return set(() => error = 'Mật khẩu nhập lại không khớp');
-                Navigator.pop(ctx, true);
-              },
-              child: const Text('Đổi'),
+        builder: (ctx, set) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 8,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
             ),
-          ],
-        ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.lock_reset_rounded, color: scheme.primary, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Text(
+                          'Đổi mật khẩu',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: current,
+                    obscureText: hideCurrent,
+                    decoration: InputDecoration(
+                      labelText: 'Mật khẩu hiện tại',
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      suffixIcon: IconButton(
+                        icon: Icon(hideCurrent ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                        onPressed: () => set(() => hideCurrent = !hideCurrent),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: next,
+                    obscureText: hideNext,
+                    decoration: InputDecoration(
+                      labelText: 'Mật khẩu mới (tối thiểu 6 ký tự)',
+                      prefixIcon: const Icon(Icons.key_rounded),
+                      suffixIcon: IconButton(
+                        icon: Icon(hideNext ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                        onPressed: () => set(() => hideNext = !hideNext),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: again,
+                    obscureText: hideAgain,
+                    decoration: InputDecoration(
+                      labelText: 'Nhập lại mật khẩu mới',
+                      errorText: error,
+                      prefixIcon: const Icon(Icons.check_circle_outline_rounded),
+                      suffixIcon: IconButton(
+                        icon: Icon(hideAgain ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                        onPressed: () => set(() => hideAgain = !hideAgain),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () {
+                      if (current.text.isEmpty) {
+                        return set(() => error = 'Vui lòng nhập mật khẩu hiện tại');
+                      }
+                      if (next.text.length < 6) {
+                        return set(() => error = 'Mật khẩu mới tối thiểu 6 ký tự');
+                      }
+                      if (next.text != again.text) {
+                        return set(() => error = 'Mật khẩu nhập lại không khớp');
+                      }
+                      Navigator.pop(ctx, true);
+                    },
+                    child: const Text('Xác nhận đổi mật khẩu', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
     if (ok == true) {
@@ -484,27 +558,89 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Future<void> _serverUrl(BuildContext context, WidgetRef ref) async {
     final api = ref.read(apiProvider);
     final c = TextEditingController(text: api.baseUrl);
-    final ok = await showDialog<bool>(
+    final ok = await showModalBottomSheet<bool>(
+      sheetAnimationStyle: kSheetAnim,
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Địa chỉ máy chủ'),
-        content: TextField(
-          controller: c,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(hintText: AppConfig.prodApiUrl, helperText: 'Để trống = máy chủ mặc định'),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 8,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
         ),
-        actions: [
-          TextButton(onPressed: () => c.text = '', child: const Text('Mặc định')),
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Lưu')),
-        ],
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.dns_rounded, color: Theme.of(ctx).colorScheme.primary, size: 24),
+                ),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Text(
+                    'Địa chỉ máy chủ',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: c,
+              keyboardType: TextInputType.url,
+              decoration: const InputDecoration(
+                labelText: 'URL API Máy chủ',
+                hintText: AppConfig.prodApiUrl,
+                helperText: 'Để trống = dùng máy chủ mặc định',
+                prefixIcon: Icon(Icons.link_rounded),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                    onPressed: () {
+                      c.text = '';
+                      Navigator.pop(ctx, true);
+                    },
+                    child: const Text('Mặc định'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Lưu kết nối'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
     if (ok == true) {
       if (c.text.trim().isEmpty) {
         ref.read(storeProvider).setMeta('apiUrl', null); // về địa chỉ mặc định của bản build
       } else {
-        api.baseUrl = c.text;
+        api.baseUrl = c.text.trim();
       }
       final alive = await api.ping();
       if (context.mounted) showToast(context, alive ? 'Kết nối máy chủ thành công' : 'Không kết nối được máy chủ', error: !alive);
@@ -513,40 +649,160 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Future<void> _editProfile(BuildContext context, WidgetRef ref) async {
     final session = ref.read(sessionProvider);
-    final name = TextEditingController(text: session.user?['displayName'] as String?);
-    final bio = TextEditingController(text: session.user?['bio'] as String?);
-    final ok = await showDialog<bool>(
+    final user = session.user ?? {};
+    final name = TextEditingController(text: user['displayName'] as String?);
+    final bio = TextEditingController(text: user['bio'] as String?);
+    String? avatarFid = user['avatarFileId'] as String?;
+
+    final ok = await showModalBottomSheet<bool>(
+      sheetAnimationStyle: kSheetAnim,
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Hồ sơ'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: name,
-              decoration: const InputDecoration(labelText: 'Tên hiển thị'),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, set) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 8,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: bio,
-              decoration: const InputDecoration(labelText: 'Giới thiệu'),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.person_rounded, color: scheme.primary, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      const Expanded(
+                        child: Text(
+                          'Hồ sơ cá nhân',
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  // Avatar đổi ảnh
+                  Center(
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: scheme.primary.withValues(alpha: 0.3), width: 2),
+                          ),
+                          child: avatarFid != null
+                              ? ClipOval(child: SizedBox(width: 80, height: 80, child: FileImage2(avatarFid!)))
+                              : UserAvatar(user, radius: 40),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: GestureDetector(
+                            onTap: () async {
+                              final picked = await pickPhotos(ctx, ref, multiple: false);
+                              if (picked.isNotEmpty) {
+                                set(() => avatarFid = picked.first);
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: scheme.primary,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.2),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(
+                      labelText: 'Tên hiển thị',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: bio,
+                    maxLines: 3,
+                    minLines: 1,
+                    decoration: const InputDecoration(
+                      labelText: 'Giới thiệu bản thân',
+                      prefixIcon: Icon(Icons.edit_note_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.alternate_email_rounded, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            '${user['username']} · ${user['email']}',
+                            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                        Icon(Icons.verified_user_rounded, size: 18, color: scheme.primary),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Lưu thay đổi', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Lưu')),
-        ],
+          );
+        },
       ),
     );
+
     if (ok != true) return;
     try {
       final u = await ref.read(apiProvider).put<Map<String, dynamic>>('/me', {
-        'displayName': name.text,
-        'bio': bio.text,
-        'avatarFileId': session.user?['avatarFileId'],
+        'displayName': name.text.trim().isEmpty ? user['displayName'] : name.text.trim(),
+        'bio': bio.text.trim(),
+        'avatarFileId': avatarFid,
       });
       session.updateUser(u);
+      if (context.mounted) showToast(context, 'Đã cập nhật hồ sơ');
     } on ApiException catch (e) {
       if (context.mounted) showToast(context, e.message, error: true);
     }
@@ -1260,7 +1516,53 @@ class SyncStatusPage extends ConsumerWidget {
               children: [
                 ListTile(leading: const Icon(Icons.edit_note_rounded), title: const Text('Bản ghi chờ đẩy lên'), trailing: Text('${dirty.length}')),
                 ListTile(leading: const Icon(Icons.image_rounded), title: const Text('Ảnh chờ tải lên'), trailing: Text('${uploads.length}')),
-                ListTile(leading: const Icon(Icons.photo_library_rounded), title: const Text('Ảnh lưu trên máy'), trailing: Text('${store.localFileCount}')),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_rounded),
+                  title: const Text('Bộ nhớ đệm ảnh phiên này'),
+                  subtitle: const Text('Nạp ngầm để lướt mượt, tự động xoá sạch khi đăng xuất'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('${store.localFileCount}'),
+                      if (store.localFileCount > 0) ...[
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: 'Dọn sạch ảnh trên máy',
+                          icon: const Icon(Icons.delete_sweep_rounded, color: AppColors.expense),
+                          onPressed: () async {
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Dọn sạch bộ nhớ đệm ảnh?'),
+                                content: const Text(
+                                  'Toàn bộ ảnh lưu tạm trong phiên này sẽ được dọn sạch để giải phóng dung lượng. '
+                                  'Khi đăng xuất, hệ thống cũng tự động dọn sạch hoàn toàn các ảnh này. '
+                                  'Dữ liệu thu chi không bị ảnh hưởng.',
+                                ),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
+                                  FilledButton(
+                                    style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+                                    onPressed: () => Navigator.pop(ctx, true),
+                                    child: const Text('Dọn sạch'),
+                                  ),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await store.clearDownloadedFiles();
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Đã dọn sạch ảnh trên máy, giải phóng dung lượng')),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
                 ListTile(leading: const Icon(Icons.outbox_rounded), title: const Text('Bài viết / tin nhắn chờ gửi'), trailing: Text('${outbox.length}')),
                 ListTile(
                   leading: Icon(Icons.bolt_rounded, color: rt.connected ? AppColors.income : null),

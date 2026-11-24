@@ -619,7 +619,7 @@ class AppImage extends StatelessWidget {
             errorBuilder: (_, __, ___) => placeholder,
             frameBuilder: (c, child, frame, sync) => sync
                 ? child
-                : AnimatedOpacity(opacity: frame == null ? 0 : 1, duration: const Duration(milliseconds: 350), curve: Curves.easeOut, child: child),
+                : AnimatedOpacity(opacity: frame == null ? 0 : 1, duration: const Duration(milliseconds: 150), curve: Curves.easeOut, child: child),
           );
         }
         return placeholder;
