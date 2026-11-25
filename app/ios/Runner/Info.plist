@@ -35,9 +35,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>LHT Money chỉ mở máy ảnh khi bạn bấm "Chụp ảnh", để chụp hoá đơn đính kèm vào giao dịch, ảnh kỷ niệm cho lịch trình, hoặc ảnh cho bài viết và tin nhắn. Ảnh chỉ được lưu khi bạn xác nhận.</string>
+	<string>LinTin chỉ mở máy ảnh khi bạn bấm "Chụp ảnh", để chụp hoá đơn đính kèm vào giao dịch, ảnh kỷ niệm cho lịch trình, hoặc ảnh cho bài viết và tin nhắn. Ảnh chỉ được lưu khi bạn xác nhận.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>LHT Money cần quyền chọn ảnh để bạn đính kèm ảnh có sẵn (ví dụ ảnh hoá đơn, ảnh chuyến đi) vào giao dịch, lịch trình, bài viết hoặc tin nhắn. Ứng dụng chỉ đọc những ảnh bạn chọn.</string>
+	<string>LinTin cần quyền chọn ảnh để bạn đính kèm ảnh có sẵn (ví dụ ảnh hoá đơn, ảnh chuyến đi) vào giao dịch, lịch trình, bài viết hoặc tin nhắn. Ứng dụng chỉ đọc những ảnh bạn chọn.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

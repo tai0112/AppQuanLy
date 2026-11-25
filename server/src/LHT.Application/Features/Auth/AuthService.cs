@@ -101,6 +101,7 @@ public partial class AuthService(IAppDbContext db, ITokenService tokens, TimePro
         if (user is null || Hasher.VerifyHashedPassword(user, user.PasswordHash, req.Password) == PasswordVerificationResult.Failed)
             throw new AppException(ErrorCodes.Unauthorized, "Sai tên đăng nhập hoặc mật khẩu", 401);
         if (user.IsLocked) throw new AppException(ErrorCodes.Forbidden, "Tài khoản đã bị khoá. Vui lòng liên hệ quản trị viên.", 403);
+        user.LastSeenAt = clock.GetUtcNow();
         return await IssueAsync(user, ct);
     }
 
@@ -118,6 +119,7 @@ public partial class AuthService(IAppDbContext db, ITokenService tokens, TimePro
             await db.SaveChangesAsync(ct);
             throw new AppException(ErrorCodes.Unauthorized, user is null ? "Tài khoản không còn tồn tại" : "Tài khoản đã bị khoá", 401);
         }
+        user.LastSeenAt = now;
         return await IssueAsync(user, ct);
     }
 

@@ -392,24 +392,48 @@ Future<void> editMeter(BuildContext context, WidgetRef ref, Meter? meter) async 
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    useSafeArea: true,
     showDragHandle: true,
     sheetAnimationStyle: kSheetAnim,
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, set) {
+        final scheme = Theme.of(ctx).colorScheme;
         final txType = kind == Meter.rented ? TxType.income : TxType.expense;
         final cats = f.categories.where((c) => c.type == txType).toList();
         if (categoryId != null && !cats.any((c) => c.id == categoryId)) categoryId = null;
+        InputDecoration dec(String label, IconData icon, {String? helper, String? suffix}) => InputDecoration(
+              labelText: label,
+              helperText: helper,
+              suffixText: suffix,
+              prefixIcon: Icon(icon),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+            );
         return Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 16),
+          padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
                   children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: _bolt.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(14)),
+                      child: const Icon(Icons.electric_meter_rounded, color: _bolt),
+                    ),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text(meter == null ? 'Thêm công tơ' : 'Sửa công tơ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(meter == null ? 'Thêm công tơ' : 'Sửa công tơ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                          Text(
+                            kind == Meter.rented ? 'Theo dõi tiền điện thu hộ' : 'Theo dõi điện tiêu thụ',
+                            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
                     ),
                     PillToggle<int>(
                       value: kind,
@@ -421,77 +445,104 @@ Future<void> editMeter(BuildContext context, WidgetRef ref, Meter? meter) async 
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 18),
                 TextField(
                   controller: name,
-                  decoration: const InputDecoration(labelText: 'Tên (vd Tầng 3)'),
+                  onChanged: (_) => set(() {}),
+                  decoration: dec('Tên công tơ (VD: Tầng 3)', Icons.label_outline_rounded),
                 ),
                 AnimatedSize(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeOutCubic,
                   child: kind == Meter.rented
                       ? Padding(
-                          padding: const EdgeInsets.only(top: 10),
+                          padding: const EdgeInsets.only(top: 14),
                           child: TextField(
                             controller: tenant,
-                            decoration: const InputDecoration(labelText: 'Người thuê (tuỳ chọn)'),
+                            decoration: dec('Người thuê (tuỳ chọn)', Icons.person_outline_rounded),
                           ),
                         )
                       : const SizedBox(width: double.infinity),
                 ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: tableId,
-                  decoration: const InputDecoration(labelText: 'Bảng giá'),
-                  items: [for (final t in lg.tables) DropdownMenuItem(value: t.id, child: Text(t.name))],
-                  onChanged: (v) => set(() => tableId = v),
+                const SizedBox(height: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: DropdownButtonFormField<String>(
+                        initialValue: tableId,
+                        isExpanded: true,
+                        decoration: dec('Bảng giá', Icons.receipt_long_rounded),
+                        items: [for (final t in lg.tables) DropdownMenuItem(value: t.id, child: Text(t.name, overflow: TextOverflow.ellipsis))],
+                        onChanged: (v) => set(() => tableId = v),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: initial,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: dec('Số ban đầu', Icons.speed_rounded, suffix: 'kWh'),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: initial,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(labelText: 'Chỉ số ban đầu', helperText: 'Số trên công tơ khi bắt đầu theo dõi'),
-                ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 DropdownButtonFormField<String?>(
                   initialValue: categoryId,
-                  decoration: InputDecoration(labelText: kind == Meter.rented ? 'Danh mục khoản thu' : 'Danh mục khoản chi'),
+                  isExpanded: true,
+                  decoration: dec(kind == Meter.rented ? 'Danh mục khoản thu' : 'Danh mục khoản chi', Icons.category_outlined),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Tự chọn')),
-                    for (final c in cats) DropdownMenuItem(value: c.id, child: Text(c.parentId == null ? c.name : '   ${c.name}')),
+                    for (final c in cats) DropdownMenuItem(value: c.id, child: Text(c.parentId == null ? c.name : '   ${c.name}', overflow: TextOverflow.ellipsis)),
                   ],
                   onChanged: (v) => set(() => categoryId = v),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 DropdownButtonFormField<String?>(
                   initialValue: accountId,
-                  decoration: const InputDecoration(labelText: 'Tài khoản'),
+                  isExpanded: true,
+                  decoration: dec('Tài khoản thanh toán', Icons.account_balance_wallet_outlined),
                   items: [
                     const DropdownMenuItem(value: null, child: Text('Tài khoản mặc định')),
-                    for (final a in f.accounts.where((a) => !a.isArchived)) DropdownMenuItem(value: a.id, child: Text(a.name)),
+                    for (final a in f.accounts.where((a) => !a.isArchived)) DropdownMenuItem(value: a.id, child: Text(a.name, overflow: TextOverflow.ellipsis)),
                   ],
                   onChanged: (v) => set(() => accountId = v),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 14),
                 TextField(
                   controller: note,
-                  decoration: const InputDecoration(labelText: 'Ghi chú'),
+                  decoration: dec('Ghi chú (tuỳ chọn)', Icons.notes_rounded),
                 ),
-                if (meter != null)
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Ngừng theo dõi'),
-                    subtitle: const Text('Ẩn khỏi màn chốt số, vẫn giữ lịch sử'),
-                    value: archived,
-                    onChanged: (v) => set(() => archived = v),
+                if (meter != null) ...[
+                  const SizedBox(height: 12),
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    child: SwitchListTile(
+                      title: const Text('Ngừng theo dõi', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      subtitle: const Text('Ẩn khỏi màn chốt số, vẫn giữ lịch sử', style: TextStyle(fontSize: 12)),
+                      value: archived,
+                      onChanged: (v) => set(() => archived = v),
+                    ),
                   ),
-                const SizedBox(height: 12),
+                ],
+                const SizedBox(height: 20),
                 Row(
                   children: [
-                    if (meter != null)
-                      TextButton(
-                        style: TextButton.styleFrom(foregroundColor: AppColors.expense),
+                    if (meter != null) ...[
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.expense,
+                          side: const BorderSide(color: AppColors.expense),
+                          minimumSize: const Size(0, 52),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        icon: const Icon(Icons.delete_outline_rounded),
+                        label: const Text('Xoá', style: TextStyle(fontWeight: FontWeight.w700)),
                         onPressed: () async {
                           final ok = await showDialog<bool>(
                             context: ctx,
@@ -511,29 +562,35 @@ Future<void> editMeter(BuildContext context, WidgetRef ref, Meter? meter) async 
                           store.remove(E.meters, meter.id);
                           if (ctx.mounted) Navigator.pop(ctx);
                         },
-                        child: const Text('Xoá'),
                       ),
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: tableId == null || name.text.trim().isEmpty
-                          ? null
-                          : () {
-                              store.put(E.meters, {
-                                'id': ?meter?.id,
-                                'name': name.text.trim(),
-                                'kind': kind,
-                                'tenantName': kind == Meter.rented && tenant.text.trim().isNotEmpty ? tenant.text.trim() : null,
-                                'priceTableId': tableId,
-                                'initialIndex': int.tryParse(initial.text) ?? 0,
-                                'categoryId': categoryId,
-                                'accountId': accountId,
-                                'note': note.text.trim().isEmpty ? null : note.text.trim(),
-                                'isArchived': archived,
-                                'sortOrder': meter?.sortOrder ?? lg.meters.length,
-                              });
-                              Navigator.pop(ctx);
-                            },
-                      child: const Text('Lưu'),
+                      const SizedBox(width: 12),
+                    ],
+                    Expanded(
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(52),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: tableId == null || name.text.trim().isEmpty
+                            ? null
+                            : () {
+                                store.put(E.meters, {
+                                  'id': ?meter?.id,
+                                  'name': name.text.trim(),
+                                  'kind': kind,
+                                  'tenantName': kind == Meter.rented && tenant.text.trim().isNotEmpty ? tenant.text.trim() : null,
+                                  'priceTableId': tableId,
+                                  'initialIndex': int.tryParse(initial.text) ?? 0,
+                                  'categoryId': categoryId,
+                                  'accountId': accountId,
+                                  'note': note.text.trim().isEmpty ? null : note.text.trim(),
+                                  'isArchived': archived,
+                                  'sortOrder': meter?.sortOrder ?? lg.meters.length,
+                                });
+                                Navigator.pop(ctx);
+                              },
+                        child: Text(meter == null ? 'Thêm công tơ' : 'Lưu thay đổi', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                      ),
                     ),
                   ],
                 ),

@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,7 @@ import '../data/models.dart';
 import '../data/calendar_look.dart';
 import '../data/time_config.dart';
 import '../data/notify_prefs.dart';
+import '../data/session.dart';
 import '../providers.dart';
 import 'common.dart';
 
@@ -109,7 +111,8 @@ class TxTile extends ConsumerWidget {
 
 /// Danh sách giao dịch: dạng danh sách hoặc lịch, lọc theo tháng / loại / tìm kiếm.
 class TransactionsPage extends ConsumerStatefulWidget {
-  const TransactionsPage({super.key});
+  const TransactionsPage({super.key, this.showFab = false});
+  final bool showFab;
 
   @override
   ConsumerState<TransactionsPage> createState() => _TransactionsPageState();
@@ -157,7 +160,28 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     final totals = f.totals(list);
     if (type != null) list = list.where((t) => t.type == type).toList();
 
+    final canAdd = ref.watch(sessionProvider).can(Perm.giaoDich);
     return Scaffold(
+      floatingActionButton: widget.showFab && canAdd
+          ? OpenContainer(
+              transitionDuration: const Duration(milliseconds: 450),
+              closedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              closedColor: Theme.of(context).colorScheme.primary,
+              closedElevation: 4,
+              openBuilder: (_, _) => TransactionEditPage(type: 1, preset: {if (txAddDate.value != null) 'date': txAddDate.value!}),
+              closedBuilder: (_, open) => SizedBox(
+                width: 56,
+                height: 56,
+                child: InkWell(
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    open();
+                  },
+                  child: Icon(Icons.add_rounded, color: Theme.of(context).colorScheme.onPrimary, size: 28),
+                ),
+              ),
+            )
+          : null,
       appBar: AppBar(
         title: const Text('Giao dịch'),
         actions: [
@@ -769,7 +793,6 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
       final cur = photoOf[a.ownerId];
       if (cur == null || a.sortOrder < cur.order) photoOf[a.ownerId] = (file: a.fileId, order: a.sortOrder);
     }
-    final dayItems = byDay[selectedDay] ?? [];
     final today = dateOnly(DateTime.now());
 
     final store = ref.read(storeProvider);
@@ -794,7 +817,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
       return w;
     }
 
-    return _calendarBody(cell, from, dayItems, photoOf);
+    return _calendarBody(cell, from, list);
   }
 
   Widget _buildCell(
@@ -826,8 +849,20 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     }
   }
 
-  Widget _calendarBody(Widget Function(DateTime, {bool outside}) cell, DateTime from, List<Txn> dayItems, Map<String, ({String file, int order})> photoOf) {
+  Widget _calendarBody(Widget Function(DateTime, {bool outside}) cell, DateTime from, List<Txn> list) {
     final look = CalendarLook.of(ref.read(storeProvider));
+    final scheme = Theme.of(context).colorScheme;
+    final canAdd = ref.watch(sessionProvider).can(Perm.giaoDich);
+    final recent = [...list]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+
+    void openNew(int txType) {
+      HapticFeedback.selectionClick();
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => TransactionEditPage(type: txType, preset: {'date': atDay(selectedDay)})),
+      );
+    }
+
     return ListView(
       key: const ValueKey('cal'),
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 100),
@@ -871,13 +906,124 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
             ),
           ),
         ),
-        const SizedBox(height: 10),
-        // Tóm tắt ngày đang chọn — bấm để mở bảng chi tiết (ảnh, số tiền).
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          child: _DaySummary(key: ValueKey(selectedDay), day: selectedDay, items: dayItems, onTap: () => _openDay(selectedDay)),
-        ),
+        if (canAdd) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _QuickTxBtn(
+                  label: 'Khoản chi',
+                  icon: Icons.north_east_rounded,
+                  color: AppColors.expense,
+                  onTap: () => openNew(TxType.expense),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _QuickTxBtn(
+                  label: 'Khoản thu',
+                  icon: Icons.south_west_rounded,
+                  color: AppColors.income,
+                  onTap: () => openNew(TxType.income),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _QuickTxBtn(
+                  label: 'Chuyển tiền',
+                  icon: Icons.swap_horiz_rounded,
+                  color: AppColors.transfer,
+                  onTap: () => openNew(TxType.transfer),
+                ),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 12),
+        if (recent.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Row(
+              children: [
+                Text('Giao dịch gần đây', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
+                const Spacer(),
+                TextButton(
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  onPressed: () => setState(() => calendar = false),
+                  child: Text('Xem tất cả (${recent.length})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          for (final (i, t) in recent.take(5).indexed) TxTile(txn: t, showDate: true).stagger(i),
+        ] else
+          AppCard(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.touch_app_rounded, color: scheme.primary, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Tháng ${Fmt.month(from)} chưa có giao dịch', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Chạm vào một ngày trên lịch hoặc dùng nút ghi nhanh ở trên để thêm.',
+                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
+    );
+  }
+}
+
+class _QuickTxBtn extends StatelessWidget {
+  const _QuickTxBtn({required this.label, required this.icon, required this.color, required this.onTap});
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Pressable(
+      scale: 0.96,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1135,57 +1281,7 @@ class _TxGridCard extends ConsumerWidget {
   }
 }
 
-/// Thẻ tóm tắt ngày đang chọn dưới lịch: số giao dịch, tổng chi/thu, vài ảnh nhỏ — bấm để mở bảng chi tiết.
-class _DaySummary extends ConsumerWidget {
-  const _DaySummary({super.key, required this.day, required this.items, required this.onTap});
-  final DateTime day;
-  final List<Txn> items;
-  final VoidCallback onTap;
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final f = ref.read(financeProvider);
-    final scheme = Theme.of(context).colorScheme;
-    final t = f.totals(items);
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(14)),
-            child: Text(
-              '${day.day}',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: scheme.primary),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(Fmt.dayHeader(day), style: const TextStyle(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text(
-                  items.isEmpty
-                      ? 'Chưa có giao dịch · bấm để thêm'
-                      : ['${items.length} giao dịch', if (t.expense > 0) '-${f.money(t.expense)}', if (t.income > 0) '+${f.money(t.income)}'].join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.keyboard_arrow_up_rounded, color: scheme.onSurfaceVariant),
-        ],
-      ),
-    );
-  }
-}
 
 /// Kiểu xem trong bảng giao dịch của ngày (lưu trên máy).
 const _dayViewKey = 'txDayView';

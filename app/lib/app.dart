@@ -94,7 +94,7 @@ final router = GoRouter(
     GoRoute(path: '/', pageBuilder: (c, s) => _page(s, const AppShell())),
     GoRoute(path: '/login', pageBuilder: (c, s) => _page(s, const AuthPage())),
     GoRoute(path: '/register', pageBuilder: (c, s) => _page(s, const AuthPage(startWithRegister: true))),
-    GoRoute(path: '/transactions', pageBuilder: (c, s) => _page(s, const TransactionsPage())),
+    GoRoute(path: '/transactions', pageBuilder: (c, s) => _page(s, const TransactionsPage(showFab: true))),
     GoRoute(
       path: '/tx/edit',
       pageBuilder: (c, s) => _page(s, TransactionEditPage(id: _extra(s)['id'] as String?, type: _extra(s)['type'] as int? ?? 1, preset: _extra(s))),

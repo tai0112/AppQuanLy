@@ -8,11 +8,13 @@ public class NotificationHub(PresenceTracker presence, SocialLookup lookup) : Ap
     public override async Task OnConnectedAsync()
     {
         await base.OnConnectedAsync();
+        await lookup.TouchLastSeenAsync(UserId, CancellationToken.None);
         if (presence.Connected(UserId)) await BroadcastPresence(true);
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        await lookup.TouchLastSeenAsync(UserId, CancellationToken.None);
         if (presence.Disconnected(UserId)) await BroadcastPresence(false);
         await base.OnDisconnectedAsync(exception);
     }

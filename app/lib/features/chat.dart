@@ -61,41 +61,83 @@ class _ChatListPageState extends ConsumerState<ChatListPage> {
     if (!mounted) return;
     final name = TextEditingController();
     final selected = <String>{};
-    final ok = await showDialog<bool>(
+    final ok = await showModalBottomSheet<bool>(
+      sheetAnimationStyle: kSheetAnim,
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (c) => StatefulBuilder(
-        builder: (c, set) => AlertDialog(
-          title: const Text('Tạo nhóm'),
-          content: SizedBox(
-            width: 320,
+        builder: (c, set) {
+          final scheme = Theme.of(c).colorScheme;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(20, 8, 20, MediaQuery.of(c).viewInsets.bottom + 24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                      child: Icon(Icons.group_add_rounded, color: scheme.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text('Tạo nhóm chat', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                    ),
+                    IconButton(onPressed: () => Navigator.pop(c, false), icon: const Icon(Icons.close_rounded)),
+                  ],
+                ),
+                const SizedBox(height: 14),
                 TextField(
                   controller: name,
-                  decoration: const InputDecoration(labelText: 'Tên nhóm'),
+                  decoration: InputDecoration(
+                    labelText: 'Tên nhóm',
+                    prefixIcon: const Icon(Icons.groups_outlined),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                 ),
-                Flexible(
+                const SizedBox(height: 14),
+                Text('Chọn thành viên (${selected.length})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const SizedBox(height: 6),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 260),
                   child: ListView(
                     shrinkWrap: true,
                     children: [
                       for (final f in friends)
                         CheckboxListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                          secondary: UserAvatar(f, radius: 18),
                           value: selected.contains(f['id']),
                           onChanged: (v) => set(() => v == true ? selected.add(f['id'] as String) : selected.remove(f['id'])),
-                          title: Text(f['displayName'] as String),
+                          title: Text(f['displayName'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
                         ),
                     ],
                   ),
                 ),
+                const SizedBox(height: 14),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  onPressed: () => Navigator.pop(c, true),
+                  child: const Text('Tạo nhóm', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
               ],
             ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Huỷ')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Tạo')),
-          ],
-        ),
+          );
+        },
       ),
     );
     if (ok != true) return;
@@ -244,8 +286,13 @@ class _ChatListPageState extends ConsumerState<ChatListPage> {
                   PillSearchField(hint: 'Tìm cuộc trò chuyện', onChanged: (v) => setState(() => filter = v)),
                   if (online.isNotEmpty && filter.isEmpty) ...[
                     const SizedBox(height: 14),
+                    Text(
+                      'Đang hoạt động (${online.length})',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: 8),
                     SizedBox(
-                      height: 88,
+                      height: 84,
                       child: ListView(
                         scrollDirection: Axis.horizontal,
                         children: [
@@ -275,7 +322,15 @@ class _ChatListPageState extends ConsumerState<ChatListPage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  if (list.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8, left: 2),
+                      child: Text(
+                        'Cuộc trò chuyện (${list.length})',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    ),
                   if (list.isEmpty)
                     EmptyState(
                       icon: Icons.forum_rounded,
@@ -296,16 +351,19 @@ class _ChatListPageState extends ConsumerState<ChatListPage> {
 
   Widget _tile(Map<String, dynamic> c) {
     final me = ref.read(sessionProvider).userId;
+    final rt = ref.read(realtimeProvider);
     final scheme = Theme.of(context).colorScheme;
     final members = (c['members'] as List).cast<Map<String, dynamic>>();
     final others = members.where((m) => m['id'] != me).toList();
     final isGroup = c['type'] == 2;
+    final other = others.firstOrNull;
+    final isOnline = !isGroup && other != null && (other['isOnline'] == true || rt.online.contains(other['id']));
     final title = _title(c, me);
     final last = c['lastMessage'] as Map<String, dynamic>?;
     final unread = c['unreadCount'] as int? ?? 0;
     final preview = last == null ? 'Bắt đầu trò chuyện 👋' : '${last['senderId'] == me ? 'Bạn: ' : ''}${last['type'] == 2 ? '📷 Hình ảnh' : last['content']}';
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: 10),
       child: Pressable(
         scale: 0.98,
         onTap: () async {
@@ -314,54 +372,92 @@ class _ChatListPageState extends ConsumerState<ChatListPage> {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          decoration: BoxDecoration(color: unread > 0 ? scheme.primary.withValues(alpha: 0.08) : Colors.transparent, borderRadius: BorderRadius.circular(16)),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: unread > 0 ? scheme.primaryContainer.withValues(alpha: 0.3) : scheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: unread > 0 ? scheme.primary.withValues(alpha: 0.3) : scheme.outlineVariant.withValues(alpha: 0.28),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.025),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
           child: Row(
             children: [
-              isGroup
-                  ? Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(colors: [avatarColor(title), Color.lerp(avatarColor(title), Colors.black, 0.35)!]),
+              Stack(
+                children: [
+                  isGroup
+                      ? Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(colors: [avatarColor(title), Color.lerp(avatarColor(title), Colors.black, 0.35)!]),
+                          ),
+                          child: const Icon(Icons.groups_rounded, color: Colors.white),
+                        )
+                      : UserAvatar(other ?? {'displayName': '?'}, radius: 26),
+                  if (isOnline)
+                    Positioned(
+                      right: 1,
+                      bottom: 1,
+                      child: Container(
+                        width: 13,
+                        height: 13,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF22C55E),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: scheme.surface, width: 2),
+                        ),
                       ),
-                      child: const Icon(Icons.groups_rounded, color: Colors.white),
-                    )
-                  : UserAvatar(others.firstOrNull ?? {'displayName': '?'}, radius: 26),
-              const SizedBox(width: 12),
+                    ),
+                ],
+              ),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 15, fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w600),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(fontSize: 15.5, fontWeight: unread > 0 ? FontWeight.w800 : FontWeight.w700),
+                                ),
+                              ),
+                              if (!isGroup && others.isNotEmpty && others.first['id'] == myPartnerId(ref))
+                                const Padding(
+                                  padding: EdgeInsets.only(left: 5),
+                                  child: Icon(Icons.favorite_rounded, size: 14, color: AppColors.love),
+                                ),
+                            ],
                           ),
                         ),
-                        if (!isGroup && others.isNotEmpty && others.first['id'] == myPartnerId(ref))
-                          const Padding(
-                            padding: EdgeInsets.only(left: 4),
-                            child: Icon(Icons.favorite_rounded, size: 14, color: AppColors.love),
-                          ),
-                        const Spacer(),
-                        if (c['lastMessageAt'] != null)
+                        if (c['lastMessageAt'] != null) ...[
+                          const SizedBox(width: 8),
                           Text(
                             _when(DateTime.parse(c['lastMessageAt'] as String).toLocal()),
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 11.5,
                               color: unread > 0 ? scheme.primary : scheme.onSurfaceVariant,
-                              fontWeight: unread > 0 ? FontWeight.w700 : null,
+                              fontWeight: unread > 0 ? FontWeight.w700 : FontWeight.w500,
                             ),
                           ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
                         Expanded(
@@ -370,9 +466,9 @@ class _ChatListPageState extends ConsumerState<ChatListPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 13.5,
                               color: unread > 0 ? scheme.onSurface : scheme.onSurfaceVariant,
-                              fontWeight: unread > 0 ? FontWeight.w600 : null,
+                              fontWeight: unread > 0 ? FontWeight.w600 : FontWeight.w400,
                             ),
                           ),
                         ),
@@ -411,6 +507,19 @@ String _when(DateTime d) {
   if (days == 1) return 'Hôm qua';
   if (days < 7) return Fmt.weekdaysShort[d.weekday - 1];
   return Fmt.dateShort(d);
+}
+
+/// Thời gian hoạt động / đăng nhập cuối dễ đọc.
+String _lastSeenLabel(String? iso) {
+  if (iso == null || iso.isEmpty) return 'Ngoại tuyến';
+  final d = DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return 'Ngoại tuyến';
+  final diff = DateTime.now().difference(d);
+  if (diff.inMinutes < 1) return 'Hoạt động vừa xong';
+  if (diff.inMinutes < 60) return 'Hoạt động ${diff.inMinutes} phút trước';
+  if (diff.inHours < 24 && dateOnly(DateTime.now()) == dateOnly(d)) return 'Hoạt động ${diff.inHours} giờ trước';
+  if (dateOnly(DateTime.now()).difference(dateOnly(d)).inDays == 1) return 'Hoạt động hôm qua ${Fmt.time(d)}';
+  return 'Hoạt động ${Fmt.dateShort(d)} ${Fmt.time(d)}';
 }
 
 /// Phòng chat: realtime, đang nhập..., đã xem, gửi khi offline (tự gửi lại khi có mạng).
@@ -573,7 +682,9 @@ class _ChatRoomPageState extends ConsumerState<ChatRoomPage> {
                     child: Text(
                       typing.isNotEmpty
                           ? '${typing.map(nameOf).join(', ')} đang nhập...'
-                          : (isGroup ? '${members.length} thành viên' : (online ? 'Đang hoạt động' : 'Ngoại tuyến')),
+                          : (isGroup
+                                ? '${members.length} thành viên'
+                                : (online ? 'Đang hoạt động' : _lastSeenLabel(others.firstOrNull?['lastSeenAt'] as String?))),
                       key: ValueKey('${typing.length}$online'),
                       style: TextStyle(
                         fontSize: 12,
