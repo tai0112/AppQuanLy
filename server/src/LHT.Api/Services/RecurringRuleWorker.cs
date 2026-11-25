@@ -73,6 +73,9 @@ public sealed class RecurringRuleWorker(IServiceScopeFactory scopeFactory, ILogg
             Guid? toAccountId = tpl.TryGetProperty("toAccountId", out var toAccEl) && Guid.TryParse(toAccEl.GetString(), out var ta) ? ta : null;
             Guid? categoryId = tpl.TryGetProperty("categoryId", out var catEl) && Guid.TryParse(catEl.GetString(), out var cid) ? cid : null;
             var note = tpl.TryGetProperty("note", out var noteEl) ? noteEl.GetString() : null;
+            var location = tpl.TryGetProperty("location", out var locEl) && locEl.ValueKind == JsonValueKind.String ? locEl.GetString() : null;
+            double? latitude = tpl.TryGetProperty("latitude", out var latEl) && latEl.ValueKind == JsonValueKind.Number && latEl.TryGetDouble(out var latVal) ? latVal : null;
+            double? longitude = tpl.TryGetProperty("longitude", out var lngEl) && lngEl.ValueKind == JsonValueKind.Number && lngEl.TryGetDouble(out var lngVal) ? lngVal : null;
 
             var due = rule.NextRunAt;
             var guard = 0;
@@ -96,6 +99,9 @@ public sealed class RecurringRuleWorker(IServiceScopeFactory scopeFactory, ILogg
                         CategoryId = txType != TransactionType.Transfer ? categoryId : null,
                         OccurredAt = due,
                         Note = string.IsNullOrWhiteSpace(note) ? rule.Name : note,
+                        Location = location,
+                        Latitude = latitude,
+                        Longitude = longitude,
                         RecurringRuleId = rule.Id,
                         UpdatedAt = now,
                     });

@@ -5,8 +5,16 @@ import 'package:geolocator/geolocator.dart';
 
 import '../core/ui.dart';
 
-/// Lấy địa chỉ hiện tại bằng GPS + reverse geocoding (an toàn cả khi offline / web).
-Future<String?> fetchCurrentLocationText(BuildContext context) async {
+/// Kết quả lấy vị trí hiện tại gồm địa chỉ và tọa độ GPS.
+class LocationResult {
+  const LocationResult({required this.address, required this.latitude, required this.longitude});
+  final String address;
+  final double latitude;
+  final double longitude;
+}
+
+/// Lấy vị trí hiện tại (tọa độ + địa chỉ reverse geocoding, an toàn cả khi offline / web).
+Future<LocationResult?> fetchCurrentLocation(BuildContext context) async {
   try {
     final enabled = await Geolocator.isLocationServiceEnabled();
     if (!enabled) {
@@ -33,6 +41,7 @@ Future<String?> fetchCurrentLocationText(BuildContext context) async {
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 10)),
     );
 
+    String address = '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
     if (!kIsWeb) {
       try {
         final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
@@ -46,22 +55,26 @@ Future<String?> fetchCurrentLocationText(BuildContext context) async {
           ];
           final seen = <String>{};
           final unique = parts.where((x) => seen.add(x)).toList();
-          if (unique.isNotEmpty) return unique.join(', ');
+          if (unique.isNotEmpty) address = unique.join(', ');
         }
       } catch (_) {}
     }
 
-    return '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
+    return LocationResult(address: address, latitude: pos.latitude, longitude: pos.longitude);
   } catch (e) {
     if (context.mounted) showToast(context, 'Không lấy được vị trí hiện tại', error: true);
     return null;
   }
 }
 
+/// Lấy địa chỉ hiện tại dạng chuỗi (tương thích ngược).
+Future<String?> fetchCurrentLocationText(BuildContext context) async => (await fetchCurrentLocation(context))?.address;
+
 /// Nút lấy vị trí hiện tại kèm vòng quay loading.
 class GpsIconButton extends StatefulWidget {
-  const GpsIconButton({super.key, required this.onPicked, this.tooltip = 'Lấy vị trí hiện tại'});
-  final ValueChanged<String> onPicked;
+  const GpsIconButton({super.key, this.onPicked, this.onPickedResult, this.tooltip = 'Lấy vị trí hiện tại'});
+  final ValueChanged<String>? onPicked;
+  final ValueChanged<LocationResult>? onPickedResult;
   final String tooltip;
 
   @override
@@ -74,11 +87,12 @@ class _GpsIconButtonState extends State<GpsIconButton> {
   Future<void> _tap() async {
     if (_loading) return;
     setState(() => _loading = true);
-    final addr = await fetchCurrentLocationText(context);
+    final res = await fetchCurrentLocation(context);
     if (!mounted) return;
     setState(() => _loading = false);
-    if (addr != null) {
-      widget.onPicked(addr);
+    if (res != null) {
+      widget.onPickedResult?.call(res);
+      widget.onPicked?.call(res.address);
       showToast(context, 'Đã lấy vị trí hiện tại');
     }
   }

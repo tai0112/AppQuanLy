@@ -34,6 +34,15 @@ public class Transaction : OwnedEntity
     [Description("Ghi chú")]
     public string? Note { get; set; }
 
+    [Description("Địa điểm")]
+    public string? Location { get; set; }
+
+    [Description("Vĩ độ")]
+    public double? Latitude { get; set; }
+
+    [Description("Kinh độ")]
+    public double? Longitude { get; set; }
+
     [Description("Gắn với lịch trình")]
     public Guid? EventId { get; set; }
 

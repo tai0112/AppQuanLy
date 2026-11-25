@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:animations/animations.dart';
@@ -15,6 +16,7 @@ import '../data/local_store.dart';
 import '../data/location.dart';
 import '../data/logic.dart';
 import '../data/models.dart';
+import '../data/ocr.dart';
 import '../data/calendar_look.dart';
 import '../data/time_config.dart';
 import '../data/notify_prefs.dart';
@@ -57,6 +59,7 @@ class TxTile extends ConsumerWidget {
     final title = isTransfer ? 'Chuyển khoản' : (cat?.name ?? txn.categoryName ?? 'Không có danh mục');
     final sub = [
       if (isTransfer) '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' else acc?.name ?? '',
+      if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
       if (txn.note?.isNotEmpty == true) txn.note!,
       if (showDate) Fmt.dateShort(txn.occurredAt),
     ].where((s) => s.isNotEmpty).join(' · ');
@@ -159,7 +162,14 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     if (cats.isNotEmpty) list = list.where((t) => _inCats(f, cats, t)).toList();
     if (query.isNotEmpty) {
       final q = query.toLowerCase();
-      list = list.where((t) => (t.note ?? '').toLowerCase().contains(q) || (f.category(t.categoryId)?.name ?? '').toLowerCase().contains(q)).toList();
+      list = list
+          .where(
+            (t) =>
+                (t.note ?? '').toLowerCase().contains(q) ||
+                (t.location ?? '').toLowerCase().contains(q) ||
+                (f.category(t.categoryId)?.name ?? '').toLowerCase().contains(q),
+          )
+          .toList();
     }
     // Tổng tính trước khi lọc theo loại để các ô Thu/Chi luôn có số.
     final totals = f.totals(list);
@@ -769,7 +779,10 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         (src == MoneySource.all || (f.account(t.accountId)?.matches(src) ?? false)) &&
         (cs.isEmpty || _inCats(f, cs, t)) &&
         (ty == null || t.type == ty) &&
-        (q.isEmpty || (t.note ?? '').toLowerCase().contains(q) || (f.category(t.categoryId)?.name ?? '').toLowerCase().contains(q));
+        (q.isEmpty ||
+            (t.note ?? '').toLowerCase().contains(q) ||
+            (t.location ?? '').toLowerCase().contains(q) ||
+            (f.category(t.categoryId)?.name ?? '').toLowerCase().contains(q));
     HapticFeedback.selectionClick();
     showModalBottomSheet<void>(
       context: context,
@@ -1277,7 +1290,9 @@ class _TxGridCard extends ConsumerWidget {
                 ),
                 if (!dense)
                   Text(
-                    txn.note?.isNotEmpty == true ? txn.note! : (f.account(txn.accountId)?.name ?? ''),
+                    txn.note?.isNotEmpty == true
+                        ? txn.note!
+                        : (txn.location?.isNotEmpty == true ? '📍 ${txn.location!}' : (f.account(txn.accountId)?.name ?? '')),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
@@ -1522,6 +1537,7 @@ class _DayRow extends ConsumerWidget {
                 Text(
                   [
                     Fmt.time(txn.occurredAt),
+                    if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
                     if (txn.note?.isNotEmpty == true) txn.note!,
                     f.account(txn.accountId)?.name ?? '',
                   ].where((s) => s.isNotEmpty).join(' · '),
@@ -1685,6 +1701,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     amount.dispose();
     toAmount.dispose();
     note.dispose();
+    location.dispose();
     super.dispose();
   }
 
@@ -1692,6 +1709,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   final amount = TextEditingController();
   final toAmount = TextEditingController();
   final note = TextEditingController();
+  final location = TextEditingController();
+  double? latitude;
+  double? longitude;
   Category? category;
   Account? account;
   Account? toAccount;
@@ -1700,6 +1720,8 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   String repeatFreq = 'NONE';
   List<String> photos = [];
   List<String> removedAttachments = [];
+  List<double> ocrCandidates = [];
+  bool ocrBusy = false;
 
   @override
   void initState() {
@@ -1713,6 +1735,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
       amount.text = Fmt.money(t.amount, symbol: '', decimals: f.currency(t.currencyCode)?.decimals ?? 0).trim();
       if (t.toAmount != null) toAmount.text = amountText(t.toAmount!.round());
       note.text = t.note ?? '';
+      location.text = t.location ?? '';
+      latitude = t.latitude;
+      longitude = t.longitude;
       category = f.category(t.categoryId);
       account = f.account(t.accountId);
       toAccount = f.account(t.toAccountId);
@@ -1725,6 +1750,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
       if (widget.preset['date'] is DateTime) at = atDay(widget.preset['date'] as DateTime);
       if (widget.preset['amount'] != null) amount.text = amountText(widget.preset['amount'] as num);
       if (widget.preset['note'] != null) note.text = widget.preset['note'] as String;
+      if (widget.preset['location'] != null) location.text = widget.preset['location'] as String;
+      if (widget.preset['latitude'] is num) latitude = (widget.preset['latitude'] as num).toDouble();
+      if (widget.preset['longitude'] is num) longitude = (widget.preset['longitude'] as num).toDouble();
       if (widget.preset['categoryName'] != null) {
         category = f.categories.where((c) => c.name == widget.preset['categoryName']).firstOrNull;
       }
@@ -1758,6 +1786,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
       'categoryName': type == TxType.transfer ? null : category?.name,
       'occurredAt': toIso8601WithOffset(at),
       'note': note.text.trim().isEmpty ? null : note.text.trim(),
+      'location': location.text.trim().isEmpty ? null : location.text.trim(),
+      'latitude': location.text.trim().isEmpty ? null : latitude,
+      'longitude': location.text.trim().isEmpty ? null : longitude,
       'eventId': eventId,
     });
 
@@ -1783,6 +1814,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
         if (type == TxType.transfer && toAccount != null) 'toAccountId': toAccount!.id,
         if (type != TxType.transfer && category != null) 'categoryId': category!.id,
         if (note.text.trim().isNotEmpty) 'note': note.text.trim(),
+        if (location.text.trim().isNotEmpty) 'location': location.text.trim(),
+        if (location.text.trim().isNotEmpty && latitude != null) 'latitude': latitude,
+        if (location.text.trim().isNotEmpty && longitude != null) 'longitude': longitude,
       });
       store.put(E.recurringRules, {
         'name': note.text.trim().isNotEmpty ? note.text.trim() : (category?.name ?? 'Giao dịch định kỳ'),
@@ -1820,6 +1854,48 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     HapticFeedback.selectionClick();
     final cur = parseAmount(amount.text);
     setState(() => amount.text = amountText(cur + v));
+  }
+
+  Future<void> _scanPhotos(List<String> paths, {bool forceFill = false}) async {
+    if (paths.isEmpty) return;
+    if (!OcrService.isSupported) {
+      if (forceFill && mounted) showToast(context, 'Quét số từ ảnh hỗ trợ trên Android / iOS');
+      return;
+    }
+    setState(() => ocrBusy = true);
+    try {
+      final res = await OcrService.scanImagePath(paths.first);
+      if (!mounted) return;
+      setState(() => ocrBusy = false);
+      if (res != null && res.candidates.isNotEmpty) {
+        setState(() {
+          ocrCandidates = res.candidates;
+          if (forceFill || parseAmount(amount.text) <= 0) {
+            amount.text = amountText(res.bestAmount!);
+          }
+        });
+        final f = ref.read(financeProvider);
+        showToast(context, 'Đã đọc số ${f.money(res.bestAmount!, account?.currencyCode)} từ ảnh');
+      } else if (forceFill) {
+        final msg = (res == null || res.rawText.trim().isEmpty)
+            ? 'Không nhận diện được chữ/số trong ảnh'
+            : 'Không tìm thấy số tiền phù hợp trong ảnh';
+        showToast(context, msg, error: true);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => ocrBusy = false);
+        showToast(context, 'Lỗi đọc ảnh: $e', error: true);
+      }
+    }
+  }
+
+  Future<void> _pickAndScanReceipt() async {
+    final paths = <String>[];
+    final ids = await pickPhotos(context, ref, multiple: false, outPaths: paths);
+    if (!mounted || ids.isEmpty) return;
+    setState(() => photos = [...photos, ...ids]);
+    await _scanPhotos(paths, forceFill: true);
   }
 
   @override
@@ -1938,7 +2014,32 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Số tiền $typeName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text('Số tiền $typeName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                    ),
+                    if (OcrService.isSupported)
+                      Pressable(
+                        onTap: ocrBusy ? null : _pickAndScanReceipt,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (ocrBusy)
+                                const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                              else
+                                const Icon(Icons.document_scanner_rounded, size: 14, color: Colors.white),
+                              const SizedBox(width: 5),
+                              Text(ocrBusy ? 'Đang đọc...' : 'Quét ảnh', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
@@ -2009,6 +2110,39 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
             ),
           ),
           const SizedBox(height: 16),
+          if (ocrCandidates.isNotEmpty) ...[
+            Text('Số đọc được từ ảnh (chạm để chọn):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                for (final v in ocrCandidates)
+                  ChoiceChip(
+                    avatar: const Icon(Icons.document_scanner_rounded, size: 15),
+                    label: Text(f.money(v, account?.currencyCode)),
+                    selected: parseAmount(amount.text) == v,
+                    onSelected: (_) => setState(() => amount.text = amountText(v)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+          ],
+          section(
+            'Ảnh hoá đơn / kỷ niệm',
+            PhotoGrid(
+              fileIds: photos,
+              onAdd: () async {
+                final paths = <String>[];
+                final ids = await pickPhotos(context, ref, outPaths: paths);
+                if (!mounted || ids.isEmpty) return;
+                setState(() => photos = [...photos, ...ids]);
+                if (paths.isNotEmpty) unawaited(_scanPhotos(paths));
+              },
+              onRemove: (id) => setState(() => photos = photos.where((p) => p != id).toList()),
+            ),
+          ),
+          const SizedBox(height: 14),
           AccountChips(
             label: type == TxType.transfer ? 'Từ tài khoản' : (type == TxType.income ? 'Nhận vào' : 'Trả bằng'),
             selected: account?.id,
@@ -2195,14 +2329,68 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
               ),
             ),
           section(
-            'Ghi chú',
+            'Vị trí',
             trailing: GpsIconButton(
-              tooltip: 'Chèn vị trí hiện tại vào ghi chú',
-              onPicked: (addr) => setState(() {
-                final cur = note.text.trim();
-                note.text = cur.isEmpty ? '📍 $addr' : '$cur\n📍 $addr';
+              tooltip: 'Lấy vị trí hiện tại',
+              onPickedResult: (res) => setState(() {
+                location.text = res.address;
+                latitude = res.latitude;
+                longitude = res.longitude;
               }),
             ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: location,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'Quán ăn, cửa hàng, địa chỉ…',
+                    prefixIcon: const Icon(Icons.place_rounded),
+                    suffixIcon: location.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Xoá vị trí',
+                            onPressed: () => setState(() {
+                              location.clear();
+                              latitude = null;
+                              longitude = null;
+                            }),
+                            icon: const Icon(Icons.close_rounded, size: 18),
+                          ),
+                  ),
+                ),
+                if (latitude != null && longitude != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, left: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.gps_fixed_rounded, size: 13, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'GPS: ${latitude!.toStringAsFixed(5)}, ${longitude!.toStringAsFixed(5)}',
+                            style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() {
+                            latitude = null;
+                            longitude = null;
+                          }),
+                          child: Text(
+                            'Bỏ tọa độ',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          section(
+            'Ghi chú',
             TextField(
               controller: note,
               maxLines: 3,
@@ -2237,17 +2425,6 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                 ),
               ),
             ),
-          section(
-            'Ảnh hoá đơn / kỷ niệm',
-            PhotoGrid(
-              fileIds: photos,
-              onAdd: () async {
-                final ids = await pickPhotos(context, ref);
-                setState(() => photos = [...photos, ...ids]);
-              },
-              onRemove: (id) => setState(() => photos = photos.where((p) => p != id).toList()),
-            ),
-          ),
         ],
       ),
     );

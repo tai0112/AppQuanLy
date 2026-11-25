@@ -86,6 +86,9 @@ extension type Txn(Map<String, dynamic> m) {
   String? get accountName => m['accountName'];
   DateTime get occurredAt => _dt(m['occurredAt']) ?? DateTime.now();
   String? get note => m['note'];
+  String? get location => m['location'];
+  double? get latitude => m['latitude'] == null ? null : _num(m['latitude']);
+  double? get longitude => m['longitude'] == null ? null : _num(m['longitude']);
   String? get eventId => m['eventId'];
   String? get jarId => m['jarId'];
   String? get recurringRuleId => m['recurringRuleId'];

@@ -20,7 +20,7 @@ import 'pickers.dart';
 export 'pickers.dart';
 
 /// Chọn / chụp ảnh → lưu vào máy, xếp hàng upload. Trả về danh sách fileId.
-Future<List<String>> pickPhotos(BuildContext context, WidgetRef ref, {bool multiple = true}) async {
+Future<List<String>> pickPhotos(BuildContext context, WidgetRef ref, {bool multiple = true, List<String>? outPaths}) async {
   final source = await showModalBottomSheet<ImageSource>(
     sheetAnimationStyle: kSheetAnim,
     context: context,
@@ -69,8 +69,8 @@ Future<List<String>> pickPhotos(BuildContext context, WidgetRef ref, {bool multi
         context,
         denied
             ? (source == ImageSource.camera
-                  ? 'Chưa có quyền dùng máy ảnh. Bật trong Cài đặt iPhone → LHT Money → Máy ảnh.'
-                  : 'Chưa có quyền truy cập ảnh. Bật trong Cài đặt iPhone → LHT Money → Ảnh.')
+                  ? 'Chưa có quyền dùng máy ảnh. Bật trong Cài đặt iPhone → LinTin → Máy ảnh.'
+                  : 'Chưa có quyền truy cập ảnh. Bật trong Cài đặt iPhone → LinTin → Ảnh.')
             : 'Không mở được ảnh: ${e.message ?? e.code}',
         error: true,
       );
@@ -83,6 +83,7 @@ Future<List<String>> pickPhotos(BuildContext context, WidgetRef ref, {bool multi
   final store = ref.read(storeProvider);
   final ids = <String>[];
   for (final f in files) {
+    outPaths?.add(f.path);
     final bytes = await f.readAsBytes();
     final mime = f.mimeType ?? (f.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
     ids.add(store.addFile(bytes, mime, name: f.name));
