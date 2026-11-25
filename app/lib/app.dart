@@ -23,6 +23,7 @@ import 'features/import_mm.dart';
 import 'features/notify_settings.dart';
 import 'features/jars.dart';
 import 'features/love.dart';
+import 'features/recurring.dart';
 import 'features/reminders.dart';
 import 'features/schedule.dart';
 import 'features/settings.dart';
@@ -112,6 +113,7 @@ final router = GoRouter(
     ),
     GoRoute(path: '/budgets', pageBuilder: (c, s) => _page(s, const BudgetsPage())),
     GoRoute(path: '/jars', pageBuilder: (c, s) => _page(s, const JarsPage())),
+    GoRoute(path: '/recurring', pageBuilder: (c, s) => _page(s, const RecurringPage())),
     GoRoute(
       path: '/jars/detail',
       pageBuilder: (c, s) => _page(s, JarDetailPage(id: _extra(s)['id'] as String)),

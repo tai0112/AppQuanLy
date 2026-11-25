@@ -88,6 +88,7 @@ extension type Txn(Map<String, dynamic> m) {
   String? get note => m['note'];
   String? get eventId => m['eventId'];
   String? get jarId => m['jarId'];
+  String? get recurringRuleId => m['recurringRuleId'];
 }
 
 extension type Attachment(Map<String, dynamic> m) {
@@ -337,4 +338,30 @@ extension type Reminder(Map<String, dynamic> m) {
 
   /// Các ngày cụ thể (yyyy-MM-dd), đã sắp xếp.
   List<String> get dates => ((m['dates'] as String? ?? '').split(',').map((s) => s.trim()).where((s) => s.length == 10).toSet().toList())..sort();
+}
+
+/// Quy tắc giao dịch tự động định kỳ (hằng ngày, hằng tuần, hằng tháng, hằng năm).
+extension type RecurringRule(Map<String, dynamic> m) {
+  String get id => m['id'];
+  String get name => m['name'] ?? '';
+  String get templateJson => m['templateJson'] ?? '{}';
+  String get rrule => m['rRule'] ?? m['rrule'] ?? '';
+  DateTime get nextRunAt => _dt(m['nextRunAt']) ?? DateTime.now();
+  bool get isActive => m['isActive'] != false;
+
+  Map<String, dynamic> get template {
+    try {
+      return (jsonDecode(templateJson) as Map).cast<String, dynamic>();
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  int get type => (template['type'] as num?)?.toInt() ?? TxType.expense;
+  double get amount => _num(template['amount']);
+  String get currencyCode => template['currencyCode'] ?? 'VND';
+  String? get accountId => template['accountId'];
+  String? get toAccountId => template['toAccountId'];
+  String? get categoryId => template['categoryId'];
+  String? get note => template['note'];
 }

@@ -16,6 +16,7 @@ import '../core/ui.dart';
 import '../data/api.dart';
 import '../data/calendar_look.dart';
 import '../data/local_store.dart';
+import '../data/location.dart';
 import '../data/logic.dart';
 import '../data/models.dart';
 import '../data/schedule_index.dart';
@@ -1365,7 +1366,12 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
           _head(Icons.notes_rounded, 'Chi tiết'),
           FormSection(
             children: [
-              SectionField(controller: location, hint: 'Địa điểm', icon: Icons.place_rounded),
+              Row(
+                children: [
+                  Expanded(child: SectionField(controller: location, hint: 'Địa điểm', icon: Icons.place_rounded)),
+                  GpsIconButton(onPicked: (addr) => setState(() => location.text = addr)),
+                ],
+              ),
               SectionField(
                 controller: cost,
                 hint: 'Chi phí dự kiến',
@@ -1533,7 +1539,12 @@ Future<void> editEventItem(
               const SizedBox(height: 10),
               FormSection(
                 children: [
-                  SectionField(controller: location, hint: 'Địa điểm', icon: Icons.place_rounded),
+                  Row(
+                    children: [
+                      Expanded(child: SectionField(controller: location, hint: 'Địa điểm', icon: Icons.place_rounded)),
+                      GpsIconButton(onPicked: (addr) => set(() => location.text = addr)),
+                    ],
+                  ),
                   SectionField(
                     controller: cost,
                     hint: 'Chi phí',

@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../core/format.dart';
@@ -9,6 +12,7 @@ import '../core/icons.dart';
 import '../core/theme.dart';
 import '../core/ui.dart';
 import '../data/local_store.dart';
+import '../data/location.dart';
 import '../data/logic.dart';
 import '../data/models.dart';
 import '../data/calendar_look.dart';
@@ -79,6 +83,7 @@ class TxTile extends ConsumerWidget {
                       ),
                     ),
                     if (hasPhoto) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.photo_rounded, size: 14)),
+                    if (txn.recurringRuleId != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
                   ],
                 ),
                 if (sub.isNotEmpty)
@@ -185,6 +190,11 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
       appBar: AppBar(
         title: const Text('Giao dịch'),
         actions: [
+          IconButton(
+            tooltip: 'Giao dịch định kỳ',
+            onPressed: () => context.push('/recurring'),
+            icon: const Icon(Icons.event_repeat_rounded),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: PillToggle<bool>(
@@ -1687,6 +1697,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   Account? toAccount;
   DateTime at = DateTime.now();
   String? eventId;
+  String repeatFreq = 'NONE';
   List<String> photos = [];
   List<String> removedAttachments = [];
 
@@ -1761,6 +1772,26 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     }
 
     store.setMeta('lastAccountId', account!.id); // nhớ nguồn tiền vừa dùng
+    if (widget.id == null && repeatFreq != 'NONE') {
+      final rrule = Recurrence.build(repeatFreq) ?? 'FREQ=MONTHLY';
+      final nextAt = Recurrence.nextOccurrence(rrule, at);
+      final tpl = jsonEncode({
+        'type': type,
+        'amount': value,
+        'currencyCode': account!.currencyCode,
+        'accountId': account!.id,
+        if (type == TxType.transfer && toAccount != null) 'toAccountId': toAccount!.id,
+        if (type != TxType.transfer && category != null) 'categoryId': category!.id,
+        if (note.text.trim().isNotEmpty) 'note': note.text.trim(),
+      });
+      store.put(E.recurringRules, {
+        'name': note.text.trim().isNotEmpty ? note.text.trim() : (category?.name ?? 'Giao dịch định kỳ'),
+        'templateJson': tpl,
+        'rRule': rrule,
+        'nextRunAt': toIso8601WithOffset(nextAt),
+        'isActive': true,
+      });
+    }
     HapticFeedback.lightImpact();
     for (final w in ref.read(financeProvider).budgetWarnings(Txn(saved))) {
       ref.read(notifierProvider).show('Cảnh báo định mức', w, inApp: false, kind: NotifyKind.finance);
@@ -2165,6 +2196,13 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
             ),
           section(
             'Ghi chú',
+            trailing: GpsIconButton(
+              tooltip: 'Chèn vị trí hiện tại vào ghi chú',
+              onPicked: (addr) => setState(() {
+                final cur = note.text.trim();
+                note.text = cur.isEmpty ? '📍 $addr' : '$cur\n📍 $addr';
+              }),
+            ),
             TextField(
               controller: note,
               maxLines: 3,
@@ -2172,6 +2210,33 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
               decoration: const InputDecoration(hintText: 'Ăn gì, mua gì, với ai…', prefixIcon: Icon(Icons.edit_note_rounded)),
             ),
           ),
+          if (widget.id == null)
+            section(
+              'Lặp lại định kỳ',
+              SizedBox(
+                height: 38,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    for (final (code, label) in const [
+                      ('NONE', 'Không lặp'),
+                      ('DAILY', 'Hằng ngày'),
+                      ('WEEKLY', 'Hằng tuần'),
+                      ('MONTHLY', 'Hằng tháng'),
+                      ('YEARLY', 'Hằng năm'),
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: ChoiceChip(
+                          label: Text(label),
+                          selected: repeatFreq == code,
+                          onSelected: (_) => setState(() => repeatFreq = code),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           section(
             'Ảnh hoá đơn / kỷ niệm',
             PhotoGrid(

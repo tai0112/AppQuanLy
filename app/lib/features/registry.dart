@@ -38,6 +38,7 @@ const features = <Feature>[
   Feature('categories', 'Danh mục', Icons.category_rounded, '/categories', perm: Perm.danhMuc, color: Color(0xFFF76B15)),
   Feature('budgets', 'Định mức', Icons.speed_rounded, '/budgets', perm: Perm.dinhMuc, color: Color(0xFFE5484D)),
   Feature('jars', 'Hũ tiết kiệm', Icons.savings_rounded, '/jars', perm: Perm.huTietKiem, color: Color(0xFFF5A524)),
+  Feature('recurring', 'Định kỳ', Icons.event_repeat_rounded, '/recurring', perm: Perm.giaoDich, color: Color(0xFF0090FF)),
   Feature('electricity', 'Tiền điện', Icons.bolt_rounded, '/electricity', perm: Perm.tienDien, color: Color(0xFFFFB224)),
   Feature('love', 'Ngày yêu', Icons.favorite_rounded, '/love', perm: Perm.ngayYeu, color: Color(0xFFE93D82)),
   Feature('cycle', 'Chu kỳ', Icons.water_drop_rounded, '/cycle', perm: Perm.chuKy, color: Color(0xFFD6409F)),

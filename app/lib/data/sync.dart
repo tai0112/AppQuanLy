@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../core/config.dart';
 import 'api.dart';
 import 'local_store.dart';
+import 'logic.dart';
 import 'seed.dart';
 
 enum SyncState { idle, syncing, offline, error, localOnly }
@@ -116,11 +117,13 @@ class SyncEngine extends ChangeNotifier {
     _running = true;
     _setState(SyncState.syncing);
     try {
+      runDueRecurringRules(store);
       await _uploadFiles();
       await _push();
       await _sendOutbox();
       await _pull(forceFull: forceFull);
       _healOrphanTransactions();
+      runDueRecurringRules(store);
       ensureActivityTemplates(store);
       ensureEventCategories(store); // tài khoản cũ chưa có danh mục lịch trình → tạo sau khi đã lấy dữ liệu server
       lastSyncedAt = DateTime.now();

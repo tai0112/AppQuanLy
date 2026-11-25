@@ -8,6 +8,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
 import 'core/http_overrides.dart';
 import 'data/background.dart';
+import 'data/logic.dart';
 import 'data/widget_launch.dart';
 import 'providers.dart';
 
@@ -19,6 +20,7 @@ Future<void> main() async {
     await initializeDateFormatting('vi');
     services = await Services.create();
     await services.session.boot();
+    runDueRecurringRules(services.store);
     services.sync.start();
     startBackgroundTasks(services);
     runApp(const ProviderScope(child: LhtApp()));

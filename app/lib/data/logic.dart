@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:uuid/uuid.dart';
+
 import '../core/format.dart';
 import 'local_store.dart';
 import 'models.dart';
@@ -33,6 +35,11 @@ class Finance {
 
   late final String baseCurrency = settings?.baseCurrency ?? 'VND';
   late final int monthStartDay = settings?.monthStartDay ?? 1;
+  late final List<RecurringRule> recurringRules = _m(
+    'recurringRules',
+    [E.recurringRules],
+    () => store.all(E.recurringRules).map(RecurringRule.new).toList()..sort((a, b) => a.nextRunAt.compareTo(b.nextRunAt)),
+  );
 
   // ---------------------------------------------------- Tiền tệ
   late final List<Currency> currencies = _m('currencies', [
@@ -666,6 +673,109 @@ class Recurrence {
     final end = e.endAt;
     return end != null && start.isBefore(from) && end.isAfter(from);
   }
+
+  /// Tính lần chạy kế tiếp sau [from] theo quy tắc [rrule].
+  static DateTime nextOccurrence(String? rrule, DateTime from) {
+    final r = parse(rrule);
+    final interval = (int.tryParse(r['INTERVAL'] ?? '1') ?? 1).clamp(1, 365);
+    switch (r['FREQ']) {
+      case 'DAILY':
+        return DateTime(from.year, from.month, from.day + interval, from.hour, from.minute);
+      case 'WEEKLY':
+        final byDay = r['BYDAY']?.split(',').map((d) => _days.indexOf(d) + 1).where((w) => w >= 1 && w <= 7).toSet();
+        if (byDay == null || byDay.isEmpty) {
+          return DateTime(from.year, from.month, from.day + 7 * interval, from.hour, from.minute);
+        }
+        // Tìm ngày kế tiếp trong tuần hiện tại; nếu hết tuần thì nhảy sang tuần +interval
+        for (var offset = 1; offset <= 7; offset++) {
+          final cand = DateTime(from.year, from.month, from.day + offset, from.hour, from.minute);
+          if (cand.weekday > from.weekday && byDay.contains(cand.weekday)) return cand;
+          if (cand.weekday <= from.weekday) {
+            // Đã bước sang tuần mới -> nhảy thêm (interval - 1) tuần
+            final jump = cand.add(Duration(days: 7 * (interval - 1)));
+            for (var d = 0; d < 7; d++) {
+              final next = jump.add(Duration(days: d));
+              if (byDay.contains(next.weekday)) return next;
+            }
+          }
+        }
+        return DateTime(from.year, from.month, from.day + 7 * interval, from.hour, from.minute);
+      case 'MONTHLY':
+        final targetMonth = from.month + interval;
+        final year = from.year + (targetMonth - 1) ~/ 12;
+        final month = ((targetMonth - 1) % 12) + 1;
+        final lastDay = DateTime(year, month + 1, 0).day;
+        return DateTime(year, month, min(from.day, lastDay), from.hour, from.minute);
+      case 'YEARLY':
+        final year = from.year + interval;
+        final lastDay = DateTime(year, from.month + 1, 0).day;
+        return DateTime(year, from.month, min(from.day, lastDay), from.hour, from.minute);
+      default:
+        return DateTime(from.year, from.month + 1, from.day, from.hour, from.minute);
+    }
+  }
+}
+
+/// Tự động sinh các giao dịch định kỳ đã đến hạn; trả về số giao dịch vừa tạo.
+/// Dùng UUID v5 tất định theo `(rule.id, ngày đến hạn)` nên an toàn tuyệt đối khi chạy nhiều lần hoặc nhiều thiết bị.
+int runDueRecurringRules(LocalStore store, {DateTime? now}) {
+  final current = now ?? DateTime.now();
+  const uuid = Uuid();
+  var created = 0;
+
+  final accs = {for (final a in store.all(E.accounts)) a['id'] as String: a};
+  final cats = {for (final c in store.all(E.categories)) c['id'] as String: c};
+
+  for (final raw in store.all(E.recurringRules)) {
+    final rule = RecurringRule(raw);
+    if (!rule.isActive || rule.rrule.isEmpty) continue;
+
+    var due = rule.nextRunAt.toLocal();
+    if (due.isAfter(current)) continue;
+
+    final tpl = rule.template;
+    final txType = rule.type;
+    final amount = rule.amount;
+    final accountId = rule.accountId;
+    if (amount <= 0 || accountId == null || !accs.containsKey(accountId)) continue;
+
+    final acc = accs[accountId]!;
+    final cat = rule.categoryId != null ? cats[rule.categoryId] : null;
+    var guard = 0;
+
+    while (!due.isAfter(current) && guard++ < 60) {
+      final txId = uuid.v5(Namespace.oid.value, 'recurring:${rule.id}:${Fmt.isoDate(due)}');
+      if (store.get(E.transactions, txId) == null) {
+        store.put(E.transactions, {
+          'id': txId,
+          'type': txType,
+          'amount': amount,
+          'currencyCode': tpl['currencyCode'] ?? acc['currencyCode'] ?? 'VND',
+          'accountId': accountId,
+          if (txType == TxType.transfer && tpl['toAccountId'] != null) 'toAccountId': tpl['toAccountId'],
+          if (txType != TxType.transfer && rule.categoryId != null) 'categoryId': rule.categoryId,
+          if (cat != null) 'categoryName': cat['name'],
+          'accountName': acc['name'],
+          'occurredAt': toIso8601WithOffset(due),
+          'note': (rule.note?.isNotEmpty == true) ? rule.note : rule.name,
+          'recurringRuleId': rule.id,
+        }, notify: false);
+        created++;
+      }
+      due = Recurrence.nextOccurrence(rule.rrule, due);
+    }
+
+    store.put(E.recurringRules, {
+      ...raw,
+      'nextRunAt': toIso8601WithOffset(due),
+    }, notify: false);
+  }
+
+  if (created > 0) {
+    // Thông báo thay đổi sau khi sinh hàng loạt
+    store.notifyListeners();
+  }
+  return created;
 }
 
 // ============================================================ Ngày yêu

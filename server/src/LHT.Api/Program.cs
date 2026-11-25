@@ -1,6 +1,7 @@
 using System.Text;
 using LHT.Api.Common;
 using LHT.Api.Hubs;
+using LHT.Api.Services;
 using LHT.Application;
 using LHT.Application.Abstractions;
 using LHT.Application.Features.Permissions;
@@ -31,6 +32,7 @@ builder.Services.AddSingleton<IUserIdProvider, SubUserIdProvider>();
 builder.Services.AddSingleton<ApiLogQueue>();
 builder.Services.AddSingleton<IApiLogQueue>(sp => sp.GetRequiredService<ApiLogQueue>());
 builder.Services.AddHostedService<ApiLogProcessor>();
+builder.Services.AddHostedService<RecurringRuleWorker>();
 
 // Xác thực JWT (dùng cho cả REST và SignalR)
 var jwtKey = config["Jwt:Key"];

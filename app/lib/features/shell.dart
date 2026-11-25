@@ -22,6 +22,7 @@ import 'electricity.dart';
 import 'home.dart';
 import 'jars.dart';
 import 'love.dart';
+import 'recurring.dart';
 import 'registry.dart';
 import 'schedule.dart';
 import 'settings.dart';
@@ -37,6 +38,7 @@ Widget pageFor(String id) => switch (id) {
   'categories' => const CategoriesPage(),
   'budgets' => const BudgetsPage(),
   'jars' => const JarsPage(),
+  'recurring' => const RecurringPage(),
   'electricity' => const ElectricityPage(),
   'love' => const LovePage(),
   'cycle' => const CyclePage(),
