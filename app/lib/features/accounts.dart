@@ -98,41 +98,270 @@ class AccountsPage extends ConsumerWidget {
       sheetAnimationStyle: kSheetAnim,
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (c) => DraggableScrollableSheet(
         expand: false,
-        initialChildSize: 0.75,
-        builder: (c, scroll) => Consumer(
-          builder: (c, ref, _) {
-            final f = ref.watch(financeProvider);
-            final txs = f.transactions.where((t) => t.accountId == a.id || t.toAccountId == a.id).take(100).toList();
-            return ListView(
-              controller: scroll,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              children: [
-                ListTile(
-                  leading: CircleIcon(icon: a.icon, color: hexColor(a.color)),
-                  title: Text(a.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
-                  subtitle: CountText(values: [f.balance(a)], text: (cv) => 'Số dư: ${f.money(cv[0], a.currencyCode)}'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.edit_rounded),
-                    onPressed: () {
-                      Navigator.pop(c);
-                      context.push('/accounts/edit', extra: {'id': a.id});
-                    },
-                  ),
-                ),
-                const Divider(),
-                if (txs.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(child: Text('Chưa có giao dịch')),
-                  ),
-                for (final t in txs) TxTile(txn: t, showDate: true),
-              ],
-            );
-          },
-        ),
+        initialChildSize: 0.85,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (c, scroll) => _AccountDetailSheet(scroll: scroll, account: a),
       ),
+    );
+  }
+}
+
+class _AccountDetailSheet extends ConsumerStatefulWidget {
+  const _AccountDetailSheet({required this.scroll, required this.account});
+  final ScrollController scroll;
+  final Account account;
+
+  @override
+  ConsumerState<_AccountDetailSheet> createState() => _AccountDetailSheetState();
+}
+
+class _AccountDetailSheetState extends ConsumerState<_AccountDetailSheet> {
+  int catType = TxType.expense;
+  String? filterCatId;
+
+  @override
+  Widget build(BuildContext context) {
+    final a = widget.account;
+    final f = ref.watch(financeProvider);
+    final scheme = Theme.of(context).colorScheme;
+
+    final allTxs = f.transactions.where((t) => t.accountId == a.id || t.toAccountId == a.id).toList();
+    final expenseTxs = allTxs.where((t) => t.type == TxType.expense && t.accountId == a.id).toList();
+    final incomeTxs = allTxs.where((t) => t.type == TxType.income && (t.accountId == a.id || t.toAccountId == a.id)).toList();
+    final totalExpense = expenseTxs.fold(0.0, (s, t) => s + f.toBase(t));
+    final totalIncome = incomeTxs.fold(0.0, (s, t) => s + f.toBase(t));
+
+    final currentTxs = catType == TxType.expense ? expenseTxs : incomeTxs;
+    final currentTotal = catType == TxType.expense ? totalExpense : totalIncome;
+    final catGroups = f.byCategory(currentTxs, catType);
+
+    final shownTxs = filterCatId == null
+        ? allTxs
+        : allTxs.where((t) => f.rootCategory(t.categoryId)?.id == filterCatId || t.categoryId == filterCatId).toList();
+
+    return ListView(
+      controller: widget.scroll,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      children: [
+        Center(
+          child: Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
+          ),
+        ),
+        Row(
+          children: [
+            CircleIcon(icon: a.icon, color: hexColor(a.color), size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(a.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                  Text(
+                    '${AccType.names[a.type] ?? ''}${a.includeInTotal ? '' : ' · không tính vào tổng'}',
+                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              tooltip: 'Sửa tài khoản',
+              icon: const Icon(Icons.edit_rounded),
+              onPressed: () {
+                Navigator.pop(context);
+                context.push('/accounts/edit', extra: {'id': a.id});
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        AppCard(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Số dư hiện tại', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+                  CountText(
+                    values: [f.balance(a)],
+                    text: (cv) => f.money(cv[0], a.currencyCode),
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: scheme.primary),
+                  ),
+                ],
+              ),
+              const Divider(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Tổng thu', style: TextStyle(fontSize: 12, color: AppColors.income, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 2),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(f.money(totalIncome, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.income)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(width: 1, height: 30, color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Tổng chi', style: TextStyle(fontSize: 12, color: AppColors.expense, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 2),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(f.money(totalExpense, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.expense)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Row(
+          children: [
+            const Expanded(
+              child: Text('Số liệu theo danh mục', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+            PillToggle<int>(
+              value: catType,
+              values: const [TxType.expense, TxType.income],
+              labels: const ['Chi', 'Thu'],
+              icons: const [Icons.north_east_rounded, Icons.south_west_rounded],
+              colors: const [AppColors.expense, AppColors.income],
+              onChanged: (v) => setState(() {
+                catType = v;
+                filterCatId = null;
+              }),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (catGroups.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: Text(
+                'Chưa có dữ liệu ${catType == TxType.expense ? 'chi tiêu' : 'thu nhập'} theo danh mục',
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+              ),
+            ),
+          )
+        else ...[
+          for (final g in catGroups)
+            Builder(
+              builder: (_) {
+                final isSelected = filterCatId == g.category?.id;
+                final catColor = hexColor(g.category?.color, AppColors.autoPalette[0]);
+                final pct = currentTotal == 0 ? 0.0 : g.amount / currentTotal * 100;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Pressable(
+                    scale: 0.98,
+                    onTap: () {
+                      setState(() {
+                        filterCatId = isSelected ? null : g.category?.id;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: isSelected ? catColor.withValues(alpha: 0.12) : scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                        border: isSelected ? Border.all(color: catColor, width: 1.5) : null,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              CircleIcon(icon: g.category?.icon, color: catColor, size: 32),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  g.category?.name ?? 'Không có danh mục',
+                                  style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600, fontSize: 14),
+                                ),
+                              ),
+                              Text(
+                                f.money(g.amount, a.currencyCode),
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: catColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '${pct.toStringAsFixed(0)}%',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: catColor),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: LinearProgressIndicator(
+                              value: currentTotal == 0 ? 0 : (g.amount / currentTotal).clamp(0.0, 1.0),
+                              minHeight: 5,
+                              color: catColor,
+                              backgroundColor: catColor.withValues(alpha: 0.12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                filterCatId == null ? 'Lịch sử giao dịch (${shownTxs.length})' : 'Giao dịch: ${f.category(filterCatId)?.name} (${shownTxs.length})',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+              ),
+            ),
+            if (filterCatId != null)
+              TextButton.icon(
+                style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                icon: const Icon(Icons.close_rounded, size: 16),
+                label: const Text('Xem tất cả', style: TextStyle(fontSize: 12)),
+                onPressed: () => setState(() => filterCatId = null),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        if (shownTxs.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: Text('Chưa có giao dịch')),
+          )
+        else
+          for (final (i, t) in shownTxs.take(60).indexed) TxTile(txn: t, showDate: true).stagger(i),
+      ],
     );
   }
 }

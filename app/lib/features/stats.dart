@@ -77,6 +77,59 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
     final cur = f.totals(list);
     final groups = f.byCategory(list, type, parentId: drillParent);
     final total = groups.fold(0.0, (s, g) => s + g.amount);
+
+    final parentColorHex = drillParent != null ? f.category(drillParent)?.color?.toUpperCase() : null;
+    final groupColors = <Color>[];
+    final usedHex = <String>{};
+
+    // Bảng màu ưu tiên độ phân biệt cao (high contrast)
+    const contrastPalette = <Color>[
+      Color(0xFF0090FF), // Xanh dương
+      Color(0xFF30A46C), // Xanh lá
+      Color(0xFFF76B15), // Cam
+      Color(0xFF8E4EC6), // Tím
+      Color(0xFF12A594), // Xanh ngọc
+      Color(0xFFFFC53D), // Vàng cam
+      Color(0xFFE5484D), // Đỏ
+      Color(0xFF3E63DD), // Xanh chàm
+      Color(0xFFE93D82), // Hồng
+      Color(0xFF46A758), // Xanh cốm
+      Color(0xFFAD7F58), // Nâu
+      Color(0xFF8D8D86), // Xám
+    ];
+
+    for (var i = 0; i < groups.length; i++) {
+      final g = groups[i];
+      final rawHex = g.category?.color?.toUpperCase();
+      Color c;
+
+      if (drillParent != null) {
+        // Trong chế độ xem chi tiết danh mục con:
+        // Item đầu tiên giữ màu của danh mục cha nếu có.
+        // Các item tiếp theo: nếu trùng màu với cha hoặc đã bị dùng thì gán màu tương phản mới
+        if (rawHex != null && (i == 0 || (rawHex != parentColorHex && !usedHex.contains(rawHex)))) {
+          c = hexColor(rawHex);
+        } else {
+          c = contrastPalette.firstWhere(
+            (pal) => !usedHex.contains(colorHex(pal).toUpperCase()) && colorHex(pal).toUpperCase() != parentColorHex,
+            orElse: () => AppColors.autoPalette[(i + 3) % AppColors.autoPalette.length],
+          );
+        }
+      } else {
+        // Chế độ danh mục cha ngoài cùng:
+        if (rawHex != null && !usedHex.contains(rawHex)) {
+          c = hexColor(rawHex);
+        } else {
+          c = contrastPalette.firstWhere(
+            (pal) => !usedHex.contains(colorHex(pal).toUpperCase()),
+            orElse: () => AppColors.autoPalette[i % AppColors.autoPalette.length],
+          );
+        }
+      }
+
+      usedHex.add(colorHex(c).toUpperCase());
+      groupColors.add(c);
+    }
     final days = to.difference(from).inDays;
     final daily = List<double>.filled(days, 0);
     for (final t in list.where((t) => t.type == type)) {
@@ -172,54 +225,174 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
               else ...[
                 SizedBox(
                   height: 220,
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 54,
-                      pieTouchData: PieTouchData(
-                        // Chỉ dựng lại khi lát được chạm THỰC SỰ đổi (trước đây mỗi lần ngón tay lướt qua khi cuộn đều dựng lại cả trang)
-                        touchCallback: (e, r) {
-                          // Chạm (nhấc tay) vào một lát = mở giống bấm dòng tương ứng: vào chi tiết / xem danh sách giao dịch.
-                          if (e is FlTapUpEvent) {
-                            final hit = r?.touchedSection?.touchedSectionIndex ?? -1;
-                            if (hit >= 0 && hit < groups.length) {
-                              HapticFeedback.selectionClick();
-                              _openGroup(groups[hit], list);
-                            }
-                          }
-                          final i = e.isInterestedForInteractions ? (r?.touchedSection?.touchedSectionIndex ?? -1) : -1;
-                          if (i != touched) setState(() => touched = i);
-                        },
-                      ),
-                      sections: [
-                        for (final (i, g) in groups.indexed)
-                          PieChartSectionData(
-                            value: g.amount,
-                            color: hexColor(g.category?.color, AppColors.autoPalette[i % AppColors.autoPalette.length]),
-                            radius: touched == i ? 62 : 52,
-                            title: total == 0 ? '' : '${(g.amount / total * 100).toStringAsFixed(0)}%',
-                            titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      PieChart(
+                        PieChartData(
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 54,
+                          pieTouchData: PieTouchData(
+                            touchCallback: (e, r) {
+                              if (e is FlTapUpEvent) {
+                                final hit = r?.touchedSection?.touchedSectionIndex ?? -1;
+                                if (hit >= 0 && hit < groups.length) {
+                                  HapticFeedback.selectionClick();
+                                  if (touched == hit) {
+                                    // Bấm lần thứ hai vào lát đang chọn -> mở chi tiết
+                                    _openGroup(groups[hit], list);
+                                  } else {
+                                    // Bấm lần đầu -> hiển thị số liệu danh mục ở tâm biểu đồ
+                                    setState(() => touched = hit);
+                                  }
+                                } else {
+                                  if (touched != -1) setState(() => touched = -1);
+                                }
+                              } else if (e.isInterestedForInteractions) {
+                                final hit = r?.touchedSection?.touchedSectionIndex ?? -1;
+                                if (hit != -1 && hit != touched) setState(() => touched = hit);
+                              }
+                            },
                           ),
-                      ],
-                    ),
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeOutCubic,
+                          sections: [
+                            for (final (i, g) in groups.indexed)
+                              PieChartSectionData(
+                                value: g.amount,
+                                color: groupColors[i],
+                                radius: touched == i ? 64 : 52,
+                                title: total == 0 ? '' : '${(g.amount / total * 100).toStringAsFixed(0)}%',
+                                titleStyle: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: touched == i ? FontWeight.w800 : FontWeight.w700,
+                                  fontSize: touched == i ? 13 : 11,
+                                ),
+                              ),
+                          ],
+                        ),
+                        duration: const Duration(milliseconds: 350),
+                        curve: Curves.easeOutCubic,
+                      ),
+                      // Tâm biểu đồ hiển thị số liệu danh mục khi chạm hoặc tổng chi/thu
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (touched >= 0 && touched < groups.length) {
+                            HapticFeedback.selectionClick();
+                            _openGroup(groups[touched], list);
+                          }
+                        },
+                        child: Container(
+                          width: 104,
+                          height: 104,
+                          alignment: Alignment.center,
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Builder(
+                              builder: (_) {
+                                if (touched >= 0 && touched < groups.length) {
+                                  final g = groups[touched];
+                                  final pct = total == 0 ? 0.0 : g.amount / total * 100;
+                                  return Column(
+                                    key: ValueKey('touched-${g.category?.id}-$touched'),
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        child: Text(
+                                          g.category?.name ?? 'Khác',
+                                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        child: Text(
+                                          f.money(g.amount),
+                                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: groupColors[touched]),
+                                        ),
+                                      ),
+                                      Text(
+                                        '${pct.toStringAsFixed(0)}%',
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return Column(
+                                  key: const ValueKey('total-summary'),
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      drillParent == null ? (type == TxType.expense ? 'Tổng chi' : 'Tổng thu') : 'Tổng mục',
+                                      style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(
+                                        f.money(total),
+                                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: color),
+                                      ),
+                                    ),
+                                    Text(
+                                      '${groups.length} mục',
+                                      style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 for (final (i, g) in groups.indexed)
                   Pressable(
                     scale: 0.98,
-                    onTap: () => _openGroup(g, list),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
+                    onTap: () {
+                      if (touched != i) {
+                        setState(() => touched = i);
+                      } else {
+                        _openGroup(g, list);
+                      }
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                      decoration: BoxDecoration(
+                        color: touched == i ? groupColors[i].withValues(alpha: 0.08) : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Column(
                         children: [
                           Row(
                             children: [
-                              CircleIcon(icon: g.category?.icon, color: hexColor(g.category?.color), size: 36),
+                              CircleIcon(icon: g.category?.icon, color: groupColors[i], size: 36),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Text(g.category?.name ?? 'Không có danh mục', style: const TextStyle(fontWeight: FontWeight.w600)),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 8,
+                                      height: 8,
+                                      margin: const EdgeInsets.only(right: 8),
+                                      decoration: BoxDecoration(color: groupColors[i], shape: BoxShape.circle),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        g.category?.name ?? 'Không có danh mục',
+                                        style: const TextStyle(fontWeight: FontWeight.w600),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                               CountText(
                                 values: [g.amount],
@@ -235,7 +408,12 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                               tween: Tween(begin: 0, end: total == 0 ? 0 : g.amount / total),
                               duration: const Duration(milliseconds: 700),
                               curve: Curves.easeOutCubic,
-                              builder: (_, v, __) => LinearProgressIndicator(value: v, minHeight: 6, color: hexColor(g.category?.color)),
+                              builder: (_, v, _) => LinearProgressIndicator(
+                                value: v,
+                                minHeight: 6,
+                                color: groupColors[i],
+                                backgroundColor: groupColors[i].withValues(alpha: 0.15),
+                              ),
                             ),
                           ),
                         ],
@@ -751,7 +929,7 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                       tween: Tween(begin: 0, end: total == 0 ? 0.5 : cash.expense / total),
                       duration: const Duration(milliseconds: 800),
                       curve: Curves.easeOutCubic,
-                      builder: (_, v, __) => Row(
+                      builder: (_, v, _) => Row(
                         children: [
                           Expanded(
                             flex: (v * 1000).round().clamp(1, 999),
@@ -804,6 +982,7 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
           Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: AppCard(
+              onTap: () => _showAccountDetail(a, list),
               child: Builder(
                 builder: (c) {
                   final mine = list.where((t) => t.accountId == a.id);
@@ -837,6 +1016,157 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
             ).stagger(i),
           ),
       ],
+    );
+  }
+
+  void _showAccountDetail(Account a, List<Txn> list) {
+    final f = ref.read(financeProvider);
+    final mine = list.where((t) => t.accountId == a.id || t.toAccountId == a.id).toList();
+    final expenseTxs = mine.where((t) => t.type == TxType.expense && t.accountId == a.id).toList();
+    final incomeTxs = mine.where((t) => t.type == TxType.income && (t.accountId == a.id || t.toAccountId == a.id)).toList();
+    final totalExpense = expenseTxs.fold(0.0, (s, t) => s + f.toBase(t));
+    final totalIncome = incomeTxs.fold(0.0, (s, t) => s + f.toBase(t));
+    final expGroups = f.byCategory(expenseTxs, TxType.expense);
+
+    showModalBottomSheet(
+      sheetAnimationStyle: kSheetAnim,
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.8,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (ctx, s) {
+          final scheme = Theme.of(ctx).colorScheme;
+          return ListView(
+            controller: s,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              Row(
+                children: [
+                  CircleIcon(icon: a.icon, color: hexColor(a.color), size: 40),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(a.name, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+                        Text(
+                          'Tháng ${Fmt.month(f.monthRange(month).$1)} · ${mine.length} giao dịch',
+                          style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  CountText(
+                    values: [f.balance(a)],
+                    text: (cv) => f.money(cv[0], a.currencyCode),
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: AppColors.income.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Tổng thu', style: TextStyle(fontSize: 12, color: AppColors.income, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(f.money(totalIncome, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.income)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(color: AppColors.expense.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Tổng chi', style: TextStyle(fontSize: 12, color: AppColors.expense, fontWeight: FontWeight.w600)),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(f.money(totalExpense, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.expense)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (expGroups.isNotEmpty) ...[
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(4, 16, 4, 8),
+                  child: Text('Chi tiêu theo danh mục', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                ),
+                for (final g in expGroups)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            CircleIcon(icon: g.category?.icon, color: hexColor(g.category?.color), size: 30),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text(g.category?.name ?? 'Không có danh mục', style: const TextStyle(fontWeight: FontWeight.w600))),
+                            Text(f.money(g.amount, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700)),
+                            const SizedBox(width: 6),
+                            Text(
+                              '${totalExpense == 0 ? 0 : (g.amount / totalExpense * 100).toStringAsFixed(0)}%',
+                              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(3),
+                          child: LinearProgressIndicator(
+                            value: totalExpense == 0 ? 0 : (g.amount / totalExpense).clamp(0.0, 1.0),
+                            minHeight: 4,
+                            color: hexColor(g.category?.color),
+                            backgroundColor: hexColor(g.category?.color).withValues(alpha: 0.15),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 14, 4, 8),
+                child: Text('Lịch sử giao dịch', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              ),
+              if (mine.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: Text('Không có giao dịch trong tháng')),
+                )
+              else
+                for (final (i, t) in mine.indexed) TxTile(txn: t, showDate: true).stagger(i),
+            ],
+          );
+        },
+      ),
     );
   }
 }

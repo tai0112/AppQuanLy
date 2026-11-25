@@ -23,5 +23,5 @@ class AppConfig {
   }
 
   static const syncInterval = Duration(seconds: 60);
-  static const appName = 'LHT Money';
+  static const appName = 'LinTin';
 }
