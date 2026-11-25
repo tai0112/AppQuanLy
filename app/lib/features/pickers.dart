@@ -115,13 +115,18 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Ngày đang chọn (to, đổi có hiệu ứng)
-              Text(widget.title ?? (widget.withTime ? 'Chọn ngày & giờ' : 'Chọn ngày'), style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Ngày đang chọn (to, đổi có hiệu ứng)
+                    Text(widget.title ?? (widget.withTime ? 'Chọn ngày & giờ' : 'Chọn ngày'), style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
               const SizedBox(height: 2),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
@@ -236,10 +241,13 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
                   }),
                 ),
               ],
-              const SizedBox(height: 16),
-              _Actions(onDone: () => Navigator.pop(context, DateTime(selected.year, selected.month, selected.day, (hour % 24 + 24) % 24, (minute % 60 + 60) % 60))),
-            ],
-          ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _Actions(onDone: () => Navigator.pop(context, DateTime(selected.year, selected.month, selected.day, (hour % 24 + 24) % 24, (minute % 60 + 60) % 60))),
+          ],
         ),
       ),
     );

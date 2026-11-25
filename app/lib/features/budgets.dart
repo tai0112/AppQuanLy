@@ -139,12 +139,17 @@ class BudgetsPage extends ConsumerWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) => Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(b == null ? 'Thêm định mức' : 'Sửa định mức', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(b == null ? 'Thêm định mức' : 'Sửa định mức', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: name,
@@ -199,41 +204,45 @@ class BudgetsPage extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text('Cảnh báo khi đạt ${warn.toStringAsFixed(0)}%'),
                 Slider(value: warn, min: 50, max: 100, divisions: 10, label: '${warn.toStringAsFixed(0)}%', onChanged: (v) => set(() => warn = v)),
-                SwitchListTile(contentPadding: EdgeInsets.zero, value: active, onChanged: (v) => set(() => active = v), title: const Text('Đang bật')),
-                Row(
-                  children: [
-                    if (b != null)
-                      TextButton(
-                        onPressed: () {
-                          ref.read(storeProvider).remove(E.budgets, b.id);
-                          Navigator.pop(ctx);
-                        },
-                        child: const Text('Xoá', style: TextStyle(color: AppColors.expense)),
-                      ),
-                    const Spacer(),
-                    FilledButton(
+                      SwitchListTile(contentPadding: EdgeInsets.zero, value: active, onChanged: (v) => set(() => active = v), title: const Text('Đang bật')),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (b != null)
+                    TextButton(
                       onPressed: () {
-                        final v = parseAmount(limit.text);
-                        if (v <= 0 || (scope != 1 && refId == null)) return showToast(ctx, 'Nhập đủ thông tin', error: true);
-                        ref.read(storeProvider).put(E.budgets, {
-                          if (b != null) 'id': b.id,
-                          'name': name.text.trim().isEmpty ? 'Định mức' : name.text.trim(),
-                          'scope': scope,
-                          'refId': refId,
-                          'period': period,
-                          'limitAmount': v,
-                          'currencyCode': f.baseCurrency,
-                          'warnPercent': warn.round(),
-                          'isActive': active,
-                        });
+                        ref.read(storeProvider).remove(E.budgets, b.id);
                         Navigator.pop(ctx);
                       },
-                      child: const Text('Lưu'),
+                      child: const Text('Xoá', style: TextStyle(color: AppColors.expense)),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  const Spacer(),
+                  FilledButton(
+                    onPressed: () {
+                      final v = parseAmount(limit.text);
+                      if (v <= 0 || (scope != 1 && refId == null)) return showToast(ctx, 'Nhập đủ thông tin', error: true);
+                      ref.read(storeProvider).put(E.budgets, {
+                        if (b != null) 'id': b.id,
+                        'name': name.text.trim().isEmpty ? 'Định mức' : name.text.trim(),
+                        'scope': scope,
+                        'refId': refId,
+                        'period': period,
+                        'limitAmount': v,
+                        'currencyCode': f.baseCurrency,
+                        'warnPercent': warn.round(),
+                        'isActive': active,
+                      });
+                      Navigator.pop(ctx);
+                    },
+                    child: const Text('Lưu'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

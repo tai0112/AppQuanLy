@@ -416,8 +416,62 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     final f = ref.watch(financeProvider);
     return Scaffold(
       appBar: AppBar(title: Text(widget.id == null ? 'Thêm tài khoản' : 'Sửa tài khoản')),
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border(top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.35))),
+          ),
+          child: Row(
+            children: [
+              if (widget.id != null) ...[
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.expense,
+                    side: const BorderSide(color: AppColors.expense),
+                    minimumSize: const Size(0, 50),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () => _deleteAccount(context, ref, f),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Xoá', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  onPressed: () {
+                    if (name.text.trim().isEmpty) return showToast(context, 'Nhập tên tài khoản', error: true);
+                    ref.read(storeProvider).put(E.accounts, {
+                      if (widget.id != null) 'id': widget.id,
+                      'name': name.text.trim(),
+                      'type': type,
+                      'icon': icon,
+                      'color': colorHex(color),
+                      'currencyCode': currency,
+                      'openingBalance': parseAmount(balance.text),
+                      'includeInTotal': includeInTotal,
+                      'isArchived': archived,
+                      'sortOrder': widget.id == null ? f.accounts.length + 1 : Account(ref.read(storeProvider).get(E.accounts, widget.id)!).sortOrder,
+                    });
+                    Navigator.of(context).maybePop();
+                  },
+                  icon: const Icon(Icons.check_rounded),
+                  label: const Text('Lưu', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           Center(
             child: CircleIcon(icon: icon, color: color, size: 72),
@@ -472,47 +526,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
           const Text('Biểu tượng', style: TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           IconPickerGrid(value: icon, color: color, onChanged: (i) => setState(() => icon = i)),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              if (widget.id != null) ...[
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.expense,
-                    minimumSize: const Size(64, 48),
-                    side: const BorderSide(color: AppColors.expense),
-                  ),
-                  onPressed: () => _deleteAccount(context, ref, f),
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  label: const Text('Xoá'),
-                ),
-                const SizedBox(width: 12),
-              ],
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-                  onPressed: () {
-                    if (name.text.trim().isEmpty) return showToast(context, 'Nhập tên tài khoản', error: true);
-                    ref.read(storeProvider).put(E.accounts, {
-                      if (widget.id != null) 'id': widget.id,
-                      'name': name.text.trim(),
-                      'type': type,
-                      'icon': icon,
-                      'color': colorHex(color),
-                      'currencyCode': currency,
-                      'openingBalance': parseAmount(balance.text),
-                      'includeInTotal': includeInTotal,
-                      'isArchived': archived,
-                      'sortOrder': widget.id == null ? f.accounts.length + 1 : Account(ref.read(storeProvider).get(E.accounts, widget.id)!).sortOrder,
-                    });
-                    Navigator.of(context).maybePop();
-                  },
-                  icon: const Icon(Icons.check_rounded),
-                  label: const Text('Lưu'),
-                ),
-              ),
-            ],
-          ),
+          const SizedBox(height: 12),
         ],
       ),
     );

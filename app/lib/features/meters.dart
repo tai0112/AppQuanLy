@@ -410,12 +410,17 @@ Future<void> editMeter(BuildContext context, WidgetRef ref, Meter? meter) async 
             );
         return Padding(
           padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -529,8 +534,12 @@ Future<void> editMeter(BuildContext context, WidgetRef ref, Meter? meter) async 
                     ),
                   ),
                 ],
-                const SizedBox(height: 20),
-                Row(
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
                   children: [
                     if (meter != null) ...[
                       OutlinedButton.icon(
@@ -594,8 +603,7 @@ Future<void> editMeter(BuildContext context, WidgetRef ref, Meter? meter) async 
                     ),
                   ],
                 ),
-              ],
-            ),
+            ],
           ),
         );
       },

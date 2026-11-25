@@ -1454,13 +1454,18 @@ Future<void> editEventItem(
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, set) => Padding(
         padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                item == null ? 'Thêm hoạt động · ${Fmt.dayHeader(day)}' : 'Sửa hoạt động',
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item == null ? 'Thêm hoạt động · ${Fmt.dayHeader(day)}' : 'Sửa hoạt động',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 14),
@@ -1557,9 +1562,13 @@ Future<void> editEventItem(
                 },
                 onRemove: (id) => set(() => photoIds.remove(id)),
               ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
                   if (item != null)
                     TextButton.icon(
                       style: TextButton.styleFrom(foregroundColor: AppColors.expense),
@@ -1617,8 +1626,7 @@ Future<void> editEventItem(
                   ),
                 ],
               ),
-            ],
-          ),
+          ],
         ),
       ),
     ),

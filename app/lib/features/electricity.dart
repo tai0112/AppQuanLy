@@ -314,12 +314,17 @@ class _ElectricityPageState extends ConsumerState<ElectricityPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) => Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(table == null ? 'Bảng giá mới' : 'Sửa bảng giá', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(table == null ? 'Bảng giá mới' : 'Sửa bảng giá', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: name,
@@ -404,8 +409,13 @@ class _ElectricityPageState extends ConsumerState<ElectricityPage> {
                   icon: const Icon(Icons.add),
                   label: const Text('Thêm bậc'),
                 ),
-                Row(
-                  children: [
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
                     if (table != null && store.all(E.priceTables).length > 1)
                       TextButton(
                         onPressed: () {
@@ -444,8 +454,7 @@ class _ElectricityPageState extends ConsumerState<ElectricityPage> {
                     ),
                   ],
                 ),
-              ],
-            ),
+            ],
           ),
         ),
       ),

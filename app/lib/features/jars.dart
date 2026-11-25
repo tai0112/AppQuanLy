@@ -191,12 +191,17 @@ Future<void> editJar(BuildContext context, WidgetRef ref, Jar? j) async {
     builder: (ctx) => StatefulBuilder(
       builder: (ctx, set) => Padding(
         padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(j == null ? 'Tạo hũ tiết kiệm' : 'Sửa hũ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(j == null ? 'Tạo hũ tiết kiệm' : 'Sửa hũ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               TextField(
                 controller: name,
@@ -215,25 +220,28 @@ Future<void> editJar(BuildContext context, WidgetRef ref, Jar? j) async {
               ),
               const SizedBox(height: 8),
               ColorPickerRow(value: color, onChanged: (c) => set(() => color = c)),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () {
-                  if (name.text.trim().isEmpty) return;
-                  ref.read(storeProvider).put(E.savingsJars, {
-                    if (j != null) ...j.m,
-                    'name': name.text.trim(),
-                    'targetAmount': parseAmount(target.text),
-                    'currencyCode': j?.currencyCode ?? f.baseCurrency,
-                    'deadline': deadline == null ? null : Fmt.isoDate(deadline!),
-                    'color': colorHex(color),
-                    'icon': icon,
-                  });
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Lưu'),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () {
+                if (name.text.trim().isEmpty) return;
+                ref.read(storeProvider).put(E.savingsJars, {
+                  if (j != null) ...j.m,
+                  'name': name.text.trim(),
+                  'targetAmount': parseAmount(target.text),
+                  'currencyCode': j?.currencyCode ?? f.baseCurrency,
+                  'deadline': deadline == null ? null : Fmt.isoDate(deadline!),
+                  'color': colorHex(color),
+                  'icon': icon,
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('Lưu'),
+            ),
+          ],
         ),
       ),
     ),

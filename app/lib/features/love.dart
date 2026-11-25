@@ -146,12 +146,17 @@ class LovePage extends ConsumerWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) => Padding(
           padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Thiết lập ngày yêu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Thiết lập ngày yêu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -199,24 +204,28 @@ class LovePage extends ConsumerWidget {
                 ),
                 Text('Nhắc trước ${reminder.round()} ngày'),
                 Slider(value: reminder, min: 0, max: 14, divisions: 14, onChanged: (v) => set(() => reminder = v)),
-                FilledButton(
-                  onPressed: () {
-                    if (name.text.trim().isEmpty) return;
-                    ref.read(storeProvider).put(E.loveCounters, {
-                      if (l != null) 'id': l.id,
-                      'partnerName': name.text.trim(),
-                      'startDate': Fmt.isoDate(start),
-                      'partnerBirthday': bd == null ? null : Fmt.isoDate(bd!),
-                      'myPhotoFileId': myPhoto,
-                      'partnerPhotoFileId': partnerPhoto,
-                      'milestoneReminderDays': reminder.round(),
-                    });
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('Lưu'),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () {
+                  if (name.text.trim().isEmpty) return;
+                  ref.read(storeProvider).put(E.loveCounters, {
+                    if (l != null) 'id': l.id,
+                    'partnerName': name.text.trim(),
+                    'startDate': Fmt.isoDate(start),
+                    'partnerBirthday': bd == null ? null : Fmt.isoDate(bd!),
+                    'myPhotoFileId': myPhoto,
+                    'partnerPhotoFileId': partnerPhoto,
+                    'milestoneReminderDays': reminder.round(),
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Lưu'),
+              ),
+            ],
           ),
         ),
       ),

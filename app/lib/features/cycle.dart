@@ -676,15 +676,20 @@ class _CyclePageState extends ConsumerState<CyclePage> {
 
           return Padding(
             padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 44,
                         height: 44,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
@@ -796,9 +801,13 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
                     ),
                   ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: [
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
                       if (x != null) ...[
                         IconButton.outlined(
                           tooltip: 'Xoá',
@@ -837,8 +846,7 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                       ),
                     ],
                   ),
-                ],
-              ),
+              ],
             ),
           );
         },
@@ -859,12 +867,17 @@ class _CyclePageState extends ConsumerState<CyclePage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) => Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Cấu hình chu kỳ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Cấu hình chu kỳ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
                 Text('Chu kỳ mặc định: ${cycle.round()} ngày'),
                 Slider(value: cycle, min: 21, max: 45, divisions: 24, onChanged: (v) => set(() => cycle = v)),
                 Text('Số ngày hành kinh mặc định: ${period.round()}'),
@@ -912,25 +925,29 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                   title: const Text('Đồng bộ dữ liệu chu kỳ lên máy chủ'),
                   subtitle: const Text('Tắt: dữ liệu chỉ lưu trên máy này'),
                 ),
-                FilledButton(
-                  onPressed: () {
-                    ref.read(storeProvider).put(E.cycleSettings, {
-                      ...s.m,
-                      'subject': subject,
-                      'defaultCycleDays': cycle.round(),
-                      'defaultPeriodDays': period.round(),
-                      'lutealDays': luteal.round(),
-                      'fertileDaysBefore': before.round(),
-                      'fertileDaysAfter': after.round(),
-                      'syncEnabled': sync,
-                      'remindersJson': jsonEncode({'daily': daily, 'hour': remindAt.hour, 'minute': remindAt.minute}),
-                    });
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text('Lưu'),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () {
+                  ref.read(storeProvider).put(E.cycleSettings, {
+                    ...s.m,
+                    'subject': subject,
+                    'defaultCycleDays': cycle.round(),
+                    'defaultPeriodDays': period.round(),
+                    'lutealDays': luteal.round(),
+                    'fertileDaysBefore': before.round(),
+                    'fertileDaysAfter': after.round(),
+                    'syncEnabled': sync,
+                    'remindersJson': jsonEncode({'daily': daily, 'hour': remindAt.hour, 'minute': remindAt.minute}),
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Lưu'),
+              ),
+            ],
           ),
         ),
       ),
