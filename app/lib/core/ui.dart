@@ -1061,15 +1061,27 @@ class KeyboardAvoidBottomBar extends StatelessWidget {
   }
 }
 
+/// Cấu hình thanh máy tính (+ − × ÷ =) gắn lên thanh bàn phím khi đang nhập số tiền.
+class KeyboardCalcBar {
+  const KeyboardCalcBar({required this.onOp, required this.onEval, this.activeOp, this.canEval = false});
+  final ValueChanged<String> onOp;
+  final VoidCallback onEval;
+  final String? activeOp;
+  final bool canEval;
+}
+
+/// Bộ điều khiển thanh máy tính trên bàn phím (gán từ màn hình đang focus ô số tiền).
+final keyboardCalcNotifier = ValueNotifier<KeyboardCalcBar?>(null);
+
 /// Bọc toàn app để:
 /// 1. Chạm ra ngoài ô nhập liệu sẽ tự ẩn bàn phím.
-/// 2. Khi bàn phím mở trên điện thoại, hiển thị thanh nút "Xong" ngay phía trên bàn phím
+/// 2. Khi bàn phím mở trên điện thoại, hiển thị thanh nút tính toán (nếu có) + nút "Xong" ngay phía trên bàn phím
 ///    và cộng thêm chiều cao thanh này vào `viewInsets.bottom` để không che nội dung / nút lưu.
 class KeyboardDismissShell extends StatelessWidget {
   const KeyboardDismissShell({super.key, required this.child});
   final Widget? child;
 
-  static const double _barHeight = 40;
+  static const double _barHeight = 44;
 
   void _dismiss() => FocusManager.instance.primaryFocus?.unfocus();
 
@@ -1078,6 +1090,7 @@ class KeyboardDismissShell extends StatelessWidget {
     final mq = MediaQuery.of(context);
     final kb = mq.viewInsets.bottom;
     final content = child ?? const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
     // Luôn giữ nguyên cấu trúc Stack -> MediaQuery -> content để KHÔNG reparent Navigator khi bàn phím đóng/mở.
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -1095,28 +1108,85 @@ class KeyboardDismissShell extends StatelessWidget {
               bottom: kb,
               height: _barHeight,
               child: Material(
-                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                color: scheme.surfaceContainerHigh,
                 child: Container(
                   decoration: BoxDecoration(
                     border: Border(
-                      top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45)),
+                      top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
                     ),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton.icon(
-                        onPressed: _dismiss,
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          minimumSize: const Size(0, 32),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: ValueListenableBuilder<KeyboardCalcBar?>(
+                    valueListenable: keyboardCalcNotifier,
+                    builder: (context, calc, _) => Row(
+                      children: [
+                        if (calc != null)
+                          Expanded(
+                            child: Row(
+                              children: [
+                                for (final op in const ['+', '-', '×', '÷'])
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(8),
+                                      onTap: () => calc.onOp(op),
+                                      child: Container(
+                                        width: 36,
+                                        height: 32,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: calc.activeOp == op ? scheme.primary : scheme.surfaceContainerHighest,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Text(
+                                          op == '-' ? '−' : op,
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w800,
+                                            color: calc.activeOp == op ? scheme.onPrimary : scheme.onSurface,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: calc.canEval ? calc.onEval : null,
+                                  child: Container(
+                                    width: 40,
+                                    height: 32,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: calc.canEval ? scheme.primary : scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '=',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w900,
+                                        color: calc.canEval ? scheme.onPrimary : scheme.onSurfaceVariant.withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          const Spacer(),
+                        TextButton.icon(
+                          onPressed: _dismiss,
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            minimumSize: const Size(0, 32),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          icon: const Icon(Icons.keyboard_hide_rounded, size: 18),
+                          label: const Text('Xong', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
                         ),
-                        icon: const Icon(Icons.keyboard_hide_rounded, size: 18),
-                        label: const Text('Xong', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

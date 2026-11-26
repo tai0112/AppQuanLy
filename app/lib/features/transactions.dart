@@ -1886,6 +1886,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   // Giải phóng tài nguyên khi đóng màn (tránh tích tụ khi mở/đóng nhiều lần)
   @override
   void dispose() {
+    _amountFocus.removeListener(_syncKeyboardCalc);
+    _amountFocus.dispose();
+    if (keyboardCalcNotifier.value != null) keyboardCalcNotifier.value = null;
     amount.dispose();
     toAmount.dispose();
     note.dispose();
@@ -1895,6 +1898,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
 
   late int type = widget.type;
   final amount = TextEditingController();
+  final _amountFocus = FocusNode();
   final toAmount = TextEditingController();
   final note = TextEditingController();
   final location = TextEditingController();
@@ -1911,10 +1915,13 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   List<double> ocrCandidates = [];
   final Map<String, double> photoOcrAmounts = {};
   bool ocrBusy = false;
+  double? _calcLeft;
+  String? _calcOp;
 
   @override
   void initState() {
     super.initState();
+    _amountFocus.addListener(_syncKeyboardCalc);
     final store = ref.read(storeProvider);
     final f = ref.read(financeProvider);
     final rec = store.get(E.transactions, widget.id);
@@ -1949,6 +1956,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   }
 
   void _save() {
+    if (_calcOp != null && _calcLeft != null) {
+      _evalCalc();
+    }
     final f = ref.read(financeProvider);
     final store = ref.read(storeProvider);
     final value = parseAmount(amount.text);
@@ -2043,6 +2053,63 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     HapticFeedback.selectionClick();
     final cur = parseAmount(amount.text);
     setState(() => amount.text = amountText(cur + v));
+  }
+
+  void _syncKeyboardCalc() {
+    if (_amountFocus.hasFocus) {
+      keyboardCalcNotifier.value = KeyboardCalcBar(
+        onOp: _pressOp,
+        onEval: _evalCalc,
+        activeOp: _calcOp,
+        canEval: _calcOp != null,
+      );
+    } else if (keyboardCalcNotifier.value != null) {
+      keyboardCalcNotifier.value = null;
+    }
+  }
+
+  double _computeCalc(double left, String op, double right) => switch (op) {
+    '+' => left + right,
+    '-' => (left - right) < 0 ? 0 : (left - right),
+    '×' => left * right,
+    '÷' => right == 0 ? left : (left / right),
+    _ => right,
+  };
+
+  void _pressOp(String op) {
+    HapticFeedback.selectionClick();
+    final cur = parseAmount(amount.text);
+    setState(() {
+      if (_calcOp != null && _calcLeft != null && amount.text.trim().isNotEmpty) {
+        if (_calcOp == '÷' && cur == 0) {
+          showToast(context, 'Không thể chia cho 0', error: true);
+          return;
+        }
+        _calcLeft = _computeCalc(_calcLeft!, _calcOp!, cur);
+      } else if (_calcOp == null) {
+        _calcLeft = cur;
+      }
+      _calcOp = op;
+      amount.clear();
+    });
+    _syncKeyboardCalc();
+  }
+
+  void _evalCalc() {
+    if (_calcOp == null || _calcLeft == null) return;
+    HapticFeedback.lightImpact();
+    final cur = parseAmount(amount.text);
+    if (_calcOp == '÷' && cur == 0) {
+      showToast(context, 'Không thể chia cho 0', error: true);
+      return;
+    }
+    final res = amount.text.trim().isEmpty ? _calcLeft! : _computeCalc(_calcLeft!, _calcOp!, cur);
+    setState(() {
+      amount.text = amountText(res);
+      _calcLeft = null;
+      _calcOp = null;
+    });
+    _syncKeyboardCalc();
   }
 
   Future<void> _scanPhotos(List<String> ids, List<String> paths, {bool forceFill = false}) async {
@@ -2261,7 +2328,22 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: Text('Số tiền $typeName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                      child: Row(
+                        children: [
+                          Text('Số tiền $typeName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                          if (_calcOp != null && _calcLeft != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
+                              child: Text(
+                                '${f.money(_calcLeft!, account?.currencyCode)} $_calcOp',
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                     if (OcrService.isSupported)
                       Pressable(
@@ -2291,6 +2373,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                     Expanded(
                       child: TextField(
                         controller: amount,
+                        focusNode: _amountFocus,
                         autofocus: widget.id == null,
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         inputFormatters: const [ThousandsInputFormatter()],
@@ -2337,9 +2420,16 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                             ),
                           ),
                         ),
-                      if (value > 0)
+                      if (value > 0 || _calcOp != null)
                         Pressable(
-                          onTap: () => setState(amount.clear),
+                          onTap: () {
+                            setState(() {
+                              amount.clear();
+                              _calcLeft = null;
+                              _calcOp = null;
+                            });
+                            _syncKeyboardCalc();
+                          },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             alignment: Alignment.center,
