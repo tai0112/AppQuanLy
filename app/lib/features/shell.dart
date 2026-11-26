@@ -96,10 +96,14 @@ class _AppShellState extends ConsumerState<AppShell> {
       ),
       floatingActionButton: canAdd && (current.id == 'home' || current.id == 'transactions')
           ? OpenContainer(
-              transitionDuration: const Duration(milliseconds: 450),
+              transitionDuration: const Duration(milliseconds: 520),
+              transitionType: ContainerTransitionType.fadeThrough,
               closedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               closedColor: Theme.of(context).colorScheme.primary,
+              middleColor: Theme.of(context).colorScheme.primary,
+              openColor: Theme.of(context).scaffoldBackgroundColor,
               closedElevation: 4,
+              openElevation: 0,
               openBuilder: (c, _) =>
                   TransactionEditPage(type: 1, preset: {if (current.id == 'transactions' && txAddDate.value != null) 'date': txAddDate.value!}),
               closedBuilder: (c, open) => InkWell(

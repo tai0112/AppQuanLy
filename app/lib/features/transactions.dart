@@ -390,10 +390,14 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     return Scaffold(
       floatingActionButton: widget.showFab && canAdd
           ? OpenContainer(
-              transitionDuration: const Duration(milliseconds: 450),
+              transitionDuration: const Duration(milliseconds: 520),
+              transitionType: ContainerTransitionType.fadeThrough,
               closedShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               closedColor: Theme.of(context).colorScheme.primary,
+              middleColor: Theme.of(context).colorScheme.primary,
+              openColor: Theme.of(context).scaffoldBackgroundColor,
               closedElevation: 4,
+              openElevation: 0,
               openBuilder: (_, _) => TransactionEditPage(type: 1, preset: {if (txAddDate.value != null) 'date': txAddDate.value!}),
               closedBuilder: (_, open) => SizedBox(
                 width: 56,
