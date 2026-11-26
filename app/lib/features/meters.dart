@@ -260,12 +260,16 @@ class _Sum extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 3),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: AnimatedAmount(
-              value: value,
-              format: (v) => f.money(v),
-              style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15),
+          SizedBox(
+            height: 22,
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: AnimatedAmount(
+                value: value,
+                format: (v) => f.money(v),
+                style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15),
+              ),
             ),
           ),
         ],

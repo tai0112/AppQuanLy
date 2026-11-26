@@ -959,13 +959,16 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                           const SizedBox(width: 8),
                           Flexible(
                             flex: 2,
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: CountText(
-                                values: [t.expense, t.income],
-                                text: (cv) => 'Chi ${f.money(cv[0])} · Thu ${f.money(cv[1])}',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            child: SizedBox(
+                              height: 18,
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerRight,
+                                child: CountText(
+                                  values: [t.expense, t.income],
+                                  text: (cv) => 'Chi ${f.money(cv[0])} · Thu ${f.money(cv[1])}',
+                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                ),
                               ),
                             ),
                           ),
@@ -1087,9 +1090,14 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                         children: [
                           const Text('Tổng thu', style: TextStyle(fontSize: 12, color: AppColors.income, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(f.money(totalIncome, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.income)),
+                          SizedBox(
+                            height: 20,
+                            width: double.infinity,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(f.money(totalIncome, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.income)),
+                            ),
                           ),
                         ],
                       ),
@@ -1105,9 +1113,14 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                         children: [
                           const Text('Tổng chi', style: TextStyle(fontSize: 12, color: AppColors.expense, fontWeight: FontWeight.w600)),
                           const SizedBox(height: 2),
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(f.money(totalExpense, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.expense)),
+                          SizedBox(
+                            height: 20,
+                            width: double.infinity,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(f.money(totalExpense, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.expense)),
+                            ),
                           ),
                         ],
                       ),
@@ -1211,15 +1224,22 @@ class _StatBox extends StatelessWidget {
         children: [
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: AnimatedAmount(
-              value: value,
-              format: (v) => f.money(v),
-              style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16),
+          SizedBox(
+            height: 24,
+            width: double.infinity,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: AnimatedAmount(
+                value: value,
+                format: (v) => f.money(v),
+                style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16),
+              ),
             ),
           ),
           if (prev != null) ...[const SizedBox(height: 2), _delta(context)],
@@ -1386,12 +1406,16 @@ class _YearCalendar extends StatelessWidget {
     );
   }
 
-  Widget _line(double value, String Function(double) fmt, Color color, {bool big = false}) => FittedBox(
-    fit: BoxFit.scaleDown,
-    child: AnimatedAmount(
-      value: value,
-      format: fmt,
-      style: TextStyle(fontSize: big ? 14 : 11, fontWeight: big ? FontWeight.w800 : FontWeight.w600, color: color),
+  Widget _line(double value, String Function(double) fmt, Color color, {bool big = false}) => SizedBox(
+    height: big ? 20 : 16,
+    width: double.infinity,
+    child: FittedBox(
+      fit: BoxFit.scaleDown,
+      child: AnimatedAmount(
+        value: value,
+        format: fmt,
+        style: TextStyle(fontSize: big ? 14 : 11, fontWeight: big ? FontWeight.w800 : FontWeight.w600, color: color),
+      ),
     ),
   );
 }

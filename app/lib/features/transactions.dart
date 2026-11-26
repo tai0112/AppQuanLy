@@ -1857,6 +1857,7 @@ class _Total extends StatelessWidget {
                 Flexible(
                   child: Text(
                     label,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(color: selected ? color : Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12, fontWeight: FontWeight.w600),
                   ),
@@ -1864,12 +1865,21 @@ class _Total extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: AnimatedAmount(
-                value: value,
-                format: (v) => fmt(v),
-                style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15),
+            SizedBox(
+              height: 22,
+              width: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: AnimatedAmount(
+                  value: value,
+                  format: (v) => fmt(v),
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
               ),
             ),
           ],

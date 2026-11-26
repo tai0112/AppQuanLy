@@ -285,12 +285,17 @@ class _MiniStat extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: TextStyle(color: color.withValues(alpha: 0.8), fontSize: 11)),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: AnimatedAmount(
-                    value: value,
-                    format: format,
-                    style: TextStyle(color: color, fontWeight: FontWeight.w700),
+                SizedBox(
+                  height: 20,
+                  width: double.infinity,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: AnimatedAmount(
+                      value: value,
+                      format: format,
+                      style: TextStyle(color: color, fontWeight: FontWeight.w700),
+                    ),
                   ),
                 ),
               ],
