@@ -40,6 +40,8 @@
 	<string>LinTin cần quyền chọn ảnh để bạn đính kèm ảnh có sẵn (ví dụ ảnh hoá đơn, ảnh chuyến đi) vào giao dịch, lịch trình, bài viết hoặc tin nhắn. Ứng dụng chỉ đọc những ảnh bạn chọn.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>LinTin cần quyền truy cập vị trí khi bạn bấm nút lấy vị trí hiện tại để tự động điền địa điểm cho giao dịch hoặc lịch trình. Ứng dụng không theo dõi vị trí nền.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>LinTin chỉ truy cập vị trí khi bạn đang mở ứng dụng và bấm nút lấy vị trí hiện tại để điền địa điểm cho giao dịch hoặc lịch trình. Ứng dụng không theo dõi vị trí chạy nền.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
