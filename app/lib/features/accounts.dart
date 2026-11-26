@@ -416,7 +416,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     final f = ref.watch(financeProvider);
     return Scaffold(
       appBar: AppBar(title: Text(widget.id == null ? 'Thêm tài khoản' : 'Sửa tài khoản')),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: KeyboardAvoidBottomBar(
         child: Container(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
           decoration: BoxDecoration(

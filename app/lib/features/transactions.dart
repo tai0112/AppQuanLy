@@ -50,11 +50,11 @@ class TxTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Chỉ theo dõi thứ dòng này hiển thị: thêm/sửa giao dịch KHÁC không làm dòng này dựng lại.
-    ref.watch(financeProvider.select((f) => (f.categories, f.accounts, f.currencies, f.settings, f.hasPhoto(txn.id))));
+    ref.watch(financeProvider.select((f) => (f.categories, f.accounts, f.currencies, f.settings, f.photosOf(txn.id))));
     final f = ref.read(financeProvider);
     final cat = f.category(txn.categoryId);
     final acc = f.account(txn.accountId);
-    final hasPhoto = f.hasPhoto(txn.id); // tra sẵn, không quét toàn bộ ảnh cho từng dòng
+    final photos = f.photosOf(txn.id); // tra sẵn, không quét toàn bộ ảnh cho từng dòng
     final isTransfer = txn.type == TxType.transfer;
     final title = isTransfer ? 'Chuyển khoản' : (cat?.name ?? txn.categoryName ?? 'Không có danh mục');
     final sub = [
@@ -68,49 +68,89 @@ class TxTile extends ConsumerWidget {
       radius: 14,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       page: TransactionEditPage(id: txn.id, type: txn.type),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleIcon(icon: isTransfer ? 'sync_alt' : cat?.icon, color: isTransfer ? AppColors.transfer : hexColor(cat?.color)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            children: [
+              CircleIcon(icon: isTransfer ? 'sync_alt' : cat?.icon, color: isTransfer ? AppColors.transfer : hexColor(cat?.color)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (txn.recurringRuleId != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
+                      ],
                     ),
-                    if (hasPhoto) const Padding(padding: EdgeInsets.only(left: 6), child: Icon(Icons.photo_rounded, size: 14)),
-                    if (txn.recurringRuleId != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
+                    if (sub.isNotEmpty)
+                      Text(
+                        sub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
                   ],
                 ),
-                if (sub.isNotEmpty)
-                  Text(
-                    sub,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              CountText(
+                values: [txn.amount],
+                text: (cv) =>
+                    (txn.type == TxType.expense
+                        ? '-'
+                        : txn.type == TxType.income
+                        ? '+'
+                        : '') +
+                    f.money(cv[0], txn.currencyCode),
+                style: TextStyle(fontWeight: FontWeight.w700, color: txColor(txn.type)),
+              ),
+            ],
+          ),
+          if (photos.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(left: 52),
+              child: Row(
+                children: [
+                  for (var i = 0; i < photos.length && i < 4; i++)
+                    Padding(
+                      padding: EdgeInsets.only(right: i < 3 && i < photos.length - 1 ? 6 : 0),
+                      child: SizedBox(
+                        width: 52,
+                        height: 52,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            FileImage2(photos[i], radius: 10),
+                            if (i == 3 && photos.length > 4)
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.55),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '+${photos.length - 4}',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          CountText(
-            values: [txn.amount],
-            text: (cv) =>
-                (txn.type == TxType.expense
-                    ? '-'
-                    : txn.type == TxType.income
-                    ? '+'
-                    : '') +
-                f.money(cv[0], txn.currencyCode),
-            style: TextStyle(fontWeight: FontWeight.w700, color: txColor(txn.type)),
-          ),
+          ],
         ],
       ),
     );
@@ -1950,8 +1990,8 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
             ),
         ],
       ),
-      // Nút lưu cố định dưới cùng, màu theo loại giao dịch
-      bottomNavigationBar: SafeArea(
+      // Nút lưu cố định dưới cùng, màu theo loại giao dịch (tự nổi lên trên bàn phím)
+      bottomNavigationBar: KeyboardAvoidBottomBar(
         minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         child: Pressable(
           onTap: _save,
@@ -1984,6 +2024,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
         ),
       ),
       body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           _TypeSwitch(

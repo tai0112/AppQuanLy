@@ -209,6 +209,7 @@ class LhtApp extends ConsumerWidget {
       supportedLocales: const [Locale('vi'), Locale('en')],
       localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
       scrollBehavior: const SmoothScrollBehavior(),
+      builder: (context, child) => KeyboardDismissShell(child: child),
       routerConfig: router,
     );
   }

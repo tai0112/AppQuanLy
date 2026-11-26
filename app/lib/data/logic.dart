@@ -120,9 +120,20 @@ class Finance {
     return list;
   });
 
-  /// Giao dịch có ảnh đính kèm (tra O(1) cho từng dòng).
-  late final Set<String> _withPhotos = _m('withPhotos', [E.attachments], () => store.all(E.attachments).map((a) => a['ownerId'] as String).toSet());
-  bool hasPhoto(String txnId) => _withPhotos.contains(txnId);
+  /// Danh sách fileId ảnh theo giao dịch (tra O(1) cho từng dòng).
+  late final Map<String, List<String>> _photosByTxn = _m('photosByTxn', [E.attachments], () {
+    final byOwner = <String, List<Attachment>>{};
+    for (final raw in store.all(E.attachments)) {
+      final a = Attachment(raw);
+      (byOwner[a.ownerId] ??= []).add(a);
+    }
+    return {
+      for (final e in byOwner.entries)
+        e.key: (e.value..sort((a, b) => a.sortOrder.compareTo(b.sortOrder))).map((a) => a.fileId).toList(),
+    };
+  });
+  bool hasPhoto(String txnId) => _photosByTxn.containsKey(txnId);
+  List<String> photosOf(String txnId) => _photosByTxn[txnId] ?? const [];
 
   /// Biến động số dư theo tài khoản — quét giao dịch MỘT lần cho mọi tài khoản.
   late final Map<String, double> _moves = _m('moves', [E.transactions, E.jarTransactions], () {

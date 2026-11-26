@@ -1044,3 +1044,85 @@ class _EdgeSwipeState extends State<EdgeSwipe> with SingleTickerProviderStateMix
     );
   }
 }
+
+/// Đẩy thanh nút lưu ở `bottomNavigationBar` lên trên bàn phím khi bàn phím đang mở.
+class KeyboardAvoidBottomBar extends StatelessWidget {
+  const KeyboardAvoidBottomBar({super.key, required this.child, this.minimum = EdgeInsets.zero});
+  final Widget child;
+  final EdgeInsets minimum;
+
+  @override
+  Widget build(BuildContext context) {
+    final kb = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: kb),
+      child: SafeArea(bottom: kb == 0, minimum: minimum, child: child),
+    );
+  }
+}
+
+/// Bọc toàn app để:
+/// 1. Chạm ra ngoài ô nhập liệu sẽ tự ẩn bàn phím.
+/// 2. Khi bàn phím mở trên điện thoại, hiển thị thanh nút "Xong" ngay phía trên bàn phím
+///    và cộng thêm chiều cao thanh này vào `viewInsets.bottom` để không che nội dung / nút lưu.
+class KeyboardDismissShell extends StatelessWidget {
+  const KeyboardDismissShell({super.key, required this.child});
+  final Widget? child;
+
+  static const double _barHeight = 40;
+
+  void _dismiss() => FocusManager.instance.primaryFocus?.unfocus();
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final kb = mq.viewInsets.bottom;
+    final content = child ?? const SizedBox.shrink();
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: _dismiss,
+      child: kb <= 0
+          ? content
+          : Stack(
+              children: [
+                MediaQuery(
+                  data: mq.copyWith(viewInsets: mq.viewInsets.copyWith(bottom: kb + _barHeight)),
+                  child: content,
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: kb,
+                  height: _barHeight,
+                  child: Material(
+                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45)),
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton.icon(
+                            onPressed: _dismiss,
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              minimumSize: const Size(0, 32),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: const Icon(Icons.keyboard_hide_rounded, size: 18),
+                            label: const Text('Xong', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}

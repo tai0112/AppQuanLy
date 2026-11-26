@@ -974,7 +974,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.id == null ? 'Lịch trình mới' : 'Sửa lịch trình')),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar: KeyboardAvoidBottomBar(
         minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
         child: Pressable(
           onTap: _save,
