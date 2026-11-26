@@ -63,42 +63,45 @@ class GroupedTxDays extends ConsumerWidget {
           () {
             final dayItems = byDay[day]!;
             final dt = f.totals(dayItems);
-            return Padding(
+            final card = Padding(
               padding: EdgeInsets.only(bottom: i == days.length - 1 ? 0 : 12),
-              child: AppCard(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(Fmt.dayHeader(day), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
-                          ),
-                          if (dt.income > 0)
-                            Text(
-                              '+${Fmt.compact(dt.income)}  ',
-                              style: const TextStyle(color: AppColors.income, fontWeight: FontWeight.w700, fontSize: 13),
+              child: RepaintBoundary(
+                child: AppCard(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(Fmt.dayHeader(day), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
                             ),
-                          if (dt.expense > 0)
-                            Text(
-                              '-${Fmt.compact(dt.expense)}',
-                              style: const TextStyle(color: AppColors.expense, fontWeight: FontWeight.w700, fontSize: 13),
-                            ),
-                        ],
+                            if (dt.income > 0)
+                              Text(
+                                '+${Fmt.compact(dt.income)}  ',
+                                style: const TextStyle(color: AppColors.income, fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                            if (dt.expense > 0)
+                              Text(
+                                '-${Fmt.compact(dt.expense)}',
+                                style: const TextStyle(color: AppColors.expense, fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Divider(height: 1, thickness: 1, indent: 14, endIndent: 14, color: scheme.outlineVariant.withValues(alpha: 0.35)),
-                    const SizedBox(height: 4),
-                    for (final (j, tx) in dayItems.indexed) ...[
-                      if (j > 0) const SizedBox(height: 4),
-                      TxTile(txn: tx),
+                      Divider(height: 1, thickness: 1, indent: 14, endIndent: 14, color: scheme.outlineVariant.withValues(alpha: 0.35)),
+                      const SizedBox(height: 4),
+                      for (final (j, tx) in dayItems.indexed) ...[
+                        if (j > 0) const SizedBox(height: 4),
+                        TxTile(txn: tx),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ).stagger(i),
+              ),
             );
+            return i < 5 ? card.stagger(i) : card;
           }(),
       ],
     );
@@ -139,81 +142,13 @@ class TxTile extends ConsumerWidget {
             const SizedBox(width: 12),
           ],
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.only(right: 6),
-                      decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
-                    ),
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (txn.recurringRuleId != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
-                  ],
-                ),
-                if (txn.note?.isNotEmpty == true) ...[
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      Icon(Icons.notes_rounded, size: 13, color: scheme.onSurfaceVariant),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          txn.note!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                if (accLabel.isNotEmpty || extraMeta.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (accLabel.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest.withValues(alpha: 0.75),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.account_balance_wallet_outlined, size: 11, color: scheme.onSurfaceVariant),
-                              const SizedBox(width: 4),
-                              Text(
-                                accLabel,
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (accLabel.isNotEmpty && extraMeta.isNotEmpty) const SizedBox(width: 6),
-                      if (extraMeta.isNotEmpty)
-                        Expanded(
-                          child: Text(
-                            extraMeta,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ],
+            child: _TxMetaColumn(
+              title: title,
+              catColor: catColor,
+              note: txn.note,
+              accLabel: accLabel,
+              extraMeta: extraMeta,
+              isRecurring: txn.recurringRuleId != null,
             ),
           ),
           const SizedBox(width: 8),
@@ -230,6 +165,105 @@ class TxTile extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _TxMetaColumn extends StatelessWidget {
+  const _TxMetaColumn({
+    required this.title,
+    required this.catColor,
+    required this.note,
+    required this.accLabel,
+    required this.extraMeta,
+    this.isRecurring = false,
+  });
+  final String title;
+  final Color catColor;
+  final String? note;
+  final String accLabel;
+  final String extraMeta;
+  final bool isRecurring;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 3.5,
+              height: 14,
+              margin: const EdgeInsets.only(right: 7),
+              decoration: BoxDecoration(color: catColor, borderRadius: BorderRadius.circular(2)),
+            ),
+            Flexible(
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isRecurring) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
+          ],
+        ),
+        if (note?.isNotEmpty == true) ...[
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Icon(Icons.sticky_note_2_outlined, size: 12.5, color: catColor.withValues(alpha: 0.85)),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  note!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 12.5, color: scheme.onSurface.withValues(alpha: 0.88)),
+                ),
+              ),
+            ],
+          ),
+        ],
+        if (accLabel.isNotEmpty || extraMeta.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              if (accLabel.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: scheme.primary.withValues(alpha: 0.16), width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.account_balance_wallet_outlined, size: 10.5, color: scheme.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        accLabel,
+                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: scheme.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              if (accLabel.isNotEmpty && extraMeta.isNotEmpty) const SizedBox(width: 6),
+              if (extraMeta.isNotEmpty)
+                Expanded(
+                  child: Text(
+                    extraMeta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ],
     );
   }
 }
@@ -871,6 +905,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
     return ListView.builder(
       key: const ValueKey('list'),
+      cacheExtent: 600,
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
       itemCount: days.length,
       itemBuilder: (c, i) {
@@ -879,36 +914,36 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         final t = f.totals(items);
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: AppCard(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(Fmt.dayHeader(day), style: const TextStyle(fontWeight: FontWeight.w700)),
-                      ),
-                      if (t.income > 0)
-                        CountText(
-                          values: [t.income],
-                          text: (cv) => '+${Fmt.compact(cv[0])}  ',
-                          style: const TextStyle(color: AppColors.income, fontWeight: FontWeight.w600),
+          child: RepaintBoundary(
+            child: AppCard(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(Fmt.dayHeader(day), style: const TextStyle(fontWeight: FontWeight.w700)),
                         ),
-                      if (t.expense > 0)
-                        CountText(
-                          values: [t.expense],
-                          text: (cv) => '-${Fmt.compact(cv[0])}',
-                          style: const TextStyle(color: AppColors.expense, fontWeight: FontWeight.w600),
-                        ),
-                    ],
+                        if (t.income > 0)
+                          Text(
+                            '+${Fmt.compact(t.income)}  ',
+                            style: const TextStyle(color: AppColors.income, fontWeight: FontWeight.w600),
+                          ),
+                        if (t.expense > 0)
+                          Text(
+                            '-${Fmt.compact(t.expense)}',
+                            style: const TextStyle(color: AppColors.expense, fontWeight: FontWeight.w600),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                for (final tx in items) _dismissible(tx),
-              ],
+                  for (final tx in items) _dismissible(tx),
+                ],
+              ),
             ),
-          ).stagger(i),
+          ),
         );
       },
     );
@@ -1547,10 +1582,10 @@ class _DaySheetState extends ConsumerState<_DaySheet> {
       body = Column(
         key: const ValueKey('list'),
         children: [
-          for (final (i, x) in items.indexed)
+          for (final x in items)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: _DayRow(txn: x, photo: photoOf[x.id]?.file).stagger(i),
+              child: RepaintBoundary(child: _DayRow(txn: x, photo: photoOf[x.id]?.file)),
             ),
           SizedBox(height: 64, child: _AddDayCard(day: d, row: true)),
         ],
@@ -1565,14 +1600,15 @@ class _DaySheetState extends ConsumerState<_DaySheet> {
         crossAxisSpacing: 8,
         childAspectRatio: view == 4 ? 0.66 : 0.72,
         children: [
-          for (final (i, x) in items.indexed) _TxGridCard(txn: x, photo: photoOf[x.id]?.file, cols: view).stagger(i),
-          _AddDayCard(day: d, compact: true).stagger(items.length),
+          for (final x in items) RepaintBoundary(child: _TxGridCard(txn: x, photo: photoOf[x.id]?.file, cols: view)),
+          _AddDayCard(day: d, compact: true),
         ],
       );
     }
 
     return ListView(
       controller: widget.scroll,
+      physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       children: [
         Row(
@@ -1620,19 +1656,7 @@ class _DaySheetState extends ConsumerState<_DaySheet> {
           ],
         ),
         const SizedBox(height: 12),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutCubic,
-          alignment: Alignment.topCenter,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            transitionBuilder: (c, a) => FadeTransition(
-              opacity: a,
-              child: ScaleTransition(scale: Tween(begin: 0.97, end: 1.0).animate(a), child: c),
-            ),
-            child: body,
-          ),
-        ),
+        body,
       ],
     );
   }
@@ -1678,7 +1702,6 @@ class _DayRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final f = ref.read(financeProvider);
-    final scheme = Theme.of(context).colorScheme;
     final isTransfer = txn.type == TxType.transfer;
     final cat = f.category(txn.categoryId);
     final color = isTransfer ? AppColors.transfer : hexColor(cat?.color, txColor(txn.type));
@@ -1687,53 +1710,38 @@ class _DayRow extends ConsumerWidget {
       TxType.income => '+',
       _ => '',
     };
-    return OpenCard(
-      radius: 14,
-      padding: const EdgeInsets.all(8),
-      page: TransactionEditPage(id: txn.id, type: txn.type),
+    final acc = f.account(txn.accountId);
+    final accLabel = isTransfer ? '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' : (acc?.name ?? '');
+    final extraMeta = [
+      Fmt.time(txn.occurredAt),
+      if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
+    ].join(' · ');
+    return AppCard(
+      padding: const EdgeInsets.all(10),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TransactionEditPage(id: txn.id, type: txn.type))),
       child: Row(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: SizedBox.square(
-              dimension: 64,
+              dimension: 60,
               child: photo != null
                   ? FileImage2(photo!, radius: 0)
                   : Container(
-                      color: color.withValues(alpha: 0.18),
-                      child: Icon(isTransfer ? Icons.swap_horiz_rounded : iconOf(cat?.icon), color: color, size: 30),
+                      color: color.withValues(alpha: 0.16),
+                      child: Icon(isTransfer ? Icons.swap_horiz_rounded : iconOf(cat?.icon), color: color, size: 28),
                     ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isTransfer ? 'Chuyển khoản' : (cat?.name ?? 'Không có danh mục'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                if (txn.note?.isNotEmpty == true)
-                  Text(
-                    txn.note!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
-                  ),
-                Text(
-                  [
-                    Fmt.time(txn.occurredAt),
-                    f.account(txn.accountId)?.name ?? '',
-                    if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
-                  ].where((s) => s.isNotEmpty).join(' · '),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                ),
-              ],
+            child: _TxMetaColumn(
+              title: isTransfer ? 'Chuyển khoản' : (cat?.name ?? 'Không có danh mục'),
+              catColor: color,
+              note: txn.note,
+              accLabel: accLabel,
+              extraMeta: extraMeta,
+              isRecurring: txn.recurringRuleId != null,
             ),
           ),
           const SizedBox(width: 8),
@@ -1917,6 +1925,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   bool ocrBusy = false;
   double? _calcLeft;
   String? _calcOp;
+  String? _expandedParentId;
 
   @override
   void initState() {
@@ -1935,6 +1944,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
       latitude = t.latitude;
       longitude = t.longitude;
       category = f.category(t.categoryId);
+      _expandedParentId = category?.parentId ?? (f.categories.any((x) => x.parentId == category?.id) ? category?.id : null);
       account = f.account(t.accountId);
       toAccount = f.account(t.toAccountId);
       at = t.occurredAt;
@@ -2033,19 +2043,24 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     Navigator.of(context).maybePop();
   }
 
-  /// Danh mục hay dùng nhất của loại hiện tại (đếm theo giao dịch đã ghi), tối đa [n].
+  /// Danh mục cha hay dùng nhất của loại hiện tại (đếm theo cả giao dịch của các danh mục con), tối đa [n].
   List<Category> _frequent(Finance f, int n) {
+    final all = f.categories.where((c) => c.type == type).toList();
+    final byId = {for (final c in all) c.id: c};
     final count = <String, int>{};
     for (final t in f.transactions) {
-      if (t.type == type && t.categoryId != null) count[t.categoryId!] = (count[t.categoryId!] ?? 0) + 1;
+      if (t.type != type || t.categoryId == null) continue;
+      final c = byId[t.categoryId!];
+      final rootId = c?.parentId ?? t.categoryId!;
+      count[rootId] = (count[rootId] ?? 0) + 1;
     }
-    final cats = f.categories.where((c) => c.type == type).toList();
-    cats.sort((a, b) {
-      final d = (count[b.id] ?? 0) - (count[a.id] ?? 0);
-      return d != 0 ? d : (a.parentId == null ? 0 : 1) - (b.parentId == null ? 0 : 1);
-    });
-    final list = cats.take(n).toList();
-    if (category != null && !list.any((c) => c.id == category!.id)) list[list.length - 1] = category!;
+    final roots = all.where((c) => c.parentId == null).toList();
+    roots.sort((a, b) => (count[b.id] ?? 0).compareTo(count[a.id] ?? 0));
+    final list = roots.take(n).toList();
+    final activeRoot = category?.parentId != null ? byId[category!.parentId!] : category;
+    if (activeRoot != null && list.isNotEmpty && !list.any((c) => c.id == activeRoot.id)) {
+      list[list.length - 1] = activeRoot;
+    }
     return list;
   }
 
@@ -2301,7 +2316,10 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
             value: type,
             onChanged: (v) => setState(() {
               type = v;
-              if (category != null && category!.type != type) category = null;
+              if (category != null && category!.type != type) {
+                category = null;
+                _expandedParentId = null;
+              }
             }),
           ),
           const SizedBox(height: 14),
@@ -2462,6 +2480,260 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
             ),
             const SizedBox(height: 4),
           ],
+          // Danh mục: đặt ngay dưới Số tiền để không bị quên, kèm nhãn nhắc khi chưa chọn
+          if (type != TxType.transfer)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('Danh mục', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      const SizedBox(width: 8),
+                      if (category == null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.warning.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: const Text('Chưa chọn', style: TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w700)),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: hexColor(category!.color, color).withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            category!.name,
+                            style: TextStyle(color: hexColor(category!.color, color), fontSize: 11, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      const Spacer(),
+                      TextButton(
+                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                        onPressed: () async {
+                          final c = await pickCategory(context, ref, type);
+                          if (c != null) setState(() => category = c);
+                        },
+                        child: const Text('Tất cả'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Builder(
+                    builder: (_) {
+                      final cats = _frequent(f, 7);
+                      final parentIdForSub = _expandedParentId;
+                      final parentCat = parentIdForSub == null ? null : f.category(parentIdForSub);
+                      final subCats = parentCat == null
+                          ? const <Category>[]
+                          : (f.categories.where((x) => x.parentId == parentCat.id).toList());
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          GridView.count(
+                            crossAxisCount: 4,
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            mainAxisSpacing: 8,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 0.98,
+                            children: [
+                              for (final (i, c) in cats.indexed)
+                                Builder(
+                                  builder: (_) {
+                                    final on = category?.id == c.id || category?.parentId == c.id;
+                                    final cc = hexColor(c.color, color);
+                                    final hasSub = f.categories.any((x) => x.parentId == c.id);
+                                    return Pressable(
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        setState(() {
+                                          // Nếu đang mở danh mục con của chính cha này và đang chọn cha -> thu gọn; nếu đang chọn con -> quay về cha
+                                          if (_expandedParentId == c.id && category?.id == c.id) {
+                                            _expandedParentId = null;
+                                          } else {
+                                            category = c;
+                                            _expandedParentId = hasSub ? c.id : null;
+                                          }
+                                        });
+                                      },
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 220),
+                                        decoration: BoxDecoration(
+                                          color: on ? cc.withValues(alpha: 0.18) : scheme.surfaceContainerHigh,
+                                          borderRadius: BorderRadius.circular(18),
+                                          border: Border.all(
+                                            color: on ? cc : (category == null ? AppColors.warning.withValues(alpha: 0.35) : Colors.transparent),
+                                            width: on ? 1.8 : 1.0,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            AnimatedScale(
+                                              scale: on ? 1.1 : 1,
+                                              duration: const Duration(milliseconds: 220),
+                                              curve: Curves.easeOutBack,
+                                              child: CircleIcon(icon: c.icon, color: cc, size: 36),
+                                            ),
+                                            const SizedBox(height: 5),
+                                            Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                                              child: Text(
+                                                c.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(fontSize: 11.5, fontWeight: on ? FontWeight.w800 : FontWeight.w500),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ).stagger(i);
+                                  },
+                                ),
+                              Pressable(
+                                onTap: () async {
+                                  final c = await pickCategory(context, ref, type);
+                                  if (c != null) {
+                                    setState(() {
+                                      category = c;
+                                      _expandedParentId = c.parentId ?? (f.categories.any((x) => x.parentId == c.id) ? c.id : null);
+                                    });
+                                  }
+                                },
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(color: scheme.outlineVariant),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.apps_rounded, color: scheme.onSurfaceVariant),
+                                      const SizedBox(height: 5),
+                                      Text('Xem thêm', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOutCubic,
+                            child: subCats.isEmpty
+                                ? const SizedBox.shrink()
+                                : Container(
+                                    margin: const EdgeInsets.only(top: 10),
+                                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                                    decoration: BoxDecoration(
+                                      color: scheme.surfaceContainerLow,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.55)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 7,
+                                              height: 7,
+                                              margin: const EdgeInsets.only(right: 6),
+                                              decoration: BoxDecoration(color: hexColor(parentCat?.color, color), shape: BoxShape.circle),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                parentCat!.name,
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: hexColor(parentCat.color, color),
+                                                ),
+                                              ),
+                                            ),
+                                            if (category?.parentId == parentCat.id)
+                                              GestureDetector(
+                                                onTap: () {
+                                                  HapticFeedback.selectionClick();
+                                                  setState(() => category = parentCat);
+                                                },
+                                                child: Padding(
+                                                  padding: const EdgeInsets.only(right: 8),
+                                                  child: Text(
+                                                    'Bỏ chọn con',
+                                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: scheme.primary),
+                                                  ),
+                                                ),
+                                              ),
+                                            GestureDetector(
+                                              onTap: () => setState(() => _expandedParentId = null),
+                                              child: Icon(Icons.close_rounded, size: 16, color: scheme.onSurfaceVariant),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
+                                          children: [
+                                            for (final sub in subCats)
+                                              (() {
+                                                final subOn = category?.id == sub.id;
+                                                final sc = hexColor(sub.color, hexColor(parentCat.color, color));
+                                                return Pressable(
+                                                  onTap: () {
+                                                    HapticFeedback.selectionClick();
+                                                    setState(() => category = subOn ? parentCat : sub);
+                                                  },
+                                                  child: AnimatedContainer(
+                                                    duration: const Duration(milliseconds: 180),
+                                                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                                                    decoration: BoxDecoration(
+                                                      color: subOn ? sc.withValues(alpha: 0.16) : scheme.surfaceContainerLowest,
+                                                      borderRadius: BorderRadius.circular(999),
+                                                      border: Border.all(
+                                                        color: subOn ? sc : scheme.outlineVariant.withValues(alpha: 0.6),
+                                                        width: subOn ? 1.5 : 1,
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(iconOf(sub.icon), size: 15, color: sc),
+                                                        const SizedBox(width: 6),
+                                                        Text(
+                                                          sub.name,
+                                                          style: TextStyle(
+                                                            fontSize: 12.5,
+                                                            fontWeight: subOn ? FontWeight.w700 : FontWeight.w500,
+                                                            color: subOn ? sc : scheme.onSurface,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              })(),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
           section(
             'Ảnh hoá đơn / kỷ niệm',
             PhotoGrid(
@@ -2522,95 +2794,6 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                   )
                 : const SizedBox(width: double.infinity),
           ),
-          // Danh mục: lưới danh mục hay dùng + "Tất cả"
-          if (type != TxType.transfer)
-            section(
-              'Danh mục',
-              trailing: TextButton(
-                onPressed: () async {
-                  final c = await pickCategory(context, ref, type);
-                  if (c != null) setState(() => category = c);
-                },
-                child: const Text('Tất cả'),
-              ),
-              Builder(
-                builder: (_) {
-                  final cats = _frequent(f, 7);
-                  return GridView.count(
-                    crossAxisCount: 4,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 0.95,
-                    children: [
-                      for (final (i, c) in cats.indexed)
-                        Builder(
-                          builder: (_) {
-                            final on = category?.id == c.id;
-                            final cc = hexColor(c.color, color);
-                            return Pressable(
-                              onTap: () {
-                                HapticFeedback.selectionClick();
-                                setState(() => category = c);
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 220),
-                                decoration: BoxDecoration(
-                                  color: on ? cc.withValues(alpha: 0.18) : scheme.surfaceContainerHigh,
-                                  borderRadius: BorderRadius.circular(18),
-                                  border: Border.all(color: on ? cc : Colors.transparent, width: 1.6),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    AnimatedScale(
-                                      scale: on ? 1.1 : 1,
-                                      duration: const Duration(milliseconds: 220),
-                                      curve: Curves.easeOutBack,
-                                      child: CircleIcon(icon: c.icon, color: cc, size: 38),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                                      child: Text(
-                                        c.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(fontSize: 11.5, fontWeight: on ? FontWeight.w800 : FontWeight.w500),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ).stagger(i);
-                          },
-                        ),
-                      Pressable(
-                        onTap: () async {
-                          final c = await pickCategory(context, ref, type);
-                          if (c != null) setState(() => category = c);
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: scheme.outlineVariant),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.apps_rounded, color: scheme.onSurfaceVariant),
-                              const SizedBox(height: 6),
-                              Text('Khác', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
           // Thời gian: chọn nhanh + chọn cụ thể
           section(
             'Thời gian',
