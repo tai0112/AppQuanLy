@@ -388,6 +388,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
 
     final canAdd = ref.watch(sessionProvider).can(Perm.giaoDich);
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       floatingActionButton: widget.showFab && canAdd
           ? OpenContainer(
               transitionDuration: const Duration(milliseconds: 520),
@@ -619,7 +620,22 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
             ),
             const SizedBox(height: 6),
             Expanded(
-              child: AnimatedSwitcher(duration: const Duration(milliseconds: 300), child: calendar ? _calendarView(list, from) : _listView(list)),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (c, a) => FadeTransition(
+                  opacity: a,
+                  child: SlideTransition(
+                    position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(a),
+                    child: c,
+                  ),
+                ),
+                child: KeyedSubtree(
+                  key: ValueKey('view-$calendar-$from'),
+                  child: calendar ? _calendarView(list, from) : _listView(list),
+                ),
+              ),
             ),
           ],
         ),
@@ -916,7 +932,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
         final day = days[i];
         final items = byDay[day]!;
         final t = f.totals(items);
-        return Padding(
+        final card = Padding(
           padding: const EdgeInsets.only(bottom: 12),
           child: RepaintBoundary(
             child: AppCard(
@@ -949,6 +965,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
             ),
           ),
         );
+        return i < 4 ? card.stagger(i) : card;
       },
     );
   }
@@ -1874,14 +1891,26 @@ class _Total extends StatelessWidget {
               width: double.infinity,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: AnimatedAmount(
-                  value: value,
-                  format: (v) => fmt(v),
-                  style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 240),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (c, a) => FadeTransition(
+                    opacity: a,
+                    child: SlideTransition(
+                      position: Tween(begin: const Offset(0, 0.2), end: Offset.zero).animate(a),
+                      child: c,
+                    ),
+                  ),
+                  child: Text(
+                    fmt(value),
+                    key: ValueKey(fmt(value)),
+                    style: TextStyle(
+                      color: color,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
                 ),
               ),
@@ -2215,6 +2244,14 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     }
   }
 
+  Future<void> _addPhotos() async {
+    final paths = <String>[];
+    final ids = await pickPhotos(context, ref, outPaths: paths);
+    if (!mounted || ids.isEmpty) return;
+    setState(() => photos = [...photos, ...ids]);
+    if (paths.isNotEmpty) unawaited(_scanPhotos(ids, paths));
+  }
+
   void _removePhoto(String id) {
     setState(() {
       photos = photos.where((p) => p != id).toList();
@@ -2336,7 +2373,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
               }
             }),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           // Thẻ số tiền
           AnimatedContainer(
             duration: const Duration(milliseconds: 350),
@@ -2475,7 +2512,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           if (ocrCandidates.isNotEmpty) ...[
             Text('Số đọc được từ ảnh (chạm để chọn):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
             const SizedBox(height: 6),
@@ -2492,12 +2529,77 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                   ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 10),
           ],
-          // Danh mục: đặt ngay dưới Số tiền để không bị quên, kèm nhãn nhắc khi chưa chọn
+          // Ghi chú + Ảnh hoá đơn / kỷ niệm gộp gọn ngay dưới Số tiền
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: note,
+                  maxLines: 3,
+                  minLines: 1,
+                  decoration: const InputDecoration(
+                    hintText: 'Ghi chú (ăn gì, mua gì, với ai…)',
+                    prefixIcon: Icon(Icons.edit_note_rounded),
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Pressable(
+                onTap: _addPhotos,
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: photos.isNotEmpty ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(14),
+                    border: photos.isNotEmpty ? Border.all(color: scheme.primary.withValues(alpha: 0.45)) : null,
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_a_photo_rounded,
+                        size: 21,
+                        color: photos.isNotEmpty ? scheme.onPrimaryContainer : scheme.primary,
+                      ),
+                      if (photos.isNotEmpty)
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                            decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(999)),
+                            child: Text(
+                              '${photos.length}',
+                              style: TextStyle(color: scheme.onPrimary, fontSize: 9, fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            child: photos.isEmpty
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: PhotoGrid(fileIds: photos, size: 68, onAdd: _addPhotos, onRemove: _removePhoto),
+                  ),
+          ),
+          // Danh mục: đặt ngay dưới Ghi chú & Ảnh để thấy trọn vẹn trong màn đầu
           if (type != TxType.transfer)
             Padding(
-              padding: const EdgeInsets.only(top: 14),
+              padding: const EdgeInsets.only(top: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -2553,9 +2655,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                             crossAxisCount: 4,
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
-                            mainAxisSpacing: 8,
-                            crossAxisSpacing: 8,
-                            childAspectRatio: 0.98,
+                            mainAxisSpacing: 7,
+                            crossAxisSpacing: 7,
+                            childAspectRatio: 1.15,
                             children: [
                               for (final (i, c) in cats.indexed)
                                 Builder(
@@ -2580,7 +2682,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                                         duration: const Duration(milliseconds: 220),
                                         decoration: BoxDecoration(
                                           color: on ? cc.withValues(alpha: 0.18) : scheme.surfaceContainerHigh,
-                                          borderRadius: BorderRadius.circular(18),
+                                          borderRadius: BorderRadius.circular(16),
                                           border: Border.all(
                                             color: on ? cc : (category == null ? AppColors.warning.withValues(alpha: 0.35) : Colors.transparent),
                                             width: on ? 1.8 : 1.0,
@@ -2593,9 +2695,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                                               scale: on ? 1.1 : 1,
                                               duration: const Duration(milliseconds: 220),
                                               curve: Curves.easeOutBack,
-                                              child: CircleIcon(icon: c.icon, color: cc, size: 36),
+                                              child: CircleIcon(icon: c.icon, color: cc, size: 32),
                                             ),
-                                            const SizedBox(height: 5),
+                                            const SizedBox(height: 4),
                                             Padding(
                                               padding: const EdgeInsets.symmetric(horizontal: 4),
                                               child: Text(
@@ -2748,29 +2850,6 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                 ],
               ),
             ),
-          section(
-            'Ảnh hoá đơn / kỷ niệm',
-            PhotoGrid(
-              fileIds: photos,
-              onAdd: () async {
-                final paths = <String>[];
-                final ids = await pickPhotos(context, ref, outPaths: paths);
-                if (!mounted || ids.isEmpty) return;
-                setState(() => photos = [...photos, ...ids]);
-                if (paths.isNotEmpty) unawaited(_scanPhotos(ids, paths));
-              },
-              onRemove: _removePhoto,
-            ),
-          ),
-          section(
-            'Ghi chú',
-            TextField(
-              controller: note,
-              maxLines: 3,
-              minLines: 1,
-              decoration: const InputDecoration(hintText: 'Ăn gì, mua gì, với ai…', prefixIcon: Icon(Icons.edit_note_rounded)),
-            ),
-          ),
           const SizedBox(height: 14),
           AccountChips(
             label: type == TxType.transfer ? 'Từ tài khoản' : (type == TxType.income ? 'Nhận vào' : 'Trả bằng'),

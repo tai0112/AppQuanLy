@@ -87,6 +87,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final canAdd = session.can(Perm.giaoDich);
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       // Chỉ giữ tab đang xem (không tốn thêm bộ nhớ). Hiệu ứng mờ chuyển ngắn, nhẹ hơn trượt ngang.
       body: PageTransitionSwitcher(
         duration: const Duration(milliseconds: 220),

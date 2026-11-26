@@ -1002,13 +1002,14 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
         ),
       ),
       body: ListView(
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
         children: [
           // ---------- Bìa + tên (gõ thẳng trên bìa)
           AnimatedContainer(
             duration: const Duration(milliseconds: 350),
             curve: Curves.easeOutCubic,
-            height: cover == null ? 168 : 210,
+            height: cover == null ? 116 : 168,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -1032,20 +1033,20 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
                     ),
                   ),
                 ),
-                if (cover == null) Positioned(right: -20, top: -20, child: Icon(iconOf(cat?.icon), size: 150, color: Colors.white.withValues(alpha: 0.12))),
+                if (cover == null) Positioned(right: -16, top: -16, child: Icon(iconOf(cat?.icon), size: 112, color: Colors.white.withValues(alpha: 0.12))),
                 Positioned(
-                  left: 14,
-                  top: 14,
+                  left: 12,
+                  top: 10,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 250),
                     child: Container(
                       key: ValueKey(cat?.id),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.22), borderRadius: BorderRadius.circular(14)),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(iconOf(cat?.icon), size: 15, color: Colors.white),
+                          Icon(iconOf(cat?.icon), size: 14, color: Colors.white),
                           const SizedBox(width: 5),
                           Text(
                             cat?.name ?? 'Lịch trình',
@@ -1065,12 +1066,12 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
                       if (ids.isNotEmpty) setState(() => cover = ids.first);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(14)),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.add_photo_alternate_rounded, color: Colors.white, size: 16),
+                          const Icon(Icons.add_photo_alternate_rounded, color: Colors.white, size: 15),
                           const SizedBox(width: 5),
                           Text(
                             cover == null ? 'Ảnh bìa' : 'Đổi ảnh',
@@ -1082,19 +1083,19 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
                   ),
                 ),
                 Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 10,
+                  left: 14,
+                  right: 14,
+                  bottom: 8,
                   child: TextField(
                     controller: title,
                     autofocus: widget.id == null,
                     cursorColor: Colors.white,
                     maxLines: 2,
                     minLines: 1,
-                    style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, height: 1.15),
+                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, height: 1.15),
                     decoration: InputDecoration(
                       hintText: 'Tên lịch trình…',
-                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 26, fontWeight: FontWeight.w900),
+                      hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 22, fontWeight: FontWeight.w900),
                       filled: false,
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
@@ -1107,14 +1108,14 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             ),
           ),
 
-          // ---------- Danh mục (cuộn ngang, nhấn giữ để sửa)
+          // ---------- Danh mục (cuộn ngang dạng thẻ gọn, nhấn giữ để sửa)
           _head(
             Icons.category_rounded,
             'Loại lịch trình',
             trailing: Text('Nhấn giữ để sửa', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
           ),
           SizedBox(
-            height: 88,
+            height: 40,
             child: ListView(
               scrollDirection: Axis.horizontal,
               children: [
@@ -1137,30 +1138,20 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
                             final cc = hexColor(c.color, color);
                             return AnimatedContainer(
                               duration: const Duration(milliseconds: 220),
-                              width: 78,
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
                               decoration: BoxDecoration(
                                 color: on ? cc.withValues(alpha: 0.18) : scheme.surfaceContainerHigh,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: on ? cc : Colors.transparent, width: 1.6),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(color: on ? cc : Colors.transparent, width: 1.5),
                               ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  AnimatedScale(
-                                    scale: on ? 1.1 : 1,
-                                    duration: const Duration(milliseconds: 220),
-                                    curve: Curves.easeOutBack,
-                                    child: CircleIcon(icon: c.icon, color: cc, size: 36),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                                    child: Text(
-                                      c.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontSize: 11.5, fontWeight: on ? FontWeight.w800 : FontWeight.w500),
-                                    ),
+                                  CircleIcon(icon: c.icon, color: cc, size: 24),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    c.name,
+                                    style: TextStyle(fontSize: 12.5, fontWeight: on ? FontWeight.w800 : FontWeight.w500),
                                   ),
                                 ],
                               ),
@@ -1183,17 +1174,17 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
                     }
                   },
                   child: Container(
-                    width: 78,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
+                      borderRadius: BorderRadius.circular(999),
                       border: Border.all(color: scheme.outlineVariant),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.add_rounded, color: scheme.onSurfaceVariant),
-                        const SizedBox(height: 6),
-                        Text('Thêm', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+                        Icon(Icons.add_rounded, size: 16, color: scheme.onSurfaceVariant),
+                        const SizedBox(width: 4),
+                        Text('Thêm', style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
                       ],
                     ),
                   ),

@@ -1045,7 +1045,7 @@ class _EdgeSwipeState extends State<EdgeSwipe> with SingleTickerProviderStateMix
   }
 }
 
-/// Đẩy thanh nút lưu ở `bottomNavigationBar` lên trên bàn phím khi bàn phím đang mở.
+/// Ẩn thanh nút lưu ở `bottomNavigationBar` khi bàn phím đang mở để chừa tối đa diện tích nhập liệu, chỉ hiện khi đóng bàn phím.
 class KeyboardAvoidBottomBar extends StatelessWidget {
   const KeyboardAvoidBottomBar({super.key, required this.child, this.minimum = EdgeInsets.zero});
   final Widget child;
@@ -1053,10 +1053,26 @@ class KeyboardAvoidBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kb = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: kb),
-      child: SafeArea(bottom: kb == 0, minimum: minimum, child: child),
+    final show = MediaQuery.viewInsetsOf(context).bottom == 0;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (c, anim) => FadeTransition(
+          opacity: anim,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(anim),
+            child: c,
+          ),
+        ),
+        child: show
+            ? SafeArea(key: const ValueKey('visible'), minimum: minimum, child: child)
+            : const SizedBox.shrink(key: ValueKey('hidden')),
+      ),
     );
   }
 }
