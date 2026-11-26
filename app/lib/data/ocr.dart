@@ -1,4 +1,5 @@
-import 'dart:io' show File, Platform;
+import 'dart:io' show Directory, File, Platform;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -168,6 +169,22 @@ class OcrService {
       return OcrNumberParser.parseReceiptText(recognized.text);
     } finally {
       await recognizer.close();
+    }
+  }
+
+  /// Quét ảnh từ dữ liệu bytes (dùng cho ảnh đã lưu sẵn trên máy khi sửa giao dịch).
+  static Future<OcrResult?> scanImageBytes(Uint8List bytes) async {
+    if (!isSupported || bytes.isEmpty) return null;
+    final tmp = File('${Directory.systemTemp.path}${Platform.pathSeparator}ocr_${DateTime.now().microsecondsSinceEpoch}.jpg');
+    try {
+      await tmp.writeAsBytes(bytes, flush: true);
+      return await scanImagePath(tmp.path);
+    } finally {
+      if (tmp.existsSync()) {
+        try {
+          tmp.deleteSync();
+        } catch (_) {}
+      }
     }
   }
 }

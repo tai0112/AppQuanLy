@@ -68,89 +68,110 @@ class TxTile extends ConsumerWidget {
       radius: 14,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
       page: TransactionEditPage(id: txn.id, type: txn.type),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              CircleIcon(icon: isTransfer ? 'sync_alt' : cat?.icon, color: isTransfer ? AppColors.transfer : hexColor(cat?.color)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          if (photos.isNotEmpty) ...[
+            _StackedTxPhotos(photos: photos),
+            const SizedBox(width: 12),
+          ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            title,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (txn.recurringRuleId != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
-                      ],
-                    ),
-                    if (sub.isNotEmpty)
-                      Text(
-                        sub,
-                        maxLines: 1,
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
+                    ),
+                    if (txn.recurringRuleId != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              CountText(
-                values: [txn.amount],
-                text: (cv) =>
-                    (txn.type == TxType.expense
-                        ? '-'
-                        : txn.type == TxType.income
-                        ? '+'
-                        : '') +
-                    f.money(cv[0], txn.currencyCode),
-                style: TextStyle(fontWeight: FontWeight.w700, color: txColor(txn.type)),
-              ),
-            ],
+                if (sub.isNotEmpty)
+                  Text(
+                    sub,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+              ],
+            ),
           ),
-          if (photos.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.only(left: 52),
-              child: Row(
-                children: [
-                  for (var i = 0; i < photos.length && i < 4; i++)
-                    Padding(
-                      padding: EdgeInsets.only(right: i < 3 && i < photos.length - 1 ? 6 : 0),
-                      child: SizedBox(
-                        width: 52,
-                        height: 52,
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            FileImage2(photos[i], radius: 10),
-                            if (i == 3 && photos.length > 4)
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.55),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '+${photos.length - 4}',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
-                                ),
-                              ),
-                          ],
+          const SizedBox(width: 8),
+          CountText(
+            values: [txn.amount],
+            text: (cv) =>
+                (txn.type == TxType.expense
+                    ? '-'
+                    : txn.type == TxType.income
+                    ? '+'
+                    : '') +
+                f.money(cv[0], txn.currencyCode),
+            style: TextStyle(fontWeight: FontWeight.w700, color: txColor(txn.type)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Hiển thị ảnh giao dịch dạng xếp đè lên nhau; nếu có nhiều hơn 2 ảnh thì hiện huy hiệu +1, +2...
+class _StackedTxPhotos extends StatelessWidget {
+  const _StackedTxPhotos({required this.photos});
+  final List<String> photos;
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = photos.length > 2 ? 2 : photos.length;
+    final extra = photos.length - visible;
+    const size = 44.0;
+    const step = 14.0;
+    final totalW = size + (visible - 1) * step;
+    final surface = Theme.of(context).colorScheme.surface;
+
+    return SizedBox(
+      width: totalW,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var i = 0; i < visible; i++)
+            Positioned(
+              left: i * step,
+              top: 0,
+              width: size,
+              height: size,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: surface, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4, offset: const Offset(0, 1)),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.5),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      FileImage2(photos[i], radius: 0),
+                      if (i == visible - 1 && extra > 0)
+                        Container(
+                          color: Colors.black.withValues(alpha: 0.52),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '+$extra',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                          ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
-          ],
         ],
       ),
     );
@@ -1761,6 +1782,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   List<String> photos = [];
   List<String> removedAttachments = [];
   List<double> ocrCandidates = [];
+  final Map<String, double> photoOcrAmounts = {};
   bool ocrBusy = false;
 
   @override
@@ -1896,7 +1918,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     setState(() => amount.text = amountText(cur + v));
   }
 
-  Future<void> _scanPhotos(List<String> paths, {bool forceFill = false}) async {
+  Future<void> _scanPhotos(List<String> ids, List<String> paths, {bool forceFill = false}) async {
     if (paths.isEmpty) return;
     if (!OcrService.isSupported) {
       if (forceFill && mounted) showToast(context, 'Quét số từ ảnh hỗ trợ trên Android / iOS');
@@ -1904,20 +1926,60 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     }
     setState(() => ocrBusy = true);
     try {
-      final res = await OcrService.scanImagePath(paths.first);
+      final store = ref.read(storeProvider);
+      final allCandidates = <double>{};
+
+      // Nếu đang có ảnh cũ chưa quét (vd vừa mở "Sửa giao dịch" rồi thêm ảnh thứ 2) -> quét luôn để cộng dồn chính xác
+      for (var i = 0; i < photos.length; i++) {
+        final fid = photos[i];
+        if (ids.contains(fid) || photoOcrAmounts.containsKey(fid)) continue;
+        final bytes = await store.readFile(fid);
+        if (bytes == null) continue;
+        final prevRes = await OcrService.scanImageBytes(bytes);
+        if (prevRes != null && prevRes.bestAmount != null) {
+          photoOcrAmounts[fid] = prevRes.bestAmount!;
+          allCandidates.addAll(prevRes.candidates);
+        }
+      }
+
+      var newScannedCount = 0;
+      double? lastNewBest;
+      OcrResult? lastRes;
+      for (var i = 0; i < paths.length; i++) {
+        final res = await OcrService.scanImagePath(paths[i]);
+        lastRes = res;
+        if (res != null && res.bestAmount != null) {
+          if (i < ids.length) {
+            photoOcrAmounts[ids[i]] = res.bestAmount!;
+          }
+          lastNewBest = res.bestAmount!;
+          newScannedCount++;
+          allCandidates.addAll(res.candidates);
+        }
+      }
+
       if (!mounted) return;
       setState(() => ocrBusy = false);
-      if (res != null && res.candidates.isNotEmpty) {
+
+      if (newScannedCount > 0) {
+        final sum = photoOcrAmounts.values.fold<double>(0, (s, v) => s + v);
+        final hasMultiple = photoOcrAmounts.length > 1;
+        final targetValue = hasMultiple ? sum : (lastNewBest ?? sum);
         setState(() {
-          ocrCandidates = res.candidates;
-          if (forceFill || parseAmount(amount.text) <= 0) {
-            amount.text = amountText(res.bestAmount!);
+          ocrCandidates = {if (hasMultiple) sum, ...allCandidates}.toList();
+          if (hasMultiple || forceFill || parseAmount(amount.text) <= 0) {
+            amount.text = amountText(targetValue);
           }
         });
         final f = ref.read(financeProvider);
-        showToast(context, 'Đã đọc số ${f.money(res.bestAmount!, account?.currencyCode)} từ ảnh');
+        showToast(
+          context,
+          hasMultiple
+              ? 'Đã cộng ${photoOcrAmounts.length} ảnh: ${f.money(sum, account?.currencyCode)}'
+              : 'Đã đọc số ${f.money(targetValue, account?.currencyCode)} từ ảnh',
+        );
       } else if (forceFill) {
-        final msg = (res == null || res.rawText.trim().isEmpty)
+        final msg = (lastRes == null || lastRes.rawText.trim().isEmpty)
             ? 'Không nhận diện được chữ/số trong ảnh'
             : 'Không tìm thấy số tiền phù hợp trong ảnh';
         showToast(context, msg, error: true);
@@ -1930,12 +1992,26 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     }
   }
 
+  void _removePhoto(String id) {
+    setState(() {
+      photos = photos.where((p) => p != id).toList();
+      final hadOcr = photoOcrAmounts.remove(id) != null;
+      if (hadOcr && photoOcrAmounts.isNotEmpty) {
+        final sum = photoOcrAmounts.values.fold<double>(0, (s, v) => s + v);
+        amount.text = amountText(sum);
+        ocrCandidates = {sum, ...photoOcrAmounts.values}.toList();
+      } else if (photoOcrAmounts.isEmpty && hadOcr) {
+        ocrCandidates = [];
+      }
+    });
+  }
+
   Future<void> _pickAndScanReceipt() async {
     final paths = <String>[];
-    final ids = await pickPhotos(context, ref, multiple: false, outPaths: paths);
+    final ids = await pickPhotos(context, ref, multiple: true, outPaths: paths);
     if (!mounted || ids.isEmpty) return;
     setState(() => photos = [...photos, ...ids]);
-    await _scanPhotos(paths, forceFill: true);
+    await _scanPhotos(ids, paths, forceFill: true);
   }
 
   @override
@@ -2178,9 +2254,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                 final ids = await pickPhotos(context, ref, outPaths: paths);
                 if (!mounted || ids.isEmpty) return;
                 setState(() => photos = [...photos, ...ids]);
-                if (paths.isNotEmpty) unawaited(_scanPhotos(paths));
+                if (paths.isNotEmpty) unawaited(_scanPhotos(ids, paths));
               },
-              onRemove: (id) => setState(() => photos = photos.where((p) => p != id).toList()),
+              onRemove: _removePhoto,
             ),
           ),
           const SizedBox(height: 14),
