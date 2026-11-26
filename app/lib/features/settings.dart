@@ -1482,22 +1482,195 @@ class SyncStatusPage extends ConsumerWidget {
     final sync = ref.watch(syncProvider);
     final store = ref.watch(storeProvider);
     final rt = ref.watch(realtimeProvider);
+    final scheme = Theme.of(context).colorScheme;
     final dirty = store.dirtyRecords();
     final uploads = store.pendingUploads();
     final outbox = store.outbox();
+
+    final (statusColor, statusIcon, statusTitle, statusSub) = switch (sync.state) {
+      SyncState.syncing => (scheme.primary, Icons.sync_rounded, 'Đang đồng bộ...', 'Đang trao đổi dữ liệu với máy chủ'),
+      SyncState.error => (
+        AppColors.expense,
+        Icons.cloud_off_rounded,
+        'Đồng bộ gặp lỗi',
+        sync.lastError ?? 'Chưa kết nối được máy chủ',
+      ),
+      _ => (
+        AppColors.income,
+        Icons.cloud_done_rounded,
+        dirty.isEmpty && uploads.isEmpty && outbox.isEmpty ? 'Đã đồng bộ' : 'Có thay đổi chờ đồng bộ',
+        sync.lastSyncedAt == null ? 'Chưa đồng bộ lần nào' : 'Lần cuối lúc ${Fmt.time(sync.lastSyncedAt!)}',
+      ),
+    };
+
+    Future<void> clearCache() async {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Dọn sạch bộ nhớ đệm ảnh?'),
+          content: const Text(
+            'Toàn bộ ảnh lưu tạm trong phiên này sẽ được dọn sạch để giải phóng dung lượng. '
+            'Khi đăng xuất, hệ thống cũng tự động dọn sạch hoàn toàn các ảnh này. '
+            'Dữ liệu thu chi không bị ảnh hưởng.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Dọn sạch'),
+            ),
+          ],
+        ),
+      );
+      if (confirm == true) {
+        await store.clearDownloadedFiles();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Đã dọn sạch ảnh trên máy, giải phóng dung lượng')),
+          );
+        }
+      }
+    }
+
+    Widget statTile(IconData icon, Color color, String label, int count, {Widget? trailing}) => AppCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, size: 18, color: color),
+              ),
+              const Spacer(),
+              ?trailing,
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text('$count', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: count > 0 ? color : scheme.onSurface)),
+          const SizedBox(height: 2),
+          Text(label, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+
     return Scaffold(
       appBar: AppBar(title: const Text('Đồng bộ')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
-          SyncBanner(sync: sync),
+          // Thẻ trạng thái tổng quan nổi bật
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  statusColor.withValues(alpha: 0.16),
+                  statusColor.withValues(alpha: 0.05),
+                ],
+              ),
+              border: Border.all(color: statusColor.withValues(alpha: 0.28)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(statusIcon, color: statusColor, size: 26),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(statusTitle, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: statusColor)),
+                          const SizedBox(height: 2),
+                          Text(statusSub, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: scheme.surface.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.circle,
+                            size: 8,
+                            color: rt.connected ? AppColors.income : scheme.outline,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            rt.connected ? 'Realtime: Đã kết nối' : 'Realtime: Chưa kết nối',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: scheme.surface.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.history_rounded, size: 14, color: scheme.primary),
+                          const SizedBox(width: 5),
+                          Text(
+                            sync.lastSyncedAt == null ? 'Chưa đồng bộ' : 'Gần nhất: ${Fmt.time(sync.lastSyncedAt!)}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 12),
+          // Bật/tắt tự động đồng bộ
           AppCard(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
             child: SwitchListTile(
               value: sync.autoSync,
               onChanged: (v) => sync.autoSync = v,
-              secondary: Icon(sync.autoSync ? Icons.cloud_sync_rounded : Icons.phone_iphone_rounded, color: Theme.of(context).colorScheme.primary),
+              secondary: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: scheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(sync.autoSync ? Icons.cloud_sync_rounded : Icons.phone_iphone_rounded, color: scheme.primary),
+              ),
               title: const Text('Tự động đồng bộ', style: TextStyle(fontWeight: FontWeight.w700)),
               subtitle: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
@@ -1506,90 +1679,71 @@ class SyncStatusPage extends ConsumerWidget {
                       ? 'Mọi thay đổi tự đẩy lên máy chủ và tải về từ các máy khác.'
                       : 'Dữ liệu và ảnh chỉ lưu trên máy này. Bấm "Đồng bộ ngay" khi muốn đồng bộ.',
                   key: ValueKey(sync.autoSync),
+                  style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 12),
-          AppCard(
-            child: Column(
-              children: [
-                ListTile(leading: const Icon(Icons.edit_note_rounded), title: const Text('Bản ghi chờ đẩy lên'), trailing: Text('${dirty.length}')),
-                ListTile(leading: const Icon(Icons.image_rounded), title: const Text('Ảnh chờ tải lên'), trailing: Text('${uploads.length}')),
-                ListTile(
-                  leading: const Icon(Icons.photo_library_rounded),
-                  title: const Text('Bộ nhớ đệm ảnh phiên này'),
-                  subtitle: const Text('Nạp ngầm để lướt mượt, tự động xoá sạch khi đăng xuất'),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('${store.localFileCount}'),
-                      if (store.localFileCount > 0) ...[
-                        const SizedBox(width: 4),
-                        IconButton(
-                          tooltip: 'Dọn sạch ảnh trên máy',
-                          icon: const Icon(Icons.delete_sweep_rounded, color: AppColors.expense),
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Dọn sạch bộ nhớ đệm ảnh?'),
-                                content: const Text(
-                                  'Toàn bộ ảnh lưu tạm trong phiên này sẽ được dọn sạch để giải phóng dung lượng. '
-                                  'Khi đăng xuất, hệ thống cũng tự động dọn sạch hoàn toàn các ảnh này. '
-                                  'Dữ liệu thu chi không bị ảnh hưởng.',
-                                ),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Huỷ')),
-                                  FilledButton(
-                                    style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
-                                    onPressed: () => Navigator.pop(ctx, true),
-                                    child: const Text('Dọn sạch'),
-                                  ),
-                                ],
-                              ),
-                            );
-                            if (confirm == true) {
-                              await store.clearDownloadedFiles();
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Đã dọn sạch ảnh trên máy, giải phóng dung lượng')),
-                                );
-                              }
-                            }
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
+          // Lưới 2x2 hàng đợi & bộ nhớ đệm
+          Row(
+            children: [
+              Expanded(child: statTile(Icons.edit_note_rounded, scheme.primary, 'Bản ghi chờ đẩy', dirty.length)),
+              const SizedBox(width: 10),
+              Expanded(child: statTile(Icons.cloud_upload_rounded, AppColors.transfer, 'Ảnh chờ tải lên', uploads.length)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: statTile(Icons.outbox_rounded, AppColors.income, 'Bài / tin chờ gửi', outbox.length)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: statTile(
+                  Icons.photo_library_rounded,
+                  const Color(0xFFF59E0B),
+                  'Ảnh đệm phiên này',
+                  store.localFileCount,
+                  trailing: store.localFileCount > 0
+                      ? InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: clearCache,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.expense.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('Dọn', style: TextStyle(color: AppColors.expense, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                          ),
+                        )
+                      : null,
                 ),
-                ListTile(leading: const Icon(Icons.outbox_rounded), title: const Text('Bài viết / tin nhắn chờ gửi'), trailing: Text('${outbox.length}')),
-                ListTile(
-                  leading: Icon(Icons.bolt_rounded, color: rt.connected ? AppColors.income : null),
-                  title: const Text('Realtime (SignalR)'),
-                  trailing: Text(rt.connected ? 'Đã kết nối' : 'Chưa kết nối'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.history_rounded),
-                  title: const Text('Lần đồng bộ gần nhất'),
-                  trailing: Text(sync.lastSyncedAt == null ? '—' : Fmt.time(sync.lastSyncedAt!)),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
+          // Nút thao tác chính
           Row(
             children: [
               Expanded(
                 child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                   onPressed: sync.state == SyncState.syncing ? null : () => sync.sync(),
                   icon: const Icon(Icons.sync_rounded),
-                  label: const Text('Đồng bộ ngay'),
+                  label: const Text('Đồng bộ ngay', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
                   onPressed: sync.state == SyncState.syncing
                       ? null
                       : () async {
@@ -1616,14 +1770,15 @@ class SyncStatusPage extends ConsumerWidget {
                           }
                         },
                   icon: const Icon(Icons.cloud_download_rounded),
-                  label: const Text('Tải lại toàn bộ'),
+                  label: const Text('Tải lại toàn bộ', style: TextStyle(fontWeight: FontWeight.w700)),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           Center(
             child: TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: AppColors.expense),
               onPressed: sync.state == SyncState.syncing
                   ? null
                   : () async {
@@ -1658,16 +1813,45 @@ class SyncStatusPage extends ConsumerWidget {
               label: const Text('Làm sạch máy & tải lại từ máy chủ'),
             ),
           ),
-          const SizedBox(height: 12),
           if (dirty.isNotEmpty) ...[
+            const SizedBox(height: 12),
             const SectionTitle('Chi tiết chờ đồng bộ'),
-            for (final d in dirty.take(50)) ListTile(dense: true, title: Text(d.entity), subtitle: Text(d.data['id'] as String)),
+            AppCard(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                children: [
+                  for (final d in dirty.take(50))
+                    ListTile(
+                      dense: true,
+                      leading: Icon(Icons.pending_actions_rounded, size: 18, color: scheme.primary),
+                      title: Text(d.entity, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text(d.data['id'] as String, style: const TextStyle(fontSize: 11.5)),
+                    ),
+                ],
+              ),
+            ),
           ],
           const SizedBox(height: 12),
-          Text(
-            'Dữ liệu và ảnh luôn được lưu trong máy nên dùng được cả khi không có mạng. Khi đồng bộ, app đẩy thay đổi và ảnh mới lên máy chủ, '
-            'đồng thời tải về dữ liệu và ảnh còn thiếu (vd ảnh thêm từ máy khác). Ảnh của bản ghi đã xoá sẽ được dọn khỏi máy.',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline_rounded, size: 18, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Dữ liệu và ảnh luôn được lưu trong máy nên dùng được cả khi không có mạng. Khi đồng bộ, app đẩy thay đổi và ảnh mới lên máy chủ, '
+                    'đồng thời tải về dữ liệu và ảnh còn thiếu (vd ảnh thêm từ máy khác). Ảnh của bản ghi đã xoá sẽ được dọn khỏi máy.',
+                    style: TextStyle(fontSize: 12.5, height: 1.45, color: scheme.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

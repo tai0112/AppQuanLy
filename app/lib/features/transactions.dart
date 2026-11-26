@@ -42,6 +42,69 @@ DateTime atDay(DateTime? day) {
 }
 
 /// Một dòng giao dịch.
+/// Danh sách giao dịch gom nhóm theo từng ngày, có tổng thu/chi mỗi ngày và khoảng cách rõ ràng.
+class GroupedTxDays extends ConsumerWidget {
+  const GroupedTxDays({super.key, required this.items});
+  final List<Txn> items;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final f = ref.read(financeProvider);
+    final scheme = Theme.of(context).colorScheme;
+    final byDay = <DateTime, List<Txn>>{};
+    for (final t in items) {
+      byDay.putIfAbsent(dateOnly(t.occurredAt), () => []).add(t);
+    }
+    final days = byDay.keys.toList()..sort((a, b) => b.compareTo(a));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final (i, day) in days.indexed)
+          () {
+            final dayItems = byDay[day]!;
+            final dt = f.totals(dayItems);
+            return Padding(
+              padding: EdgeInsets.only(bottom: i == days.length - 1 ? 0 : 12),
+              child: AppCard(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(Fmt.dayHeader(day), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                          ),
+                          if (dt.income > 0)
+                            Text(
+                              '+${Fmt.compact(dt.income)}  ',
+                              style: const TextStyle(color: AppColors.income, fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                          if (dt.expense > 0)
+                            Text(
+                              '-${Fmt.compact(dt.expense)}',
+                              style: const TextStyle(color: AppColors.expense, fontWeight: FontWeight.w700, fontSize: 13),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Divider(height: 1, thickness: 1, indent: 14, endIndent: 14, color: scheme.outlineVariant.withValues(alpha: 0.35)),
+                    const SizedBox(height: 4),
+                    for (final (j, tx) in dayItems.indexed) ...[
+                      if (j > 0) const SizedBox(height: 4),
+                      TxTile(txn: tx),
+                    ],
+                  ],
+                ),
+              ).stagger(i),
+            );
+          }(),
+      ],
+    );
+  }
+}
+
 class TxTile extends ConsumerWidget {
   const TxTile({super.key, required this.txn, this.showDate = false});
   final Txn txn;
@@ -60,7 +123,6 @@ class TxTile extends ConsumerWidget {
     final sub = [
       if (isTransfer) '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' else acc?.name ?? '',
       if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
-      if (txn.note?.isNotEmpty == true) txn.note!,
       if (showDate) Fmt.dateShort(txn.occurredAt),
     ].where((s) => s.isNotEmpty).join(' · ');
     // Bấm vào giao dịch: thẻ "biến hình" thành màn sửa giao dịch
@@ -90,6 +152,13 @@ class TxTile extends ConsumerWidget {
                     if (txn.recurringRuleId != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
                   ],
                 ),
+                if (txn.note?.isNotEmpty == true)
+                  Text(
+                    txn.note!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.onSurface),
+                  ),
                 if (sub.isNotEmpty)
                   Text(
                     sub,
@@ -1039,8 +1108,8 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
               ],
             ),
           ),
-          const SizedBox(height: 4),
-          for (final (i, t) in recent.take(5).indexed) TxTile(txn: t, showDate: true).stagger(i),
+          const SizedBox(height: 6),
+          GroupedTxDays(items: recent.take(8).toList()),
         ] else
           AppCard(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -1349,11 +1418,16 @@ class _TxGridCard extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontWeight: FontWeight.w600, fontSize: tiny ? 9.5 : (dense ? 11 : 13)),
                 ),
-                if (!dense)
+                if (!tiny && txn.note?.isNotEmpty == true)
                   Text(
-                    txn.note?.isNotEmpty == true
-                        ? txn.note!
-                        : (txn.location?.isNotEmpty == true ? '📍 ${txn.location!}' : (f.account(txn.accountId)?.name ?? '')),
+                    txn.note!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: dense ? 10 : 11, color: scheme.onSurfaceVariant),
+                  )
+                else if (!dense)
+                  Text(
+                    txn.location?.isNotEmpty == true ? '📍 ${txn.location!}' : (f.account(txn.accountId)?.name ?? ''),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
@@ -1595,14 +1669,20 @@ class _DayRow extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
+                if (txn.note?.isNotEmpty == true)
+                  Text(
+                    txn.note!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
+                  ),
                 Text(
                   [
                     Fmt.time(txn.occurredAt),
-                    if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
-                    if (txn.note?.isNotEmpty == true) txn.note!,
                     f.account(txn.accountId)?.name ?? '',
+                    if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
                   ].where((s) => s.isNotEmpty).join(' · '),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
                 ),
@@ -2259,6 +2339,15 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
               onRemove: _removePhoto,
             ),
           ),
+          section(
+            'Ghi chú',
+            TextField(
+              controller: note,
+              maxLines: 3,
+              minLines: 1,
+              decoration: const InputDecoration(hintText: 'Ăn gì, mua gì, với ai…', prefixIcon: Icon(Icons.edit_note_rounded)),
+            ),
+          ),
           const SizedBox(height: 14),
           AccountChips(
             label: type == TxType.transfer ? 'Từ tài khoản' : (type == TxType.income ? 'Nhận vào' : 'Trả bằng'),
@@ -2504,15 +2593,6 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
                     ),
                   ),
               ],
-            ),
-          ),
-          section(
-            'Ghi chú',
-            TextField(
-              controller: note,
-              maxLines: 3,
-              minLines: 1,
-              decoration: const InputDecoration(hintText: 'Ăn gì, mua gì, với ai…', prefixIcon: Icon(Icons.edit_note_rounded)),
             ),
           ),
           if (widget.id == null)

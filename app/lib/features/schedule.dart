@@ -2004,7 +2004,7 @@ class _DayTimelineState extends ConsumerState<DayTimeline> {
                         left: labelW + 6,
                         right: 0,
                         top: y(_selFrom! < _selTo! ? _selFrom! : _selTo!),
-                        height: ((_selTo! - _selFrom!).abs() / 60 * hourH).clamp(4, 5000),
+                        height: ((_selTo! - _selFrom!).abs() / 60 * hourH).clamp(28.0, 5000.0),
                         child: IgnorePointer(
                           child: Container(
                             decoration: BoxDecoration(
@@ -2013,7 +2013,7 @@ class _DayTimelineState extends ConsumerState<DayTimeline> {
                               border: Border.all(color: color, width: 2),
                             ),
                             alignment: Alignment.topLeft,
-                            padding: const EdgeInsets.all(8),
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             child: _timePill(_selFrom! < _selTo! ? _selFrom! : _selTo!, _selFrom! < _selTo! ? _selTo! : _selFrom!, color),
                           ),
                         ),

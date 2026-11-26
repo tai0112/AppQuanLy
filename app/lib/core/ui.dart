@@ -1078,51 +1078,51 @@ class KeyboardDismissShell extends StatelessWidget {
     final mq = MediaQuery.of(context);
     final kb = mq.viewInsets.bottom;
     final content = child ?? const SizedBox.shrink();
+    // Luôn giữ nguyên cấu trúc Stack -> MediaQuery -> content để KHÔNG reparent Navigator khi bàn phím đóng/mở.
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTap: _dismiss,
-      child: kb <= 0
-          ? content
-          : Stack(
-              children: [
-                MediaQuery(
-                  data: mq.copyWith(viewInsets: mq.viewInsets.copyWith(bottom: kb + _barHeight)),
-                  child: content,
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: kb,
-                  height: _barHeight,
-                  child: Material(
-                    color: Theme.of(context).colorScheme.surfaceContainerHigh,
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45)),
-                        ),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton.icon(
-                            onPressed: _dismiss,
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              minimumSize: const Size(0, 32),
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            icon: const Icon(Icons.keyboard_hide_rounded, size: 18),
-                            label: const Text('Xong', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                          ),
-                        ],
-                      ),
+      child: Stack(
+        children: [
+          MediaQuery(
+            data: kb > 0 ? mq.copyWith(viewInsets: mq.viewInsets.copyWith(bottom: kb + _barHeight)) : mq,
+            child: content,
+          ),
+          if (kb > 0)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: kb,
+              height: _barHeight,
+              child: Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHigh,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.45)),
                     ),
                   ),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _dismiss,
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          minimumSize: const Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        icon: const Icon(Icons.keyboard_hide_rounded, size: 18),
+                        label: const Text('Xong', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+              ),
             ),
+        ],
+      ),
     );
   }
 }

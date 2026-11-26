@@ -353,14 +353,14 @@ class _AccountDetailSheetState extends ConsumerState<_AccountDetailSheet> {
               ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         if (shownTxs.isEmpty)
           const Padding(
             padding: EdgeInsets.all(24),
             child: Center(child: Text('Chưa có giao dịch')),
           )
         else
-          for (final (i, t) in shownTxs.take(60).indexed) TxTile(txn: t, showDate: true).stagger(i),
+          GroupedTxDays(items: shownTxs.take(60).toList()),
       ],
     );
   }

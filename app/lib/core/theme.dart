@@ -98,6 +98,7 @@ ThemeData buildTheme(Brightness brightness, Color seed) {
   RoundedRectangleBorder r(double v) => RoundedRectangleBorder(borderRadius: BorderRadius.circular(v));
   return ThemeData(
     useMaterial3: true,
+    fontFamily: 'BeVietnamPro',
     colorScheme: scheme,
     brightness: brightness,
     pageTransitionsTheme: transitions,
