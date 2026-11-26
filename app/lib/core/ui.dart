@@ -373,7 +373,7 @@ class SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
+    padding: const EdgeInsets.fromLTRB(4, 14, 4, 6),
     child: Row(
       children: [
         Expanded(

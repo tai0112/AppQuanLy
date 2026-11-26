@@ -140,6 +140,7 @@ class HomePage extends ConsumerWidget {
                     SectionTitle(
                       'Tiện ích',
                       trailing: TextButton.icon(
+                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                         onPressed: () => context.push('/settings/menu'),
                         icon: const Icon(Icons.tune_rounded, size: 18),
                         label: const Text('Tuỳ chỉnh'),
@@ -149,8 +150,9 @@ class HomePage extends ConsumerWidget {
                       crossAxisCount: 4,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 0.9,
+                      mainAxisSpacing: 6,
+                      crossAxisSpacing: 4,
+                      childAspectRatio: 1.04,
                       children: [
                         for (final (i, ft) in grid.indexed) FeatureTile(feature: ft, onTap: () => context.push(ft.route)).stagger(i),
                         if (hasMore)
@@ -517,8 +519,9 @@ class _AllFeaturesSheetState extends State<_AllFeaturesSheet> {
                     crossAxisCount: 4,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 0.9,
+                    mainAxisSpacing: 6,
+                    crossAxisSpacing: 4,
+                    childAspectRatio: 1.04,
                     children: [
                       for (final (i, f) in list.indexed)
                         FeatureTile(

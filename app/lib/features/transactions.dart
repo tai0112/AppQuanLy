@@ -119,12 +119,14 @@ class TxTile extends ConsumerWidget {
     final acc = f.account(txn.accountId);
     final photos = f.photosOf(txn.id); // tra sẵn, không quét toàn bộ ảnh cho từng dòng
     final isTransfer = txn.type == TxType.transfer;
+    final scheme = Theme.of(context).colorScheme;
+    final catColor = isTransfer ? AppColors.transfer : hexColor(cat?.color, scheme.primary);
     final title = isTransfer ? 'Chuyển khoản' : (cat?.name ?? txn.categoryName ?? 'Không có danh mục');
-    final sub = [
-      if (isTransfer) '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' else acc?.name ?? '',
+    final accLabel = isTransfer ? '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' : (acc?.name ?? '');
+    final extraMeta = [
       if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
       if (showDate) Fmt.dateShort(txn.occurredAt),
-    ].where((s) => s.isNotEmpty).join(' · ');
+    ].join(' · ');
     // Bấm vào giao dịch: thẻ "biến hình" thành màn sửa giao dịch
     return OpenCard(
       radius: 14,
@@ -142,30 +144,75 @@ class TxTile extends ConsumerWidget {
               children: [
                 Row(
                   children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: BoxDecoration(color: catColor, shape: BoxShape.circle),
+                    ),
                     Flexible(
                       child: Text(
                         title,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     if (txn.recurringRuleId != null) const Padding(padding: EdgeInsets.only(left: 4), child: Icon(Icons.repeat_rounded, size: 14)),
                   ],
                 ),
-                if (txn.note?.isNotEmpty == true)
-                  Text(
-                    txn.note!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12.5, color: Theme.of(context).colorScheme.onSurface),
+                if (txn.note?.isNotEmpty == true) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.notes_rounded, size: 13, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          txn.note!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12.5, color: scheme.onSurface),
+                        ),
+                      ),
+                    ],
                   ),
-                if (sub.isNotEmpty)
-                  Text(
-                    sub,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ],
+                if (accLabel.isNotEmpty || extraMeta.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (accLabel.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: scheme.surfaceContainerHighest.withValues(alpha: 0.75),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.account_balance_wallet_outlined, size: 11, color: scheme.onSurfaceVariant),
+                              const SizedBox(width: 4),
+                              Text(
+                                accLabel,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (accLabel.isNotEmpty && extraMeta.isNotEmpty) const SizedBox(width: 6),
+                      if (extraMeta.isNotEmpty)
+                        Expanded(
+                          child: Text(
+                            extraMeta,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                    ],
                   ),
+                ],
               ],
             ),
           ),
