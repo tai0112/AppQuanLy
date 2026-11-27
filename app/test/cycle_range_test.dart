@@ -17,8 +17,9 @@ import 'package:lht_money/providers.dart';
 
 void main() {
   late LocalStore store;
-  setUpAll(() async {
-    await initializeDateFormatting('vi');
+  setUpAll(() => initializeDateFormatting('vi'));
+  // Mỗi test một kho dữ liệu mới (ProviderScope của test trước huỷ kho khi kết thúc)
+  setUp(() async {
     final dir = await Directory.systemTemp.createTemp('lht_cycle_quick');
     Hive.init(dir.path);
     store = LocalStore();
@@ -139,6 +140,39 @@ void main() {
       await t.pump(const Duration(milliseconds: 16));
     }
     expect(store.get(E.cyclePeriods, open.single['id'] as String)!['endDate'], Fmt.isoDate(today));
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('bảng "Ghi kỳ kinh": nút ✕ đóng bảng, không lưu gì', (t) async {
+    t.view.physicalSize = const Size(400 * 3, 900 * 3);
+    t.view.devicePixelRatio = 3;
+    addTearDown(t.view.reset);
+    final before = store.all(E.cyclePeriods).length;
+    await t.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildTheme(Brightness.light, AppColors.seeds.first),
+          locale: const Locale('vi'),
+          supportedLocales: const [Locale('vi')],
+          localizationsDelegates: const [GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate],
+          home: const CyclePage(),
+        ),
+      ),
+    );
+    for (var i = 0; i < 40; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+    }
+    await t.tap(find.text('Ghi kỳ kinh').first);
+    for (var i = 0; i < 40; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.byType(CycleRangePicker), findsOneWidget, reason: 'bảng ghi đã mở');
+    await t.tap(find.byTooltip('Đóng, không lưu'));
+    for (var i = 0; i < 40; i++) {
+      await t.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.byType(CycleRangePicker), findsNothing, reason: 'bảng đã đóng');
+    expect(store.all(E.cyclePeriods).length, before, reason: 'không lưu gì');
     expect(t.takeException(), isNull);
   });
 }

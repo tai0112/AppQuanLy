@@ -925,6 +925,14 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                             ),
                           ),
                   ),
+                  const SizedBox(width: 6),
+                  // Thoát không lưu (bảng cao gần hết màn, lịch giữ thao tác kéo → cần nút đóng rõ ràng)
+                  IconButton.filledTonal(
+                    tooltip: 'Đóng, không lưu',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -1056,7 +1064,19 @@ class _CyclePageState extends ConsumerState<CyclePage> {
             child: const Text('Lưu'),
           ),
           children: [
-            const Text('Cấu hình chu kỳ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('Cấu hình chu kỳ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                ),
+                IconButton.filledTonal(
+                  tooltip: 'Đóng, không lưu',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Navigator.pop(ctx),
+                  icon: const Icon(Icons.close_rounded, size: 20),
+                ),
+              ],
+            ),
             Text('Chu kỳ mặc định: ${cycle.round()} ngày'),
             Slider(value: cycle, min: 21, max: 45, divisions: 24, onChanged: (v) => set(() => cycle = v)),
             Text('Số ngày hành kinh mặc định: ${period.round()}'),
