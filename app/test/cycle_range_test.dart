@@ -68,10 +68,13 @@ void main() {
       await g.moveTo(t.getCenter(find.text(day)));
       await t.pump();
     }
+    await t.pump(const Duration(milliseconds: 200));
+    expect(find.text('8 ngày'), findsOneWidget, reason: 'bong bóng số ngày bay theo ngón tay khi kéo');
     await g.up();
     await t.pumpAndSettle();
     expect(get(), (DateTime(2026, 11, 12), DateTime(2026, 11, 19)));
     expect(scroll.controller?.offset ?? 0, 0);
+    expect(find.text('8 ngày'), findsNothing, reason: 'thả tay thì bong bóng biến mất');
     expect(t.takeException(), isNull);
   });
 

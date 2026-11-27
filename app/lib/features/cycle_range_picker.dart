@@ -47,6 +47,9 @@ class _CycleRangePickerState extends State<CycleRangePicker> {
   bool _awaitEnd = false; // vừa chạm ngày bắt đầu → lần chạm sau là ngày kết thúc
   DateTime? _lastHover;
 
+  /// Ô đang dưới ngón tay khi kéo (phóng to + bong bóng "N ngày" bay theo).
+  DateTime? _hover;
+
   static const _rowH = 44.0;
 
   static DateTime _d(DateTime x) => DateTime(x.year, x.month, x.day);
@@ -82,6 +85,7 @@ class _CycleRangePickerState extends State<CycleRangePicker> {
     _down = d;
     _moved = false;
     _lastHover = d;
+    setState(() => _hover = d);
   }
 
   void _onMove(DateTime? d) {
@@ -90,6 +94,7 @@ class _CycleRangePickerState extends State<CycleRangePicker> {
     _lastHover = d;
     _moved = true;
     HapticFeedback.selectionClick();
+    setState(() => _hover = d);
     _awaitEnd = false;
     _emit(down, d); // kéo: dải từ ngày đặt tay tới ngày đang chạm
   }
@@ -97,6 +102,7 @@ class _CycleRangePickerState extends State<CycleRangePicker> {
   void _onUp() {
     final d = _down;
     _down = null;
+    if (_hover != null) setState(() => _hover = null);
     if (d == null || _moved) return;
     HapticFeedback.selectionClick();
     // Chạm (không kéo)
@@ -182,6 +188,7 @@ class _CycleRangePickerState extends State<CycleRangePicker> {
               duration: const Duration(milliseconds: 250),
               curve: Curves.easeOutCubic,
               alignment: Alignment.topCenter,
+              clipBehavior: Clip.none, // bong bóng "N ngày" ở hàng đầu được nhô lên trên
               // Thắng ngay mọi cử chỉ trong vùng lịch (không để bảng / vùng cuộn giành mất thao tác kéo chọn ngày).
               child: RawGestureDetector(
                 gestures: {EagerGestureRecognizer: GestureRecognizerFactoryWithHandlers<EagerGestureRecognizer>(EagerGestureRecognizer.new, (_) {})},
@@ -189,10 +196,14 @@ class _CycleRangePickerState extends State<CycleRangePicker> {
                   onPointerDown: (ev) => _onDown(_dayAt(ev.localPosition, w, cells)),
                   onPointerMove: (ev) => _onMove(_dayAt(ev.localPosition, w, cells)),
                   onPointerUp: (_) => _onUp(),
-                  onPointerCancel: (_) => _down = null,
+                  onPointerCancel: (_) => setState(() {
+                    _down = null;
+                    _hover = null;
+                  }),
                   child: SizedBox(
                     height: cells.length / 7 * _rowH,
                     child: Stack(
+                      clipBehavior: Clip.none,
                       children: [
                         for (final (i, d) in cells.indexed)
                           Positioned(
@@ -205,19 +216,35 @@ class _CycleRangePickerState extends State<CycleRangePicker> {
                               outside: d.month != _month.month,
                               today: d == today,
                               selected: inRange(d),
-                              isStart: d == s,
-                              isEnd: d == (e ?? s),
+                              edge: inRange(d) && (d == s || d == (e ?? s)),
                               expected: inExpected(d),
-                              joinLeft:
-                                  (inRange(d) && inRange(d.subtract(const Duration(days: 1))) && i % 7 != 0) ||
-                                  (inExpected(d) &&
-                                      (inExpected(d.subtract(const Duration(days: 1))) || d.subtract(const Duration(days: 1)) == s) &&
-                                      i % 7 != 0),
-                              joinRight:
-                                  (inRange(d) && inRange(d.add(const Duration(days: 1))) && i % 7 != 6) ||
-                                  ((inExpected(d) || d == s) && e == null && inExpected(d.add(const Duration(days: 1))) && i % 7 != 6),
+                              hover: d == _hover && _moved,
                               other: widget.otherDays.contains(d),
                               color: c,
+                            ),
+                          ),
+                        // Bong bóng "N ngày" bay theo ngón tay khi kéo chọn
+                        if (_hover != null && _moved && cells.contains(_hover))
+                          AnimatedPositioned(
+                            duration: const Duration(milliseconds: 140),
+                            curve: Curves.easeOutCubic,
+                            left: (cells.indexOf(_hover!) % 7) * cellW + cellW / 2 - 34,
+                            top: (cells.indexOf(_hover!) ~/ 7) * _rowH - 30,
+                            width: 68,
+                            child: IgnorePointer(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: c,
+                                  borderRadius: BorderRadius.circular(8),
+                                  boxShadow: [BoxShadow(color: c.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3))],
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${(e ?? s).difference(s).inDays + 1} ngày',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12),
+                                ),
+                              ),
                             ),
                           ),
                       ],
@@ -233,84 +260,86 @@ class _CycleRangePickerState extends State<CycleRangePicker> {
   }
 }
 
+/// Một ô ngày dạng ô vuông bo góc nhẹ (không nối dải): trong khoảng → nền màu nhạt, hai đầu → nền đậm chữ trắng.
+/// Ô vừa được thêm vào khoảng "bật" nhẹ lên; ô dưới ngón tay khi kéo phóng to.
 class _Cell extends StatelessWidget {
   const _Cell({
     required this.day,
     required this.outside,
     required this.today,
     required this.selected,
-    required this.isStart,
-    required this.isEnd,
+    required this.edge,
     required this.expected,
-    required this.joinLeft,
-    required this.joinRight,
+    required this.hover,
     required this.other,
     required this.color,
   });
 
   final DateTime day;
-  final bool outside, today, selected, isStart, isEnd, expected, joinLeft, joinRight, other;
+  final bool outside, today, selected, edge, expected, hover, other;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final edge = isStart || isEnd;
-    // Dải nền nối liền giữa các ngày trong khoảng
-    final band = selected || expected;
-    final bandColor = selected ? color.withValues(alpha: 0.22) : color.withValues(alpha: 0.08);
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        if (band)
-          Positioned.fill(
-            top: 5,
-            bottom: 5,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              decoration: BoxDecoration(
-                color: bandColor,
-                borderRadius: BorderRadius.horizontal(left: Radius.circular(joinLeft ? 0 : 17), right: Radius.circular(joinRight ? 0 : 17)),
-              ),
-            ),
-          ),
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+    final bg = edge
+        ? color
+        : selected
+        ? color.withValues(alpha: 0.20)
+        : expected
+        ? color.withValues(alpha: 0.07)
+        : Colors.transparent;
+    final fg = edge
+        ? Colors.white
+        : outside
+        ? scheme.onSurfaceVariant.withValues(alpha: 0.4)
+        : selected
+        ? color
+        : null;
+    // Đổi key theo trạng thái chọn → ô mới vào khoảng chạy lại hiệu ứng "bật" (0.82 → 1, hơi nảy)
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('$selected$edge'),
+      tween: Tween(begin: selected ? 0.82 : 1, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutBack,
+      builder: (_, pop, child) =>
+          AnimatedScale(scale: hover ? 1.14 * pop : pop, duration: const Duration(milliseconds: 140), curve: Curves.easeOutCubic, child: child),
+      child: Padding(
+        padding: const EdgeInsets.all(2.5),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
           curve: Curves.easeOutCubic,
-          width: 34,
-          height: 34,
           decoration: BoxDecoration(
-            color: selected && edge ? color : Colors.transparent,
-            shape: BoxShape.circle,
-            border: today && !(selected && edge) ? Border.all(color: color, width: 1.5) : null,
-            boxShadow: selected && edge ? [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 8, offset: const Offset(0, 2))] : null,
+            color: bg,
+            borderRadius: BorderRadius.circular(10),
+            border: today && !edge
+                ? Border.all(color: color, width: 1.5)
+                : expected
+                ? Border.all(color: color.withValues(alpha: 0.25))
+                : null,
+            boxShadow: edge ? [BoxShadow(color: color.withValues(alpha: 0.30), blurRadius: 8, offset: const Offset(0, 2))] : null,
           ),
           alignment: Alignment.center,
-          child: Text(
-            '${day.day}',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: selected || today ? FontWeight.w800 : FontWeight.w500,
-              color: selected && edge
-                  ? Colors.white
-                  : outside
-                  ? scheme.onSurfaceVariant.withValues(alpha: 0.4)
-                  : selected
-                  ? color
-                  : null,
-            ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Text(
+                '${day.day}',
+                style: TextStyle(fontSize: 14, fontWeight: selected || today ? FontWeight.w800 : FontWeight.w500, color: fg),
+              ),
+              if (other && !selected)
+                Positioned(
+                  bottom: 4,
+                  child: Container(
+                    width: 4,
+                    height: 4,
+                    decoration: BoxDecoration(color: color.withValues(alpha: 0.6), shape: BoxShape.circle),
+                  ),
+                ),
+            ],
           ),
         ),
-        if (other && !selected)
-          Positioned(
-            bottom: 4,
-            child: Container(
-              width: 5,
-              height: 5,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.6), shape: BoxShape.circle),
-            ),
-          ),
-      ],
+      ),
     );
   }
 }
