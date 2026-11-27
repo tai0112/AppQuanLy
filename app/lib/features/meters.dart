@@ -175,8 +175,22 @@ class _MetersViewState extends ConsumerState<MetersView> {
                       child: Column(
                         key: ValueKey(period),
                         children: [
-                          Text('Kỳ tháng ${Fmt.month(period)}', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                          Text('Kỳ tháng ${Fmt.month(period)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
                           Text('Đã chốt $recorded/${active.length} công tơ', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                          const SizedBox(height: 6),
+                          SizedBox(
+                            width: 140,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween(end: active.isEmpty ? 0 : recorded / active.length),
+                                duration: const Duration(milliseconds: 450),
+                                curve: Curves.easeOutCubic,
+                                builder: (_, v, _) =>
+                                    LinearProgressIndicator(value: v, minHeight: 5, color: _bolt, backgroundColor: _bolt.withValues(alpha: 0.18)),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -289,19 +303,24 @@ class _MeterCard extends ConsumerWidget {
     final f = ref.watch(financeProvider);
     final scheme = Theme.of(context).colorScheme;
     final bill = lg.billAt(meter.id, period);
+    final prev = lg.billAt(meter.id, DateTime(period.year, period.month - 1));
     final color = meter.isRented ? AppColors.income : _bolt;
+    final trend = bill != null && prev != null && prev.kwh > 0 ? (bill.kwh - prev.kwh) / prev.kwh * 100 : null;
     return Opacity(
       opacity: meter.isArchived ? 0.5 : 1,
       child: OpenCard(
-        radius: 16,
-        padding: const EdgeInsets.all(14),
+        radius: 18,
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         page: MeterDetailPage(meterId: meter.id),
         child: Row(
           children: [
             Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(14)),
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0.10)]),
+                borderRadius: BorderRadius.circular(15),
+              ),
               child: Icon(meter.isRented ? Icons.key_rounded : Icons.home_rounded, color: color),
             ),
             const SizedBox(width: 12),
@@ -315,63 +334,124 @@ class _MeterCard extends ConsumerWidget {
                         child: Text(
                           meter.name,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
+                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                        child: Text(
-                          meter.isArchived ? 'Ngừng' : (meter.isRented ? 'Cho thuê' : 'Nhà dùng'),
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(color: color.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(8)),
+                          child: Text(
+                            meter.isArchived ? 'Ngừng' : (meter.isRented ? 'Cho thuê' : 'Nhà dùng'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: color),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    [
-                      if (meter.isRented && (meter.tenantName ?? '').isNotEmpty) meter.tenantName!,
-                      bill == null
-                          ? 'Chỉ số hiện tại ${lg.oldIndex(meter, DateTime(period.year, period.month + 1))}'
-                          : 'Chỉ số ${bill.oldIndex} → ${bill.newIndex}',
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.speed_rounded, size: 14, color: scheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          bill == null ? '${lg.oldIndex(meter, DateTime(period.year, period.month + 1))}' : '${bill.oldIndex} → ${bill.newIndex}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant, fontFeatures: const [FontFeature.tabularFigures()]),
+                        ),
+                      ),
+                      if (meter.isRented && (meter.tenantName ?? '').isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Icon(Icons.person_rounded, size: 14, color: scheme.onSurfaceVariant),
+                        const SizedBox(width: 2),
+                        Flexible(
+                          child: Text(
+                            meter.tenantName!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: bill == null
-                  ? Text(
-                      'Chưa chốt',
-                      key: const ValueKey('n'),
-                      style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                    )
-                  : Column(
-                      key: ValueKey(bill.id),
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        AnimatedAmount(
-                          value: bill.amount,
-                          format: (v) => '${meter.isRented ? '+' : '-'}${f.money(v)}',
-                          style: TextStyle(fontWeight: FontWeight.w800, color: meter.isRented ? AppColors.income : AppColors.expense),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 120),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  child: bill == null
+                      ? Container(
+                          key: const ValueKey('n'),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppColors.warning.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.warning.withValues(alpha: 0.45)),
+                          ),
+                          child: const Text(
+                            'Chưa chốt',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.warning),
+                          ),
+                        )
+                      : Column(
+                          key: ValueKey(bill.id),
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            AnimatedAmount(
+                              value: bill.amount,
+                              format: (v) => '${meter.isRented ? '+' : '−'}${f.money(v)}',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: meter.isRented ? AppColors.income : AppColors.expense),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  '${bill.kwh} kWh',
+                                  style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
+                                ),
+                                if (trend != null) ...[const SizedBox(width: 4), _Trend(trend)],
+                              ],
+                            ),
+                          ],
                         ),
-                        CountText(
-                          values: [bill.kwh.toDouble()],
-                          text: (v) => '${v[0].round()} kWh',
-                          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-                        ),
-                      ],
-                    ),
+                ),
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// ▲ / ▼ phần trăm kWh so với tháng trước (dùng nhiều hơn = cam, ít hơn = xanh).
+class _Trend extends StatelessWidget {
+  const _Trend(this.pct);
+  final double pct;
+
+  @override
+  Widget build(BuildContext context) {
+    final up = pct > 0;
+    final c = pct.abs() < 0.5 ? Theme.of(context).colorScheme.onSurfaceVariant : (up ? AppColors.warning : AppColors.income);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+      child: Text(
+        '${pct.abs() < 0.5 ? '=' : (up ? '▲' : '▼')} ${pct.abs().toStringAsFixed(0)}%',
+        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: c),
       ),
     );
   }
@@ -620,6 +700,12 @@ class _MeterReadingPageState extends ConsumerState<MeterReadingPage> {
   late final List<Meter> meters = lg.active;
   final newIdx = <String, TextEditingController>{};
   final oldIdx = <String, int>{};
+
+  /// Ô nhập chỉ số mới của từng công tơ (bấm "Tiếp" trên bàn phím → sang công tơ sau).
+  final focus = <String, FocusNode>{};
+
+  /// Công tơ đang mở bảng chi tiết bậc giá.
+  final expanded = <String>{};
   final evnAmount = TextEditingController();
   final evnKwh = TextEditingController();
   bool useEvn = false;
@@ -631,6 +717,7 @@ class _MeterReadingPageState extends ConsumerState<MeterReadingPage> {
       final b = lg.billAt(m.id, widget.period);
       oldIdx[m.id] = b?.oldIndex ?? lg.oldIndex(m, widget.period);
       newIdx[m.id] = TextEditingController(text: b?.newIndex?.toString() ?? '');
+      focus[m.id] = FocusNode();
     }
     final evn = lg.billAt(null, widget.period);
     if (evn != null) {
@@ -644,6 +731,9 @@ class _MeterReadingPageState extends ConsumerState<MeterReadingPage> {
   void dispose() {
     for (final c in newIdx.values) {
       c.dispose();
+    }
+    for (final n in focus.values) {
+      n.dispose();
     }
     evnAmount.dispose();
     evnKwh.dispose();
@@ -683,12 +773,76 @@ class _MeterReadingPageState extends ConsumerState<MeterReadingPage> {
     final evnK = int.tryParse(evnKwh.text);
     final net = (useEvn ? evn : self + rent) - rent;
 
+    final progress = meters.isEmpty ? 0.0 : filled / meters.length;
     return Scaffold(
-      appBar: AppBar(title: Text('Chốt số tháng ${Fmt.month(widget.period)}')),
+      appBar: AppBar(title: const Text('Chốt số điện')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
         children: [
-          for (final (i, m) in meters.indexed) _row(m, f, scheme).stagger(i),
+          // Đầu trang: kỳ + tiến độ nhập
+          AppCard(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [_bolt.withValues(alpha: 0.24), _bolt.withValues(alpha: 0.06)],
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(color: _bolt, borderRadius: BorderRadius.circular(14)),
+                      child: const Icon(Icons.bolt_rounded, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Tháng ${Fmt.month(widget.period)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
+                          Text('Nhập chỉ số mới trên mặt công tơ', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '$filled/${meters.length}',
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: _bolt, fontFeatures: [FontFeature.tabularFigures()]),
+                        ),
+                        Text('công tơ', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(end: progress),
+                    duration: const Duration(milliseconds: 450),
+                    curve: Curves.easeOutCubic,
+                    builder: (_, v, _) => LinearProgressIndicator(value: v, minHeight: 8, color: _bolt, backgroundColor: _bolt.withValues(alpha: 0.15)),
+                  ),
+                ),
+                if (kwhSum > 0) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tổng đã nhập: $kwhSum kWh',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final (i, m) in meters.indexed) _row(m, f, scheme, i).stagger(i),
           const SizedBox(height: 8),
           // Đối chiếu hoá đơn EVN tổng (tuỳ chọn)
           AppCard(
@@ -794,70 +948,237 @@ class _MeterReadingPageState extends ConsumerState<MeterReadingPage> {
     );
   }
 
-  Widget _row(Meter m, Finance f, ColorScheme scheme) {
+  Widget _row(Meter m, Finance f, ColorScheme scheme, int index) {
     final k = _kwh(m);
     final r = k == null || k < 0 ? null : lg.calc(m, k);
     final color = m.isRented ? AppColors.income : _bolt;
+    final done = r != null;
+    final bad = k != null && k < 0;
+    final last = index == meters.length - 1;
+    const digits = TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: 1.2, fontFeatures: [FontFeature.tabularFigures()]);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: AppCard(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: bad
+                ? AppColors.expense.withValues(alpha: 0.6)
+                : done
+                ? color.withValues(alpha: 0.45)
+                : scheme.outlineVariant.withValues(alpha: 0.4),
+            width: done || bad ? 1.4 : 1,
+          ),
+        ),
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Tên công tơ
             Row(
               children: [
-                Icon(m.isRented ? Icons.key_rounded : Icons.home_rounded, size: 18, color: color),
-                const SizedBox(width: 6),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                  child: Icon(m.isRented ? Icons.key_rounded : Icons.home_rounded, color: color, size: 22),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                    [m.name, if (m.isRented && (m.tenantName ?? '').isNotEmpty) m.tenantName!].join(' · '),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        m.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                      ),
+                      Text(
+                        [
+                          m.isRented ? 'Cho thuê' : 'Nhà dùng',
+                          if (m.isRented && (m.tenantName ?? '').isNotEmpty) m.tenantName!,
+                          lg.table(m.tableId)?.name ?? '',
+                        ].where((x) => x.isNotEmpty).join(' · '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                      ),
+                    ],
                   ),
                 ),
-                Text(lg.table(m.tableId)?.name ?? '', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
+                  child: done
+                      ? const Icon(Icons.check_circle_rounded, key: ValueKey('ok'), color: AppColors.income, size: 24)
+                      : Container(
+                          key: const ValueKey('n'),
+                          width: 24,
+                          height: 24,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: scheme.outlineVariant, width: 1.5),
+                          ),
+                          child: Text(
+                            '${index + 1}',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
+                          ),
+                        ),
+                ),
               ],
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: InputDecorator(
-                    decoration: const InputDecoration(labelText: 'Chỉ số cũ', isDense: true),
-                    child: Text('${oldIdx[m.id]}', style: const TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            // Chỉ số cũ → chỉ số mới (chữ số lớn, đều hàng)
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: 0.6), borderRadius: BorderRadius.circular(16)),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Số cũ',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
+                      ),
+                      const SizedBox(height: 2),
+                      Text('${oldIdx[m.id]}', style: digits.copyWith(color: scheme.onSurfaceVariant)),
+                    ],
                   ),
-                ),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Icon(Icons.arrow_forward_rounded, size: 18)),
-                Expanded(
-                  child: TextField(
-                    controller: newIdx[m.id],
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(labelText: 'Chỉ số mới', isDense: true, errorText: k != null && k < 0 ? 'Nhỏ hơn số cũ' : null),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+                    child: Icon(Icons.arrow_forward_rounded, color: scheme.onSurfaceVariant, size: 20),
                   ),
-                ),
-              ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Số mới',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+                        ),
+                        TextField(
+                          controller: newIdx[m.id],
+                          focusNode: focus[m.id],
+                          keyboardType: TextInputType.number,
+                          textInputAction: last ? TextInputAction.done : TextInputAction.next,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          onChanged: (_) => setState(() {}),
+                          onSubmitted: (_) => last ? FocusManager.instance.primaryFocus?.unfocus() : focus[meters[index + 1].id]!.requestFocus(),
+                          style: digits.copyWith(color: bad ? AppColors.expense : null),
+                          cursorColor: color,
+                          decoration: InputDecoration(
+                            hintText: '${oldIdx[m.id]}',
+                            hintStyle: digits.copyWith(color: scheme.onSurfaceVariant.withValues(alpha: 0.25)),
+                            isDense: true,
+                            filled: false,
+                            contentPadding: const EdgeInsets.only(top: 2),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
+            // Lỗi: chỉ số mới nhỏ hơn
             AnimatedSize(
-              duration: const Duration(milliseconds: 250),
+              duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
+              child: !bad
+                  ? const SizedBox(width: double.infinity)
+                  : Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(color: AppColors.expense.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline_rounded, size: 18, color: AppColors.expense),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Số mới nhỏ hơn số cũ (${oldIdx[m.id]}). Kiểm tra lại mặt công tơ.',
+                              style: const TextStyle(fontSize: 12, color: AppColors.expense, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+            // Kết quả: kWh + tiền, chi tiết bậc giá
+            AnimatedSize(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
               child: r == null
                   ? const SizedBox(width: double.infinity)
                   : Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          CountText(
-                            values: [r.kwh.toDouble()],
-                            text: (v) => '${v[0].round()} kWh',
-                            style: TextStyle(color: scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(color: _bolt.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(10)),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.bolt_rounded, size: 16, color: _bolt),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '${r.kwh} kWh',
+                                      style: const TextStyle(fontWeight: FontWeight.w800, color: _bolt, fontFeatures: [FontFeature.tabularFigures()]),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerRight,
+                                  child: AnimatedAmount(
+                                    value: r.total.roundToDouble(),
+                                    format: (v) => '${m.isRented ? '+' : '−'}${f.money(v)}',
+                                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: m.isRented ? AppColors.income : AppColors.expense),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          const Spacer(),
-                          AnimatedAmount(
-                            value: r.total.roundToDouble(),
-                            format: (v) => '${m.isRented ? '+' : '-'}${f.money(v)}',
-                            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: m.isRented ? AppColors.income : AppColors.expense),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton(
+                              style: TextButton.styleFrom(visualDensity: VisualDensity.compact, padding: const EdgeInsets.symmetric(horizontal: 6)),
+                              onPressed: () => setState(() => expanded.contains(m.id) ? expanded.remove(m.id) : expanded.add(m.id)),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Text('Chi tiết bậc giá', style: TextStyle(fontSize: 12)),
+                                  AnimatedRotation(
+                                    turns: expanded.contains(m.id) ? 0.5 : 0,
+                                    duration: const Duration(milliseconds: 220),
+                                    child: const Icon(Icons.expand_more_rounded, size: 18),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 240),
+                            curve: Curves.easeOutCubic,
+                            alignment: Alignment.topCenter,
+                            child: !expanded.contains(m.id) ? const SizedBox(width: double.infinity) : _breakdown(r, f, scheme),
                           ),
                         ],
                       ),
@@ -865,6 +1186,42 @@ class _MeterReadingPageState extends ConsumerState<MeterReadingPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Bảng chi tiết: từng bậc (kWh × đơn giá), VAT, phí cố định.
+  Widget _breakdown(ElectricityResult r, Finance f, ColorScheme scheme) {
+    Widget line(String a, String b, {bool bold = false}) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              a,
+              style: TextStyle(fontSize: 12.5, color: bold ? null : scheme.onSurfaceVariant, fontWeight: bold ? FontWeight.w800 : null),
+            ),
+          ),
+          Text(
+            b,
+            style: TextStyle(fontSize: 12.5, fontWeight: bold ? FontWeight.w800 : FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()]),
+          ),
+        ],
+      ),
+    );
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(12)),
+      child: Column(
+        children: [
+          for (final u in r.uses)
+            if (u.kwh > 0) line('Bậc ${u.order} · ${u.kwh} kWh × ${f.money(u.price)}', f.money(u.amount)),
+          if (r.vat > 0) line('Thuế VAT', f.money(r.vat)),
+          if (r.fixedFee > 0) line('Phí cố định', f.money(r.fixedFee)),
+          const Divider(height: 12),
+          line('Tổng', f.money(r.total.roundToDouble()), bold: true),
+        ],
       ),
     );
   }
@@ -1077,31 +1434,63 @@ class MeterDetailPage extends ConsumerWidget {
               child: Center(child: Text('Chưa chốt kỳ nào')),
             )
           else
-            AppCard(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                children: [
-                  for (final (i, b) in bills.indexed)
-                    ListTile(
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MeterReadingPage(period: b.period))),
-                      leading: CircleAvatar(
-                        backgroundColor: color.withValues(alpha: 0.15),
-                        child: Text(
-                          'T${b.period.month}',
-                          style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 12),
+            for (final (i, b) in bills.indexed)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: AppCard(
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => MeterReadingPage(period: b.period))),
+                  padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(color: color.withValues(alpha: 0.13), borderRadius: BorderRadius.circular(14)),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'T${b.period.month}',
+                              style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 15, height: 1.1),
+                            ),
+                            Text(
+                              '${b.period.year}',
+                              style: TextStyle(color: color, fontSize: 9.5, fontWeight: FontWeight.w600),
+                            ),
+                          ],
                         ),
                       ),
-                      title: Text('Tháng ${Fmt.month(b.period)} · ${b.kwh} kWh'),
-                      subtitle: Text('Chỉ số ${b.oldIndex} → ${b.newIndex}'),
-                      trailing: AnimatedAmount(
-                        value: b.amount,
-                        format: (v) => f.money(v),
-                        style: TextStyle(fontWeight: FontWeight.w700, color: m.isRented ? AppColors.income : AppColors.expense),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text('${b.kwh} kWh', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                                if (i + 1 < bills.length && bills[i + 1].kwh > 0) ...[
+                                  const SizedBox(width: 6),
+                                  _Trend((b.kwh - bills[i + 1].kwh) / bills[i + 1].kwh * 100),
+                                ],
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Chỉ số ${b.oldIndex} → ${b.newIndex}',
+                              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant, fontFeatures: const [FontFeature.tabularFigures()]),
+                            ),
+                          ],
+                        ),
                       ),
-                    ).stagger(i),
-                ],
-              ),
-            ),
+                      AnimatedAmount(
+                        value: b.amount,
+                        format: (v) => '${m.isRented ? '+' : '−'}${f.money(v)}',
+                        style: TextStyle(fontWeight: FontWeight.w900, color: m.isRented ? AppColors.income : AppColors.expense),
+                      ),
+                    ],
+                  ),
+                ),
+              ).stagger(i),
         ],
       ),
     );
