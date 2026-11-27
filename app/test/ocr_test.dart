@@ -30,5 +30,38 @@ Ngay giao dich: 25-11-2026
       final res = OcrNumberParser.parseReceiptText(transfer);
       expect(res.bestAmount, 1550000);
     });
+    // Biên lai BIDV (chữ số to, đậm): các kiểu văn bản ML Kit có thể trả về.
+    const bidvTail = '''
+27/11/2026 21:56:15
+Đến: LE THI LOAN
+Tài khoản định danh: V3GSTPB00601666
+Đơn vị thụ hưởng: 4504657727
+Tại: BIDV
+Nội dung
+LE HUU TAI Chuyen tien
+Số tham chiếu
+0551D4fs-8DvugDU9T
+Về trang chủ
+Giao dịch mới''';
+    for (final (name, amountLine) in [
+      ('chuẩn', '295,000 VND'),
+      ('VND tách dòng', '295,000\nVND'),
+      ('dấu cách sau dấu phẩy', '295, 000 VND'),
+      ('chữ O thay số 0', '295,OOO VND'),
+      ('chữ o thường + dấu cách', '295, ooo VND'),
+      ('dấu chấm', '295.000 VND'),
+      ('dính VND', '295,000VND'),
+    ]) {
+      test('biên lai BIDV: $name', () {
+        final res = OcrNumberParser.parseReceiptText('21:56\nBIDV\nGiao dịch thành công\n$amountLine\n$bidvTail');
+        expect(res.bestAmount, 295000);
+      });
+    }
+
+    test('không đổi chữ O trong từ thường (BIDV, LOAN, Số tham chiếu)', () {
+      final res = OcrNumberParser.parseReceiptText('LE THI LOAN\nCông ty ABC\nTổng cộng: 120.000 đ');
+      expect(res.bestAmount, 120000);
+      expect(res.rawText, contains('LOAN'));
+    });
   });
 }

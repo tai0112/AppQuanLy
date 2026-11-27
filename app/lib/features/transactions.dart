@@ -17,6 +17,7 @@ import '../data/location.dart';
 import '../data/logic.dart';
 import '../data/models.dart';
 import '../data/ocr.dart';
+import '../data/receipt_reader.dart';
 import '../data/calendar_look.dart';
 import '../data/time_config.dart';
 import '../data/notify_prefs.dart';
@@ -2314,6 +2315,44 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     _syncKeyboardCalc();
   }
 
+  /// Điền ngày giờ / ghi chú / danh mục / loại thu-chi từ chứng từ vừa quét. Trả về mô tả ngắn các mục đã điền.
+  List<String> _applyReceipt(OcrResult r, Finance f, {required bool forceFill}) {
+    final done = <String>[];
+    // Biên lai nhận tiền → khoản thu (chỉ khi đang tạo mới và chưa chọn danh mục)
+    if (r.isIncome && widget.id == null && type == TxType.expense && category == null) {
+      type = TxType.income;
+      done.add('khoản thu');
+    }
+    // Ngày giờ trên chứng từ (khi người dùng chủ động bấm Quét, hoặc giao dịch mới)
+    final d = r.date;
+    if (d != null && (forceFill || widget.id == null)) {
+      final hasTime = d.hour != 0 || d.minute != 0;
+      at = hasTime ? d : DateTime(d.year, d.month, d.day, at.hour, at.minute);
+      done.add(hasTime ? Fmt.dateTime(at) : Fmt.dateShort(at));
+    }
+    // Ghi chú: nội dung chuyển khoản, hoặc tên cửa hàng / người nhận
+    if (note.text.trim().isEmpty) {
+      final transfer = r.kind == ReceiptKind.bankTransfer || r.kind == ReceiptKind.eWallet;
+      final text = r.note ?? (r.merchant == null ? null : (transfer ? (r.isIncome ? 'Từ ${r.merchant}' : 'Chuyển cho ${r.merchant}') : r.merchant));
+      if (text != null && text.trim().isNotEmpty) {
+        note.text = text.trim();
+        done.add('ghi chú');
+      }
+    }
+    // Danh mục gợi ý (khớp tên không dấu với danh mục của người dùng, đúng loại thu/chi)
+    final hint = r.categoryHint;
+    if (category == null && hint != null && type != TxType.transfer) {
+      final key = ReceiptReader.fold(hint);
+      final match = f.categories.where((c) => c.type == type && ReceiptReader.fold(c.name) == key).firstOrNull;
+      if (match != null) {
+        category = match;
+        _expandedParentId = match.parentId;
+        done.add(match.name);
+      }
+    }
+    return done;
+  }
+
   Future<void> _scanPhotos(List<String> ids, List<String> paths, {bool forceFill = false}) async {
     if (paths.isEmpty) return;
     if (!OcrService.isSupported) {
@@ -2340,7 +2379,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
 
       var newScannedCount = 0;
       double? lastNewBest;
-      OcrResult? lastRes;
+      OcrResult? lastRes, bestRes;
       for (var i = 0; i < paths.length; i++) {
         final res = await OcrService.scanImagePath(paths[i]);
         lastRes = res;
@@ -2349,6 +2388,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
             photoOcrAmounts[ids[i]] = res.bestAmount!;
           }
           lastNewBest = res.bestAmount!;
+          bestRes = res;
           newScannedCount++;
           allCandidates.addAll(res.candidates);
         }
@@ -2361,18 +2401,22 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
         final sum = photoOcrAmounts.values.fold<double>(0, (s, v) => s + v);
         final hasMultiple = photoOcrAmounts.length > 1;
         final targetValue = hasMultiple ? sum : (lastNewBest ?? sum);
+        final f = ref.read(financeProvider);
+        final extras = <String>[];
         setState(() {
           ocrCandidates = {if (hasMultiple) sum, ...allCandidates}.toList();
           if (hasMultiple || forceFill || parseAmount(amount.text) <= 0) {
             amount.text = amountText(targetValue);
           }
+          // Một ảnh: điền thêm thông tin đọc được (chỉ điền chỗ còn trống, không ghi đè thứ người dùng đã chọn)
+          final r = bestRes;
+          if (!hasMultiple && r != null) extras.addAll(_applyReceipt(r, f, forceFill: forceFill));
         });
-        final f = ref.read(financeProvider);
         showToast(
           context,
           hasMultiple
               ? 'Đã cộng ${photoOcrAmounts.length} ảnh: ${f.money(sum, account?.currencyCode)}'
-              : 'Đã đọc số ${f.money(targetValue, account?.currencyCode)} từ ảnh',
+              : ['Đã đọc ${f.money(targetValue, account?.currencyCode)}', ...extras].join(' · '),
         );
       } else if (forceFill) {
         final msg = (lastRes == null || lastRes.rawText.trim().isEmpty) ? 'Không nhận diện được chữ/số trong ảnh' : 'Không tìm thấy số tiền phù hợp trong ảnh';
