@@ -132,7 +132,9 @@ class TxTile extends ConsumerWidget {
       page: TransactionEditPage(id: txn.id, type: txn.type),
       child: Row(
         children: [
-          if (photos.isNotEmpty) ...[_StackedTxPhotos(photos: photos), const SizedBox(width: 12)],
+          // Có ảnh → ảnh; không có ảnh → biểu tượng danh mục (cùng cỡ 44 để các dòng thẳng hàng)
+          if (photos.isNotEmpty) _StackedTxPhotos(photos: photos) else CircleIcon(icon: isTransfer ? 'sync_alt' : cat?.icon, color: catColor, size: 44),
+          const SizedBox(width: 12),
           Expanded(
             child: _TxMetaColumn(
               title: title,
@@ -223,23 +225,29 @@ class _TxMetaColumn extends StatelessWidget {
           Row(
             children: [
               if (accLabel.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                  decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: scheme.primary.withValues(alpha: 0.16), width: 0.8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.account_balance_wallet_outlined, size: 10.5, color: scheme.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        accLabel,
-                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: scheme.primary),
-                      ),
-                    ],
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: scheme.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: scheme.primary.withValues(alpha: 0.16), width: 0.8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.account_balance_wallet_outlined, size: 10.5, color: scheme.primary),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            accLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: scheme.primary),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               if (accLabel.isNotEmpty && extraMeta.isNotEmpty) const SizedBox(width: 6),
