@@ -15,6 +15,7 @@ import '../data/models.dart';
 import '../data/time_config.dart';
 import '../providers.dart';
 import 'common.dart';
+import 'cycle_range_picker.dart';
 
 /// Theo dõi kinh nguyệt (bản thân / người yêu). Công thức & nguồn: PLAN.md mục 3.11.
 class CyclePage extends ConsumerStatefulWidget {
@@ -48,8 +49,31 @@ class _CyclePageState extends ConsumerState<CyclePage> {
       final end = x.end ?? x.start.add(Duration(days: settings.periodDays - 1));
       return !d.isBefore(dateOnly(x.start)) && !d.isAfter(dateOnly(end));
     });
-    bool predicted(DateTime d) => p != null && !d.isBefore(dateOnly(p.nextStart)) && d.isBefore(dateOnly(p.nextStart).add(Duration(days: p.avgPeriod.round())));
-    bool fertile(DateTime d) => p != null && !d.isBefore(dateOnly(p.fertileStart)) && !d.isAfter(dateOnly(p.fertileEnd));
+    final firstDow = TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek;
+    // Ô lịch: kỳ kinh / dự đoán / dễ thụ thai tô thành DẢI LIỀN giữa các ngày liên tiếp (đầu tuần / cuối tuần bo tròn).
+    Widget dayCell(DateTime raw, {bool today = false}) {
+      final d = dateOnly(raw);
+      final prev = d.subtract(const Duration(days: 1)), next = d.add(const Duration(days: 1));
+      final weekStart = (d.weekday - firstDow + 7) % 7 == 0, weekEnd = (d.weekday - firstDow + 7) % 7 == 6;
+      // Một hàm dùng chung với thẻ "Hôm nay" / 7 ngày tới (chiếu chu kỳ ra các tháng sau, nới cửa sổ khi chu kỳ không đều)
+      int kindOf(DateTime x) => switch (p == null ? (inPeriod(x) ? CycleMark.period : CycleMark.none) : Cycle.markOf(p, periods, settings, x)) {
+        CycleMark.period => 1,
+        CycleMark.predicted => 2,
+        CycleMark.fertile || CycleMark.ovulation => 3,
+        CycleMark.safe => 4,
+        CycleMark.safeRelative => 5,
+        CycleMark.none => 0,
+      };
+      final kind = kindOf(d);
+      return _day(
+        d,
+        kind: kind,
+        joinLeft: kind != 0 && !weekStart && kindOf(prev) == kind,
+        joinRight: kind != 0 && !weekEnd && kindOf(next) == kind,
+        ovulation: p != null && Cycle.markOf(p, periods, settings, d) == CycleMark.ovulation,
+        today: today,
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -93,9 +117,53 @@ class _CyclePageState extends ConsumerState<CyclePage> {
               ),
               child: KeyedSubtree(key: ValueKey('$subject-${p == null}'), child: p == null ? _emptyCard() : _todayCard(p, periods, settings)),
             ),
+            if (p != null) ...[const SectionTitle('7 ngày tới'), _weekStrip(p, periods, settings)],
+            const SizedBox(height: 12),
+            AppCard(
+              padding: const EdgeInsets.all(8),
+              child: TableCalendar(
+                locale: 'vi',
+                // Chỉ nhận vuốt ngang (đổi tháng); vuốt dọc nhường cho cuộn màn hình — bắt đầu vuốt trên lịch vẫn cuộn được.
+                availableGestures: AvailableGestures.horizontalSwipe,
+                firstDay: DateTime(2000),
+                lastDay: DateTime(2100),
+                focusedDay: focused,
+                startingDayOfWeek: StartingDayOfWeek.values[TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek - 1],
+                availableCalendarFormats: const {CalendarFormat.month: 'Tháng'},
+                daysOfWeekHeight: 30,
+                rowHeight: 46,
+                headerStyle: HeaderStyle(
+                  titleCentered: true,
+                  formatButtonVisible: false,
+                  titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  titleTextFormatter: (d, _) => 'Tháng ${d.month}, ${d.year}',
+                  leftChevronIcon: _navIcon(Icons.chevron_left_rounded),
+                  rightChevronIcon: _navIcon(Icons.chevron_right_rounded),
+                ),
+                onPageChanged: (d) => focused = d,
+                onDayLongPressed: (d, _) => _editPeriod(null, start: d),
+                calendarBuilders: CalendarBuilders(
+                  dowBuilder: (c, d) => calendarDow(c, d, CalendarLook.of(store)),
+                  defaultBuilder: (c, d, _) => dayCell(d),
+                  todayBuilder: (c, d, _) => dayCell(d, today: true),
+                  outsideBuilder: (c, d, _) => Opacity(opacity: 0.35, child: dayCell(d)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              children: [
+                _legend(AppColors.cycle, 'Hành kinh'),
+                _legend(AppColors.cycle.withValues(alpha: 0.3), 'Dự đoán'),
+                _legend(AppColors.income.withValues(alpha: 0.35), 'Dễ thụ thai'),
+                _legend(AppColors.income, 'Rụng trứng'),
+                _legend(_safeColor.withValues(alpha: 0.45), 'An toàn'),
+                _legend(_safeColor.withValues(alpha: 0.18), 'An toàn tương đối'),
+              ],
+            ),
             if (p != null) ...[
-              const SectionTitle('7 ngày tới'),
-              _weekStrip(p, periods, settings),
               const SizedBox(height: 12),
               AppCard(
                 child: Column(
@@ -131,8 +199,30 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                         _stat(Icons.water_drop_rounded, 'Hành kinh TB', '${p.avgPeriod.toStringAsFixed(1)} ngày', AppColors.cycle),
                         _stat(Icons.egg_rounded, 'Rụng trứng', Fmt.dateShort(p.ovulation), AppColors.income),
                         _stat(Icons.spa_rounded, 'Dễ thụ thai', '${Fmt.dateShort(p.fertileStart)}–${Fmt.dateShort(p.fertileEnd)}', AppColors.income),
+                        if (p.safeEarly case final r?)
+                          _stat(Icons.shield_outlined, 'An toàn tương đối', '${Fmt.dateShort(r.$1)}–${Fmt.dateShort(r.$2)}', _safeColor),
+                        if (p.safeLate case final r?) _stat(Icons.shield_rounded, 'An toàn hơn', '${Fmt.dateShort(r.$1)}–${Fmt.dateShort(r.$2)}', _safeColor),
                       ],
                     ),
+                    if (p.irregular)
+                      Container(
+                        margin: const EdgeInsets.only(top: 10),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                        child: const Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Chu kỳ chưa đều: cửa sổ dễ thụ thai đã được nới rộng, ngày an toàn kém tin cậy — đừng dựa vào để tránh thai.',
+                                style: TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     if (p.calendarFertile != null || p.standardDays == true) const SizedBox(height: 8),
                     if (p.calendarFertile != null)
                       Text(
@@ -162,64 +252,13 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                 ),
               ),
             ],
-            const SizedBox(height: 12),
-            AppCard(
-              padding: const EdgeInsets.all(8),
-              child: TableCalendar(
-                locale: 'vi',
-                // Chỉ nhận vuốt ngang (đổi tháng); vuốt dọc nhường cho cuộn màn hình — bắt đầu vuốt trên lịch vẫn cuộn được.
-                availableGestures: AvailableGestures.horizontalSwipe,
-                firstDay: DateTime(2000),
-                lastDay: DateTime(2100),
-                focusedDay: focused,
-                startingDayOfWeek: StartingDayOfWeek.values[TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek - 1],
-                availableCalendarFormats: const {CalendarFormat.month: 'Tháng'},
-                daysOfWeekHeight: 30,
-                rowHeight: 46,
-                headerStyle: HeaderStyle(
-                  titleCentered: true,
-                  formatButtonVisible: false,
-                  titleTextStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                  titleTextFormatter: (d, _) => 'Tháng ${d.month}, ${d.year}',
-                  leftChevronIcon: _navIcon(Icons.chevron_left_rounded),
-                  rightChevronIcon: _navIcon(Icons.chevron_right_rounded),
-                ),
-                onPageChanged: (d) => focused = d,
-                onDayLongPressed: (d, _) => _editPeriod(null, start: d),
-                calendarBuilders: CalendarBuilders(
-                  dowBuilder: (c, d) => calendarDow(c, d, CalendarLook.of(store)),
-                  defaultBuilder: (c, d, _) =>
-                      _day(d, inPeriod(dateOnly(d)), predicted(dateOnly(d)), fertile(dateOnly(d)), p != null && isSameDay(d, p.ovulation)),
-                  todayBuilder: (c, d, _) =>
-                      _day(d, inPeriod(dateOnly(d)), predicted(dateOnly(d)), fertile(dateOnly(d)), p != null && isSameDay(d, p.ovulation), today: true),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 12,
-              runSpacing: 6,
-              children: [
-                _legend(AppColors.cycle, 'Hành kinh'),
-                _legend(AppColors.cycle.withValues(alpha: 0.35), 'Dự đoán'),
-                _legend(AppColors.income.withValues(alpha: 0.5), 'Dễ thụ thai'),
-                _legend(AppColors.income, 'Rụng trứng'),
-              ],
-            ),
             const SectionTitle('Các kỳ đã ghi'),
-            for (final (i, x) in periods.indexed)
-              ListTile(
-                leading: const Icon(Icons.water_drop_rounded, color: AppColors.cycle),
-                title: Text('${Fmt.date(x.start)}${x.end != null ? ' → ${Fmt.date(x.end!)}' : ''}'),
-                subtitle: Text(
-                  [
-                    if (i < periods.length - 1) 'Chu kỳ ${x.start.difference(periods[i + 1].start).inDays} ngày',
-                    if (x.flow != null) ['', 'Ít', 'Vừa', 'Nhiều'][x.flow!],
-                    if (x.note?.isNotEmpty == true) x.note!,
-                  ].join(' · '),
-                ),
-                onTap: () => _editPeriod(x),
-              ).stagger(i),
+            if (periods.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text('Chưa ghi kỳ nào', style: TextStyle(color: scheme.onSurfaceVariant)),
+              ),
+            for (final (i, x) in periods.indexed) _periodCard(x, i < periods.length - 1 ? x.start.difference(periods[i + 1].start).inDays : null).stagger(i),
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(12),
@@ -438,8 +477,68 @@ class _CyclePageState extends ConsumerState<CyclePage> {
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          _quickAction(periods, settings),
         ],
       ),
+    );
+  }
+
+  /// Ghi nhanh một chạm: "Bắt đầu kỳ hôm nay" / "Kết thúc kỳ hôm nay" (khi đang có kỳ chưa kết thúc) / "Sửa kỳ này".
+  Widget _quickAction(List<CyclePeriod> periods, CycleSettings settings) {
+    final c = subject == 1 ? AppColors.cycle : AppColors.love;
+    final today = dateOnly(DateTime.now());
+    final store = ref.read(storeProvider);
+    // Kỳ đang mở: chưa có ngày kết thúc, bắt đầu trong vòng 15 ngày qua
+    final open = periods.where((x) => x.end == null && !dateOnly(x.start).isAfter(today) && today.difference(dateOnly(x.start)).inDays < 15).firstOrNull;
+    // Hôm nay nằm trong một kỳ đã ghi đủ ngày
+    final current = periods.where((x) => x.end != null && !today.isBefore(dateOnly(x.start)) && !today.isAfter(dateOnly(x.end!))).firstOrNull;
+
+    final (IconData icon, String label, VoidCallback onTap) = switch ((open, current)) {
+      (final o?, _) => (
+        Icons.stop_circle_rounded,
+        'Kết thúc kỳ hôm nay (ngày ${today.difference(dateOnly(o.start)).inDays + 1})',
+        () {
+          store.put(E.cyclePeriods, {'id': o.id, 'endDate': Fmt.isoDate(today)});
+          showToast(context, 'Đã ghi kết thúc kỳ: ${today.difference(dateOnly(o.start)).inDays + 1} ngày');
+        },
+      ),
+      (_, final cur?) => (Icons.edit_calendar_rounded, 'Sửa kỳ này', () => _editPeriod(cur)),
+      _ => (
+        Icons.play_circle_rounded,
+        'Bắt đầu kỳ hôm nay',
+        () {
+          final rec = store.put(E.cyclePeriods, {'subject': subject, 'startDate': Fmt.isoDate(today), 'endDate': null, 'flow': 2});
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                behavior: SnackBarBehavior.floating,
+                content: const Text('Đã ghi bắt đầu kỳ hôm nay 🌸 — khi hết, bấm "Kết thúc kỳ hôm nay"'),
+                action: SnackBarAction(label: 'Hoàn tác', onPressed: () => store.remove(E.cyclePeriods, rec['id'] as String)),
+              ),
+            );
+        },
+      ),
+    };
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: c, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(44)),
+            onPressed: onTap,
+            icon: Icon(icon, size: 20),
+            label: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton.filledTonal(
+          tooltip: 'Ghi kỳ khác (chọn ngày)',
+          style: IconButton.styleFrom(minimumSize: const Size(44, 44)),
+          onPressed: () => _editPeriod(null),
+          icon: const Icon(Icons.date_range_rounded),
+        ),
+      ],
     );
   }
 
@@ -530,32 +629,167 @@ class _CyclePageState extends ConsumerState<CyclePage> {
     ],
   );
 
-  Widget _day(DateTime d, bool period, bool predicted, bool fertile, bool ovulation, {bool today = false}) {
-    Color? bg;
-    Color? fg;
-    if (period) {
-      bg = AppColors.cycle;
-      fg = Colors.white;
-    } else if (predicted) {
-      bg = AppColors.cycle.withValues(alpha: 0.3);
-    } else if (ovulation) {
-      bg = AppColors.income;
-      fg = Colors.white;
-    } else if (fertile) {
-      bg = AppColors.income.withValues(alpha: 0.35);
-    }
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      margin: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: today ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2) : null,
-      ),
+  /// Màu ngày an toàn (xanh dương dịu, tách hẳn khỏi hồng – kinh nguyệt và xanh lá – dễ thụ thai).
+  static const _safeColor = Color(0xFF3E63DD);
+
+  /// Một ô lịch: [kind] 1 = hành kinh, 2 = dự đoán, 3 = dễ thụ thai, 4 = an toàn, 5 = an toàn tương đối, 0 = thường.
+  Widget _day(DateTime d, {required int kind, bool joinLeft = false, bool joinRight = false, bool ovulation = false, bool today = false}) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = switch (kind) {
+      1 => AppColors.cycle,
+      2 => AppColors.cycle.withValues(alpha: 0.18),
+      3 => AppColors.income.withValues(alpha: 0.18),
+      4 => _safeColor.withValues(alpha: 0.16),
+      5 => _safeColor.withValues(alpha: 0.07),
+      _ => Colors.transparent,
+    };
+    final fg = kind == 1
+        ? Colors.white
+        : kind == 2
+        ? AppColors.cycle
+        : kind == 3
+        ? AppColors.income
+        : kind == 4
+        ? _safeColor
+        : null;
+    return Stack(
       alignment: Alignment.center,
-      child: Text(
-        '${d.day}',
-        style: TextStyle(color: fg, fontWeight: today ? FontWeight.w800 : null),
+      children: [
+        // Dải nền liền
+        Positioned.fill(
+          top: 6,
+          bottom: 6,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.horizontal(left: Radius.circular(joinLeft ? 0 : 17), right: Radius.circular(joinRight ? 0 : 17)),
+              // Kỳ dự đoán: viền nét mảnh để phân biệt với kỳ đã ghi
+              border: kind == 2 ? Border.all(color: AppColors.cycle.withValues(alpha: 0.45)) : null,
+            ),
+          ),
+        ),
+        Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: ovulation ? AppColors.income : null,
+            border: today ? Border.all(color: kind == 1 ? Colors.white : scheme.primary, width: 2) : null,
+          ),
+          child: Text(
+            '${d.day}',
+            style: TextStyle(color: ovulation ? Colors.white : fg, fontWeight: today || kind == 1 || ovulation ? FontWeight.w800 : FontWeight.w500),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Thẻ một kỳ đã ghi: khoảng ngày, số ngày, độ dài chu kỳ, lượng máu, ghi chú.
+  Widget _periodCard(CyclePeriod x, int? cycleLen) {
+    final scheme = Theme.of(context).colorScheme;
+    final c = subject == 1 ? AppColors.cycle : AppColors.love;
+    final ongoing = x.end == null;
+    final len = ongoing ? DateTime.now().difference(x.start).inDays + 1 : x.end!.difference(x.start).inDays + 1;
+    Widget chip(IconData icon, String text) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: c.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(10)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: c),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: c),
+          ),
+        ],
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: AppCard(
+        onTap: () => _editPeriod(x),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+        child: Row(
+          children: [
+            Container(
+              width: 6,
+              height: 46,
+              decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(3)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ongoing ? '${Fmt.dateShort(x.start)} → đang diễn ra' : '${Fmt.dateShort(x.start)} → ${Fmt.dateShort(x.end!)}',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      chip(Icons.water_drop_rounded, '$len ngày'),
+                      if (cycleLen != null) chip(Icons.loop_rounded, 'Chu kỳ $cycleLen ngày'),
+                      if (x.flow != null && x.flow! > 0) chip(Icons.opacity_rounded, ['', 'Ít', 'Vừa', 'Nhiều'][x.flow!]),
+                    ],
+                  ),
+                  if (x.note?.isNotEmpty == true)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        x.note!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: scheme.onSurfaceVariant),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Ô nhỏ tóm tắt ngày bắt đầu / kết thúc trong bảng ghi kỳ kinh.
+  Widget _rangePill(BuildContext ctx, String label, String value, Color c, {required bool filled}) {
+    final scheme = Theme.of(ctx).colorScheme;
+    return Expanded(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: filled ? c.withValues(alpha: 0.12) : scheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: filled ? c.withValues(alpha: 0.45) : scheme.outlineVariant.withValues(alpha: 0.5)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: filled ? c : scheme.onSurfaceVariant),
+            ),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 180),
+              child: Text(
+                value,
+                key: ValueKey(value),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: filled ? null : scheme.onSurfaceVariant),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -568,6 +802,15 @@ class _CyclePageState extends ConsumerState<CyclePage> {
     var flow = x?.flow ?? 2;
     final note = TextEditingController(text: x?.note);
     final c = subject == 1 ? AppColors.cycle : AppColors.love;
+    final store = ref.read(storeProvider);
+    final settings = _settings(store);
+    final firstDow = TimeConfig.of(store).firstDayOfWeek;
+    // Ngày của các kỳ khác đã ghi → chấm nhỏ trên lịch để tránh ghi trùng
+    final otherDays = <DateTime>{
+      for (final o in store.all(E.cyclePeriods).map(CyclePeriod.new).where((o) => o.subject == subject && o.id != x?.id))
+        for (var d = dateOnly(o.start); !d.isAfter(dateOnly(o.end ?? o.start.add(Duration(days: settings.periodDays - 1)))); d = d.add(const Duration(days: 1)))
+          d,
+    };
 
     await showModalBottomSheet(
       sheetAnimationStyle: kSheetAnim,
@@ -585,61 +828,6 @@ class _CyclePageState extends ConsumerState<CyclePage> {
             parts.contains(t) ? parts.remove(t) : parts.add(t);
             set(() => note.text = parts.join(', '));
           }
-
-          Widget dateCard(String label, IconData icon, DateTime? d, VoidCallback onTap, {VoidCallback? onClear}) => Expanded(
-            child: Pressable(
-              onTap: onTap,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),
-                decoration: BoxDecoration(
-                  color: d == null ? scheme.surfaceContainerHigh : c.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: d == null ? scheme.outlineVariant.withValues(alpha: 0.5) : c.withValues(alpha: 0.5)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(icon, size: 15, color: d == null ? scheme.onSurfaceVariant : c),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(
-                            label,
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: d == null ? scheme.onSurfaceVariant : c),
-                          ),
-                        ),
-                        if (onClear != null && d != null)
-                          GestureDetector(
-                            onTap: onClear,
-                            child: Icon(Icons.close_rounded, size: 16, color: scheme.onSurfaceVariant),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 200),
-                      child: Column(
-                        key: ValueKey(d),
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            d == null ? 'Đang diễn ra' : Fmt.dateShort(d),
-                            style: TextStyle(fontSize: d == null ? 16 : 22, fontWeight: FontWeight.w800, color: d == null ? scheme.onSurfaceVariant : null),
-                          ),
-                          Text(
-                            d == null ? 'Bấm để chọn ngày' : '${Fmt.weekdays[d.weekday - 1]}, ${d.year}',
-                            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
 
           Widget flowCard(int v, String label) {
             final on = flow == v;
@@ -755,30 +943,43 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                 ],
               ),
               const SizedBox(height: 16),
+              // Tóm tắt khoảng ngày đang chọn
               Row(
                 children: [
-                  dateCard('Bắt đầu', Icons.play_circle_rounded, s, () async {
-                    final d = await pickDateTime(ctx, s, withTime: false, title: 'Ngày bắt đầu');
-                    if (d != null) {
-                      set(() {
-                        s = dateOnly(d);
-                        if (e != null && e!.isBefore(s)) e = null;
-                      });
-                    }
-                  }),
+                  _rangePill(ctx, 'Bắt đầu', Fmt.dateShort(s), c, filled: true),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(Icons.arrow_forward_rounded, size: 18, color: scheme.onSurfaceVariant),
+                    child: Icon(Icons.arrow_forward_rounded, size: 16, color: scheme.onSurfaceVariant),
                   ),
-                  dateCard('Kết thúc', Icons.stop_circle_rounded, e, () async {
-                    final d = await pickDateTime(ctx, e ?? s.add(const Duration(days: 4)), withTime: false, firstDate: s, title: 'Ngày kết thúc');
-                    if (d != null) set(() => e = dateOnly(d));
-                  }, onClear: () => set(() => e = null)),
+                  _rangePill(ctx, 'Kết thúc', e == null ? 'Đang diễn ra' : Fmt.dateShort(e!), c, filled: e != null),
                 ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Bấm ngày bắt đầu rồi kéo tới ngày kết thúc · hoặc chạm ngày đầu, rồi chạm ngày cuối',
+                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.fromLTRB(4, 2, 4, 6),
+                decoration: BoxDecoration(color: scheme.surfaceContainerLow, borderRadius: BorderRadius.circular(18)),
+                child: CycleRangePicker(
+                  start: s,
+                  end: e,
+                  color: c,
+                  firstDayOfWeek: firstDow,
+                  expectedDays: settings.periodDays,
+                  otherDays: otherDays,
+                  onChanged: (a, b) => set(() {
+                    s = dateOnly(a);
+                    e = b == null ? null : dateOnly(b);
+                  }),
+                ),
               ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
+                runSpacing: 6,
                 children: [
                   for (final n in [3, 5, 7])
                     ChoiceChip(

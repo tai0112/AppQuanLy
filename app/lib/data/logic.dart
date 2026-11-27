@@ -374,6 +374,11 @@ class CyclePrediction {
     this.calendarFertile,
     this.standardDays,
     required this.warnings,
+    this.extraBefore = 0,
+    this.extraAfter = 0,
+    this.irregular = false,
+    this.safeEarly,
+    this.safeLate,
   });
   final double avgCycle;
   final double avgPeriod;
@@ -387,7 +392,20 @@ class CyclePrediction {
   final (int, int)? calendarFertile; // ngày thứ x..y của chu kỳ (Ogino–Knaus)
   final bool? standardDays; // áp dụng được Standard Days Method (26–32 ngày)
   final List<String> warnings;
+
+  /// Số ngày nới thêm cho cửa sổ dễ thụ thai khi chu kỳ dao động (rụng trứng có thể sớm / muộn hơn trung bình).
+  final int extraBefore, extraAfter;
+
+  /// Chu kỳ không đều (chênh lệch > 7 ngày hoặc ngoài 21–35 ngày) → ngày an toàn kém tin cậy.
+  final bool irregular;
+
+  /// Ngày an toàn của chu kỳ dự đoán gần nhất: tương đối (sau kỳ kinh → trước cửa sổ dễ thụ thai)
+  /// và an toàn hơn (sau cửa sổ dễ thụ thai → trước kỳ sau). null = không có khoảng nào.
+  final (DateTime, DateTime)? safeEarly, safeLate;
 }
+
+/// Đánh dấu một ngày trên lịch chu kỳ.
+enum CycleMark { none, period, predicted, fertile, ovulation, safeRelative, safe }
 
 class Cycle {
   /// Dự đoán theo công thức trong PLAN.md (mục 3.11). Nguồn: NHS, Cleveland Clinic, womenshealth.gov.
@@ -408,7 +426,22 @@ class Cycle {
     final next = last.add(Duration(days: avgCycle.round()));
     final earliest = recent.isEmpty ? next : last.add(Duration(days: recent.reduce(min)));
     final latest = recent.isEmpty ? next : last.add(Duration(days: recent.reduce(max)));
-    final ovulation = next.subtract(Duration(days: s?.lutealDays ?? 14));
+    final luteal = s?.lutealDays ?? 14;
+    final ovulation = next.subtract(Duration(days: luteal));
+    // Chu kỳ dao động → ngày rụng trứng có thể sớm (theo chu kỳ ngắn nhất) hoặc muộn (dài nhất) hơn trung bình:
+    // nới cửa sổ dễ thụ thai tương ứng (tối đa 7 ngày mỗi phía) để không gắn nhầm "an toàn".
+    final extraBefore = recent.isEmpty ? 0 : (avgCycle.round() - recent.reduce(min)).clamp(0, 7);
+    final extraAfter = recent.isEmpty ? 0 : (recent.reduce(max) - avgCycle.round()).clamp(0, 7);
+    final irregular = recent.isNotEmpty && (recent.reduce(max) - recent.reduce(min) > 7 || recent.any((c) => c < 21 || c > 35));
+    final fertileStart = ovulation.subtract(Duration(days: (s?.fertileBefore ?? 5) + extraBefore));
+    final fertileEnd = ovulation.add(Duration(days: (s?.fertileAfter ?? 1) + extraAfter));
+    // Ngày an toàn của chu kỳ vừa bắt đầu (từ [last]): sau kỳ kinh → trước cửa sổ, và sau cửa sổ → trước kỳ sau
+    final lastPeriodEnd = sorted.last.end ?? last.add(Duration(days: avgPeriod.round() - 1));
+    final cycleOvu = last.add(Duration(days: avgCycle.round() - luteal));
+    final cFertStart = cycleOvu.subtract(Duration(days: (s?.fertileBefore ?? 5) + extraBefore));
+    final cFertEnd = cycleOvu.add(Duration(days: (s?.fertileAfter ?? 1) + extraAfter));
+    final early = (dateOnly(lastPeriodEnd).add(const Duration(days: 1)), dateOnly(cFertStart).subtract(const Duration(days: 1)));
+    final late = (dateOnly(cFertEnd).add(const Duration(days: 1)), dateOnly(next).subtract(const Duration(days: 1)));
 
     (int, int)? calendar;
     if (valid.length >= 6) calendar = (valid.reduce(min) - 18, valid.reduce(max) - 11);
@@ -427,13 +460,58 @@ class Cycle {
       earliest: earliest,
       latest: latest,
       ovulation: ovulation,
-      fertileStart: ovulation.subtract(Duration(days: s?.fertileBefore ?? 5)),
-      fertileEnd: ovulation.add(Duration(days: s?.fertileAfter ?? 1)),
+      fertileStart: fertileStart,
+      fertileEnd: fertileEnd,
       cycles: all,
       calendarFertile: calendar,
       standardDays: sdm,
       warnings: warnings,
+      extraBefore: extraBefore,
+      extraAfter: extraAfter,
+      irregular: irregular,
+      safeEarly: early.$1.isAfter(early.$2) ? null : early,
+      safeLate: late.$1.isAfter(late.$2) ? null : late,
     );
+  }
+
+  /// Đánh dấu ngày [day] cho lịch: kỳ đã ghi, kỳ dự đoán, dễ thụ thai, rụng trứng, an toàn tương đối / an toàn hơn.
+  /// Dùng chung một cách chiếu chu kỳ với [CycleDays.of] (thẻ "Hôm nay", 7 ngày tới, thông báo) → mọi nơi khớp nhau.
+  /// - Trước kỳ gần nhất: dùng đúng các kỳ đã ghi (độ dài chu kỳ thật).
+  /// - Từ kỳ gần nhất trở đi: chiếu theo chu kỳ trung bình.
+  static CycleMark markOf(CyclePrediction p, List<CyclePeriod> periods, CycleSettings? s, DateTime day) {
+    if (periods.isEmpty) return CycleMark.none;
+    final d = dateOnly(day);
+    final periodDays = s?.periodDays ?? p.avgPeriod.round();
+    for (final x in periods) {
+      final end = dateOnly(x.end ?? x.start.add(Duration(days: periodDays - 1)));
+      if (!d.isBefore(dateOnly(x.start)) && !d.isAfter(end)) return CycleMark.period;
+    }
+    final starts = [for (final x in periods) dateOnly(x.start)]..sort();
+    final avg = p.avgCycle.round();
+    final luteal = s?.lutealDays ?? 14;
+    final before = (s?.fertileBefore ?? 5) + p.extraBefore, after = (s?.fertileAfter ?? 1) + p.extraAfter;
+
+    DateTime cycleStart, cycleNext;
+    var projected = false;
+    if (d.isBefore(starts.first)) return CycleMark.none;
+    final i = starts.lastIndexWhere((x) => !x.isAfter(d));
+    if (i < starts.length - 1) {
+      cycleStart = starts[i];
+      cycleNext = starts[i + 1];
+    } else {
+      final k = d.difference(starts.last).inDays ~/ avg;
+      cycleStart = starts.last.add(Duration(days: k * avg));
+      cycleNext = cycleStart.add(Duration(days: avg));
+      projected = k >= 1;
+    }
+    // Chu kỳ ghi thật bất thường (quá dài / quá ngắn) → không đoán ngày cho chu kỳ đó
+    final len = cycleNext.difference(cycleStart).inDays;
+    if (len < 15 || len > 90) return CycleMark.none;
+    if (projected && d.difference(cycleStart).inDays < p.avgPeriod.round()) return CycleMark.predicted;
+    final ovu = cycleNext.subtract(Duration(days: luteal));
+    if (d == ovu) return CycleMark.ovulation;
+    if (!d.isBefore(ovu.subtract(Duration(days: before))) && !d.isAfter(ovu.add(Duration(days: after)))) return CycleMark.fertile;
+    return d.isBefore(ovu) ? CycleMark.safeRelative : CycleMark.safe;
   }
 }
 
@@ -463,8 +541,11 @@ extension CycleDays on Cycle {
     final avg = p.avgCycle.round();
     final periodLen = p.avgPeriod.round();
     final luteal = s?.lutealDays ?? 14;
-    final before = s?.fertileBefore ?? 5, after = s?.fertileAfter ?? 1;
+    final before = (s?.fertileBefore ?? 5) + p.extraBefore, after = (s?.fertileAfter ?? 1) + p.extraAfter;
     final who = partner ? 'người ấy' : 'bạn';
+    final safeNote = p.irregular
+        ? 'Chu kỳ chưa đều nên ngày an toàn KHÔNG đáng tin; vẫn nên dùng biện pháp bảo vệ.'
+        : 'Tính theo lịch, chỉ mang tính tham khảo (thất bại khoảng 1/4 trường hợp mỗi năm); muốn chắc chắn hãy dùng biện pháp bảo vệ.';
     final fertileNote = partner ? 'Nếu chưa muốn có em bé, hai bạn nhớ dùng biện pháp an toàn.' : 'Nếu chưa muốn có em bé, hãy dùng biện pháp an toàn.';
 
     // Kỳ kinh đã ghi chứa ngày này
@@ -573,9 +654,8 @@ extension CycleDays on Cycle {
         CyclePhase.pms,
         cycleDay,
         partner ? 'Người ấy sắp vào giai đoạn tiền kinh nguyệt' : 'Giai đoạn tiền kinh nguyệt',
-        partner
-            ? 'Có thể dễ cáu, mệt hoặc đau ngực. Lắng nghe và thông cảm nhiều hơn.'
-            : 'Có thể đau ngực, đầy hơi, dễ cáu. Ngủ đủ, giảm muối và caffeine, vận động nhẹ.',
+        '${partner ? 'Có thể dễ cáu, mệt hoặc đau ngực. Lắng nghe và thông cảm nhiều hơn.' : 'Có thể đau ngực, đầy hơi, dễ cáu. Ngủ đủ, giảm muối và caffeine, vận động nhẹ.'} '
+        'Vẫn trong nhóm ngày an toàn. $safeNote',
         0,
       );
     }
@@ -584,10 +664,9 @@ extension CycleDays on Cycle {
         d,
         CyclePhase.follicular,
         cycleDay,
-        'Ngày $cycleDay của chu kỳ · nang noãn',
-        partner
-            ? 'Giai đoạn người ấy thường nhiều năng lượng, vui vẻ: hợp để đi chơi cùng nhau.'
-            : 'Năng lượng thường tăng dần: thời điểm tốt để tập luyện và làm việc lớn.',
+        'Ngày $cycleDay · an toàn tương đối',
+        '${partner ? 'Giai đoạn người ấy thường nhiều năng lượng, vui vẻ.' : 'Năng lượng thường tăng dần, hợp để tập luyện.'} '
+            'Ngày an toàn tương đối (trước cửa sổ dễ thụ thai). $safeNote',
         0,
       );
     }
@@ -595,8 +674,8 @@ extension CycleDays on Cycle {
       d,
       CyclePhase.luteal,
       cycleDay,
-      'Ngày $cycleDay của chu kỳ · hoàng thể',
-      'Còn $until ngày đến kỳ kinh tiếp theo (${Fmt.dateShort(nextStart)}).',
+      'Ngày $cycleDay · ngày an toàn',
+      'Đã qua cửa sổ dễ thụ thai: ngày an toàn (giai đoạn hoàng thể). Còn $until ngày đến kỳ kinh (${Fmt.dateShort(nextStart)}). $safeNote',
       0,
     );
   }

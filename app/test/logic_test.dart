@@ -42,8 +42,13 @@ void main() {
       expect(r.avgCycle, closeTo(28.67, 0.01));
       expect(r.nextStart, DateTime(2026, 10, 24)); // 25/09 + 29 ngày
       expect(r.ovulation, DateTime(2026, 10, 10)); // trước kỳ sau 14 ngày
-      expect(r.fertileStart, DateTime(2026, 10, 5));
-      expect(r.fertileEnd, DateTime(2026, 10, 11));
+      // Chu kỳ dao động 28–30 ngày: rụng trứng có thể sớm 1 ngày (chu kỳ ngắn nhất) hoặc muộn 1 ngày (dài nhất)
+      // → cửa sổ 5 ngày trước / 1 ngày sau rụng trứng được nới thêm mỗi bên 1 ngày.
+      expect(r.extraBefore, 1);
+      expect(r.extraAfter, 1);
+      expect(r.fertileStart, DateTime(2026, 10, 4));
+      expect(r.fertileEnd, DateTime(2026, 10, 12));
+      expect(r.irregular, isFalse);
       expect(r.standardDays, true);
     });
 
