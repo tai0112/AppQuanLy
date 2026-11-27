@@ -35,11 +35,9 @@ class Finance {
 
   late final String baseCurrency = settings?.baseCurrency ?? 'VND';
   late final int monthStartDay = settings?.monthStartDay ?? 1;
-  late final List<RecurringRule> recurringRules = _m(
-    'recurringRules',
-    [E.recurringRules],
-    () => store.all(E.recurringRules).map(RecurringRule.new).toList()..sort((a, b) => a.nextRunAt.compareTo(b.nextRunAt)),
-  );
+  late final List<RecurringRule> recurringRules = _m('recurringRules', [
+    E.recurringRules,
+  ], () => store.all(E.recurringRules).map(RecurringRule.new).toList()..sort((a, b) => a.nextRunAt.compareTo(b.nextRunAt)));
 
   // ---------------------------------------------------- Tiền tệ
   late final List<Currency> currencies = _m('currencies', [
@@ -127,10 +125,7 @@ class Finance {
       final a = Attachment(raw);
       (byOwner[a.ownerId] ??= []).add(a);
     }
-    return {
-      for (final e in byOwner.entries)
-        e.key: (e.value..sort((a, b) => a.sortOrder.compareTo(b.sortOrder))).map((a) => a.fileId).toList(),
-    };
+    return {for (final e in byOwner.entries) e.key: (e.value..sort((a, b) => a.sortOrder.compareTo(b.sortOrder))).map((a) => a.fileId).toList()};
   });
   bool hasPhoto(String txnId) => _photosByTxn.containsKey(txnId);
   List<String> photosOf(String txnId) => _photosByTxn[txnId] ?? const [];
@@ -182,7 +177,7 @@ class Finance {
 
   late final _rangeCache = _m('ranges', [E.transactions], () => <String, List<Txn>>{});
 
-  List<Txn> inRange(DateTime from, DateTime to) => _rangeCache.putIfAbsent('${from.millisecondsSinceEpoch}-${to.millisecondsSinceEpoch}', () {
+  List<Txn> inRange(DateTime from, DateTime to) => _rangeCache.putIfAbsent(_rk(from, to), () {
     final out = <Txn>[];
     for (final t in transactions) {
       final w = at(t);
@@ -191,6 +186,25 @@ class Finance {
     }
     return out;
   });
+
+  static String _rk(DateTime from, DateTime to) => '${from.millisecondsSinceEpoch}-${to.millisecondsSinceEpoch}';
+
+  // Kết quả tổng hợp theo khoảng thời gian: nhớ lại cho tới khi giao dịch / tỷ giá / cài đặt / danh mục đổi.
+  // Nhiều màn (Trang chủ, Giao dịch, Thống kê, thẻ So sánh) dùng chung → mỗi khoảng chỉ tính một lần.
+  late final _totalsIn = _m('totalsIn', [E.transactions, E.exchangeRates, E.appSettings], () => <String, ({double income, double expense})>{});
+  late final _byCatIn = _m('byCatIn', [
+    E.transactions,
+    E.exchangeRates,
+    E.appSettings,
+    E.categories,
+  ], () => <String, List<({Category? category, double amount})>>{});
+
+  /// Tổng thu/chi trong [from, to) — đã nhớ.
+  ({double income, double expense}) totalsIn(DateTime from, DateTime to) => _totalsIn.putIfAbsent(_rk(from, to), () => totals(inRange(from, to)));
+
+  /// Tổng theo danh mục trong [from, to) — đã nhớ. Không được sửa danh sách trả về.
+  List<({Category? category, double amount})> byCategoryIn(DateTime from, DateTime to, int type, {String? parentId}) =>
+      _byCatIn.putIfAbsent('${_rk(from, to)}|$type|$parentId', () => byCategory(inRange(from, to), type, parentId: parentId));
 
   ({double income, double expense}) totals(List<Txn> list) {
     var inc = 0.0, exp = 0.0;
@@ -776,10 +790,7 @@ int runDueRecurringRules(LocalStore store, {DateTime? now}) {
       due = Recurrence.nextOccurrence(rule.rrule, due);
     }
 
-    store.put(E.recurringRules, {
-      ...raw,
-      'nextRunAt': toIso8601WithOffset(due),
-    }, notify: false);
+    store.put(E.recurringRules, {...raw, 'nextRunAt': toIso8601WithOffset(due)}, notify: false);
   }
 
   if (created > 0) {

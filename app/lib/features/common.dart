@@ -102,8 +102,10 @@ class FileImage2 extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final store = ref.watch(storeProvider);
-    if (store.hasLocalFile(fileId)) {
+    // Chỉ dựng lại khi ảnh NÀY có / mất bản trên máy — không dựng lại mọi ảnh mỗi khi kho dữ liệu đổi (đồng bộ, thêm giao dịch…).
+    final local = ref.watch(storeProvider.select((s) => s.hasLocalFile(fileId)));
+    final store = ref.read(storeProvider);
+    if (local) {
       return AppImage(image: StoredImage(fileId, store), fit: fit, radius: radius);
     }
     // Nếu chưa có trong cache phiên, kích hoạt nạp ngầm để lần tới mở xem sẽ có sẵn tức thì 0ms
@@ -116,11 +118,16 @@ class FileImage2 extends ConsumerWidget {
   static void _cacheInBackground(WidgetRef ref, String fid) {
     if (fid.isEmpty || _inFlight.contains(fid)) return;
     _inFlight.add(fid);
-    ref.read(apiProvider).download(fid).then((f) async {
-      if (f != null) {
-        await ref.read(storeProvider).saveDownloadedFile(fid, f.bytes, f.mime);
-      }
-    }).catchError((_) {}).whenComplete(() => _inFlight.remove(fid));
+    ref
+        .read(apiProvider)
+        .download(fid)
+        .then((f) async {
+          if (f != null) {
+            await ref.read(storeProvider).saveDownloadedFile(fid, f.bytes, f.mime);
+          }
+        })
+        .catchError((_) {})
+        .whenComplete(() => _inFlight.remove(fid));
   }
 }
 

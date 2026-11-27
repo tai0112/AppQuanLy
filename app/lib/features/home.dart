@@ -27,7 +27,7 @@ class HomePage extends ConsumerWidget {
     final session = ref.watch(sessionProvider);
     final scheme = Theme.of(context).colorScheme;
     final (from, to) = f.monthRange(DateTime.now());
-    final month = f.totals(f.inRange(from, to));
+    final month = f.totalsIn(from, to);
     final layout = MenuLayout.of(store);
     final shortcuts = [
       for (final id in layout.shortcuts)

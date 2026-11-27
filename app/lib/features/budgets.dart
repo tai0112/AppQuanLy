@@ -19,7 +19,9 @@ class BudgetCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final f = ref.watch(financeProvider);
+    // Chỉ dựng lại khi số đã chi / tên phạm vi / tiền tệ gốc của định mức này đổi, không phải mỗi lần dữ liệu tài chính đổi.
+    ref.watch(financeProvider.select((f) => (f.budgetSpent(budget), f.category(budget.refId)?.name, f.account(budget.refId)?.name, f.baseCurrency)));
+    final f = ref.read(financeProvider);
     final spent = f.budgetSpent(budget);
     final pct = budget.limit <= 0 ? 0.0 : spent / budget.limit;
     final color = pct >= 1

@@ -205,20 +205,21 @@ class LocalStore extends ChangeNotifier {
   }
 
   /// Xoá mềm (đồng bộ việc xoá lên server).
-  void remove(String entity, String id) {
+  /// [notify] = false: ghi ngay nhưng chưa báo (gọi [commit] sau), như [put].
+  void remove(String entity, String id, {bool notify = true}) {
     final existing = _cache[entity]?[id];
     if (existing == null) return;
-    put(entity, {...existing, 'deletedAt': DateTime.now().toUtc().toIso8601String()});
+    put(entity, {...existing, 'deletedAt': DateTime.now().toUtc().toIso8601String()}, notify: notify);
     // Tự động xoá mềm các bản ghi con đính kèm ảnh
     if (entity == E.transactions) {
       final atts = all(E.attachments).where((a) => a['ownerId'] == id).toList();
       for (final a in atts) {
-        remove(E.attachments, a['id'] as String);
+        remove(E.attachments, a['id'] as String, notify: notify);
       }
     } else if (entity == E.events) {
       final photos = all(E.eventPhotos).where((p) => p['eventId'] == id).toList();
       for (final p in photos) {
-        remove(E.eventPhotos, p['id'] as String);
+        remove(E.eventPhotos, p['id'] as String, notify: notify);
       }
     }
   }
@@ -336,7 +337,48 @@ class LocalStore extends ChangeNotifier {
   void applyRemote(String entity, Map<String, dynamic> data) {
     final id = data['id'] as String;
     if (_dirty.containsKey('$entity|$id')) return;
+    // Server trả về đúng bản máy vừa đẩy lên (chỉ khác mốc thời gian / định dạng) → giữ nguyên, KHÔNG tăng phiên bản bảng:
+    // tránh mọi màn tính lại lần nữa vài giây sau mỗi lần lưu.
+    final cur = _cache[entity]?[id];
+    if (cur != null && sameContent(cur, data)) return;
     _write(entity, data);
+  }
+
+  static const _ignoredOnCompare = {'updatedAt', 'createdAt', 'userId'};
+
+  /// [remote] có cùng nội dung với [local] không (bỏ qua mốc thời gian, `userId`; số so theo giá trị, ngày giờ so theo thời điểm).
+  /// Trường chỉ có ở máy (vd `accountName`) không tính.
+  @visibleForTesting
+  static bool sameContent(Map<String, dynamic> local, Map<String, dynamic> remote) {
+    for (final e in remote.entries) {
+      if (_ignoredOnCompare.contains(e.key)) continue;
+      if (!_sameValue(local[e.key], e.value)) return false;
+    }
+    return true;
+  }
+
+  static bool _sameValue(Object? a, Object? b) {
+    if (a == b) return true;
+    if (a is num && b is num) return a.toDouble() == b.toDouble();
+    if (a is String && b is String && a.length >= 19 && b.length >= 19 && a[4] == '-' && b[4] == '-') {
+      final da = DateTime.tryParse(a), db = DateTime.tryParse(b);
+      return da != null && db != null && da.isAtSameMomentAs(db);
+    }
+    if (a is List && b is List) {
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (!_sameValue(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    if (a is Map && b is Map) {
+      if (a.length != b.length) return false;
+      for (final k in b.keys) {
+        if (!_sameValue(a[k], b[k])) return false;
+      }
+      return true;
+    }
+    return false;
   }
 
   void notifyRemoteApplied() => notifyListeners();

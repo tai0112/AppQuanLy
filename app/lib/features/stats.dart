@@ -52,7 +52,15 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
           ],
         ),
       ),
-      body: TabBarView(controller: tabs, children: [_month(), _year(), _accounts()]),
+      // Bọc Builder: TabBarView chỉ dựng trang đang hiện → tab khác không tính (trước đây cả 3 tab tính mỗi lần dữ liệu đổi).
+      body: TabBarView(
+        controller: tabs,
+        children: [
+          Builder(builder: (_) => _month()),
+          Builder(builder: (_) => _year()),
+          Builder(builder: (_) => _accounts()),
+        ],
+      ),
     );
   }
 
@@ -71,11 +79,10 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
     final list = f.inRange(from, to);
     final cmp = cmpMonth ?? DateTime(month.year, month.month - 1, 15);
     final (pFrom, pTo) = f.monthRange(cmp);
-    final prevList = f.inRange(pFrom, pTo);
-    final prev = f.totals(prevList);
+    final prev = f.totalsIn(pFrom, pTo);
     final cmpLabel = cmpMonth == null ? 'tháng trước' : 'tháng ${Fmt.month(pFrom)}';
-    final cur = f.totals(list);
-    final groups = f.byCategory(list, type, parentId: drillParent);
+    final cur = f.totalsIn(from, to);
+    final groups = f.byCategoryIn(from, to, type, parentId: drillParent);
     final total = groups.fold(0.0, (s, g) => s + g.amount);
 
     final parentColorHex = drillParent != null ? f.category(drillParent)?.color?.toUpperCase() : null;
@@ -338,10 +345,7 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: color),
                                       ),
                                     ),
-                                    Text(
-                                      '${groups.length} mục',
-                                      style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                                    ),
+                                    Text('${groups.length} mục', style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                                   ],
                                 );
                               },
@@ -425,7 +429,7 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
           ),
         ),
         const SectionTitle('So sánh'),
-        _compareCard(f, from, pFrom, cur, prev, list, prevList),
+        _compareCard(f, from, to, pFrom, pTo, cur, prev),
         const SectionTitle('Theo ngày'),
         AppCard(
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 8),
@@ -439,15 +443,15 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
   Widget _compareCard(
     Finance f,
     DateTime from,
+    DateTime to,
     DateTime pFrom,
+    DateTime pTo,
     ({double income, double expense}) cur,
     ({double income, double expense}) prev,
-    List<Txn> list,
-    List<Txn> prevList,
   ) {
     final scheme = Theme.of(context).colorScheme;
-    final a = {for (final g in f.byCategory(list, type)) g.category?.id: g};
-    final b = {for (final g in f.byCategory(prevList, type)) g.category?.id: g};
+    final a = {for (final g in f.byCategoryIn(from, to, type)) g.category?.id: g};
+    final b = {for (final g in f.byCategoryIn(pFrom, pTo, type)) g.category?.id: g};
     final keys = {...a.keys, ...b.keys}.toList()
       ..sort((x, y) {
         final mx = [a[x]?.amount ?? 0, b[x]?.amount ?? 0].reduce((p, q) => p > q ? p : q);
@@ -1088,7 +1092,10 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Tổng thu', style: TextStyle(fontSize: 12, color: AppColors.income, fontWeight: FontWeight.w600)),
+                          const Text(
+                            'Tổng thu',
+                            style: TextStyle(fontSize: 12, color: AppColors.income, fontWeight: FontWeight.w600),
+                          ),
                           const SizedBox(height: 2),
                           SizedBox(
                             height: 20,
@@ -1096,7 +1103,10 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
-                              child: Text(f.money(totalIncome, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.income)),
+                              child: Text(
+                                f.money(totalIncome, a.currencyCode),
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.income),
+                              ),
                             ),
                           ),
                         ],
@@ -1111,7 +1121,10 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Tổng chi', style: TextStyle(fontSize: 12, color: AppColors.expense, fontWeight: FontWeight.w600)),
+                          const Text(
+                            'Tổng chi',
+                            style: TextStyle(fontSize: 12, color: AppColors.expense, fontWeight: FontWeight.w600),
+                          ),
                           const SizedBox(height: 2),
                           SizedBox(
                             height: 20,
@@ -1119,7 +1132,10 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                             child: FittedBox(
                               fit: BoxFit.scaleDown,
                               alignment: Alignment.centerLeft,
-                              child: Text(f.money(totalExpense, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.expense)),
+                              child: Text(
+                                f.money(totalExpense, a.currencyCode),
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.expense),
+                              ),
                             ),
                           ),
                         ],
@@ -1142,7 +1158,9 @@ class _StatsPageState extends ConsumerState<StatsPage> with SingleTickerProvider
                           children: [
                             CircleIcon(icon: g.category?.icon, color: hexColor(g.category?.color), size: 30),
                             const SizedBox(width: 8),
-                            Expanded(child: Text(g.category?.name ?? 'Không có danh mục', style: const TextStyle(fontWeight: FontWeight.w600))),
+                            Expanded(
+                              child: Text(g.category?.name ?? 'Không có danh mục', style: const TextStyle(fontWeight: FontWeight.w600)),
+                            ),
                             Text(f.money(g.amount, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700)),
                             const SizedBox(width: 6),
                             Text(

@@ -371,8 +371,9 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
           )
           .toList();
     }
-    // Tổng tính trước khi lọc theo loại để các ô Thu/Chi luôn có số.
-    final totals = f.totals(list);
+    // Tổng tính trước khi lọc theo loại để các ô Thu/Chi luôn có số. Không lọc gì → dùng tổng đã nhớ của tháng.
+    final unfiltered = source == MoneySource.all && cats.isEmpty && query.isEmpty;
+    final totals = unfiltered ? f.totalsIn(from, to) : f.totals(list);
     if (type != null) list = list.where((t) => t.type == type).toList();
 
     final canAdd = ref.watch(sessionProvider).can(Perm.giaoDich);
@@ -1021,15 +1022,14 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     final f = ref.read(financeProvider);
     final byDay = <DateTime, List<Txn>>{};
     for (final t in list) {
-      byDay.putIfAbsent(dateOnly(t.occurredAt), () => []).add(t);
+      byDay.putIfAbsent(dateOnly(f.at(t)), () => []).add(t); // f.at: thời điểm đã parse sẵn
     }
-    // Ảnh đầu tiên (theo thứ tự) của mỗi giao dịch, nếu có.
-    final ids = {for (final t in list) t.id};
+    // Ảnh đầu tiên (theo thứ tự) của mỗi giao dịch, nếu có — tra bảng ảnh đã nhớ sẵn theo giao dịch,
+    // không quét lại toàn bộ ảnh đính kèm mỗi lần dựng.
     final photoOf = <String, ({String file, int order})>{};
-    for (final a in ref.read(storeProvider).all(E.attachments).map(Attachment.new)) {
-      if (!ids.contains(a.ownerId)) continue;
-      final cur = photoOf[a.ownerId];
-      if (cur == null || a.sortOrder < cur.order) photoOf[a.ownerId] = (file: a.fileId, order: a.sortOrder);
+    for (final t in list) {
+      final p = f.photosOf(t.id);
+      if (p.isNotEmpty) photoOf[t.id] = (file: p.first, order: 0);
     }
     final today = dateOnly(DateTime.now());
 
@@ -1091,7 +1091,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     final look = CalendarLook.of(ref.read(storeProvider));
     final scheme = Theme.of(context).colorScheme;
     final canAdd = ref.watch(sessionProvider).can(Perm.giaoDich);
-    final recent = [...list]..sort((a, b) => b.occurredAt.compareTo(a.occurredAt));
+    final recent = list; // đã theo thứ tự mới → cũ (inRange giữ thứ tự, các bộ lọc không đổi thứ tự)
 
     void openNew(int txType) {
       HapticFeedback.selectionClick();
@@ -2040,7 +2040,9 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
       return showToast(context, 'Chọn tài khoản nhận khác tài khoản nguồn', error: true);
     }
     final crossCurrency = type == TxType.transfer && toAccount!.currencyCode != account!.currencyCode;
-    final saved = store.put(E.transactions, {
+    // Ghi xuống máy NGAY (không mất dữ liệu) nhưng CHƯA báo cho các màn khác: báo sau khi màn này trượt ra xong,
+    // để các màn phía sau (Trang chủ, Giao dịch, Thống kê…) không dựng lại / tính lại đúng lúc đang chạy hiệu ứng đóng.
+    final saved = store.put(E.transactions, notify: false, {
       if (widget.id != null) 'id': widget.id,
       'type': type,
       'amount': value,
@@ -2065,11 +2067,11 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     // Ảnh đính kèm
     final existing = store.all(E.attachments).map(Attachment.new).where((a) => a.ownerId == saved['id']).toList();
     for (final a in existing.where((a) => !photos.contains(a.fileId))) {
-      store.remove(E.attachments, a.id);
+      store.remove(E.attachments, a.id, notify: false);
     }
     for (final (i, fid) in photos.indexed) {
       if (existing.any((a) => a.fileId == fid)) continue;
-      store.put(E.attachments, {'ownerType': 1, 'ownerId': saved['id'], 'fileId': fid, 'sortOrder': i});
+      store.put(E.attachments, {'ownerType': 1, 'ownerId': saved['id'], 'fileId': fid, 'sortOrder': i}, notify: false);
     }
 
     store.setMeta('lastAccountId', account!.id); // nhớ nguồn tiền vừa dùng
@@ -2097,7 +2099,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
         if (location.text.trim().isNotEmpty && latitude != null) 'latitude': latitude,
         if (location.text.trim().isNotEmpty && longitude != null) 'longitude': longitude,
       });
-      store.put(E.recurringRules, {
+      store.put(E.recurringRules, notify: false, {
         'name': note.text.trim().isNotEmpty ? note.text.trim() : (category?.name ?? 'Giao dịch định kỳ'),
         'templateJson': tpl,
         'rRule': rrule,
@@ -2106,11 +2108,18 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
       });
     }
     HapticFeedback.lightImpact();
-    for (final w in ref.read(financeProvider).budgetWarnings(Txn(saved))) {
+    // Finance mới (đọc theo phiên bản bảng hiện tại) — provider chưa được báo nên bản cũ chưa có giao dịch vừa lưu.
+    for (final w in Finance(store).budgetWarnings(Txn(saved))) {
       ref.read(notifierProvider).show('Cảnh báo định mức', w, inApp: false, kind: NotifyKind.finance);
       showToast(context, w, error: w.startsWith('Đã vượt'));
     }
-    Navigator.of(context).maybePop();
+    final route = ModalRoute.of(context);
+    Navigator.of(context).maybePop().then((popped) {
+      if (!popped) return store.commit(); // không đóng được (vd màn gốc) → báo ngay
+      // Đợi hiệu ứng đóng màn xong (tối đa 600 ms) rồi mới báo cập nhật + đồng bộ.
+      final done = route is TransitionRoute ? (route as TransitionRoute).completed : Future<void>.delayed(const Duration(milliseconds: 350));
+      done.timeout(const Duration(milliseconds: 600), onTimeout: () => null).whenComplete(store.commit);
+    });
   }
 
   /// Danh mục cha hay dùng nhất của loại hiện tại (đếm theo cả giao dịch của các danh mục con), tối đa [n].
@@ -2151,7 +2160,8 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   }
 
   List<Category> _frequentCached(Finance f, int n) {
-    final key = '$type|${category?.id}|${ref.read(storeProvider).versionKey(const [E.transactions, E.categories])}';
+    // Tính "hay dùng" một lần khi mở màn (theo loại / danh mục đang chọn / bảng danh mục); không tính lại khi bảng giao dịch đổi.
+    final key = '$type|${category?.id}|${ref.read(storeProvider).versionKey(const [E.categories])}';
     if (key != _freqKey) {
       _freqKey = key;
       _freqCache = _frequent(f, n);
@@ -2315,7 +2325,10 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    final f = ref.watch(financeProvider);
+    // Chỉ theo dõi các bảng màn này hiển thị (danh mục, tài khoản, tiền tệ, cài đặt). KHÔNG theo dõi bảng giao dịch:
+    // lúc bấm Lưu, màn đang đóng không phải dựng lại / quét lại hàng nghìn giao dịch.
+    ref.watchTables(const [E.appSettings, E.currencies, E.accounts, E.categories]);
+    final f = ref.read(financeProvider);
     final scheme = Theme.of(context).colorScheme;
     final color = txColor(type);
     final event = ref.watchTables(const [E.events]).get(E.events, eventId);
