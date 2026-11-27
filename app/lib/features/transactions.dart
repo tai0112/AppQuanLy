@@ -98,7 +98,7 @@ class GroupedTxDays extends ConsumerWidget {
                 ),
               ),
             );
-            return i < 5 ? card.stagger(i) : card;
+            return i < 6 ? card.stagger(i, slow: true) : card;
           }(),
       ],
     );
@@ -440,7 +440,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                         ),
                         Expanded(
                           child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
+                            duration: const Duration(milliseconds: 380),
                             transitionBuilder: (c, a) => FadeTransition(
                               opacity: a,
                               child: SlideTransition(
@@ -606,14 +606,16 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
             ),
             const SizedBox(height: 6),
             Expanded(
+              // Đổi tháng / đổi kiểu xem: chậm vừa phải để mắt kịp theo (vào 480 ms, ra 220 ms).
               child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 480),
+                reverseDuration: const Duration(milliseconds: 220),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
                 transitionBuilder: (c, a) => FadeTransition(
                   opacity: a,
                   child: SlideTransition(
-                    position: Tween(begin: const Offset(0, 0.03), end: Offset.zero).animate(a),
+                    position: Tween(begin: const Offset(0, 0.05), end: Offset.zero).animate(a),
                     child: c,
                   ),
                 ),
@@ -948,7 +950,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
             ),
           ),
         );
-        return i < 4 ? card.stagger(i) : card;
+        return i < 5 ? card.stagger(i, slow: true) : card;
       },
     );
   }
@@ -1872,7 +1874,7 @@ class _Total extends StatelessWidget {
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 240),
+                  duration: const Duration(milliseconds: 360),
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
                   transitionBuilder: (c, a) => FadeTransition(

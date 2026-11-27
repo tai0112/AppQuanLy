@@ -396,13 +396,15 @@ extension StaggerX on Widget {
 
   /// Hiệu ứng xuất hiện lần lượt. Phần tử được dựng do người dùng đang CUỘN thì hiện ngay (không chạy lại hiệu ứng)
   /// — tránh cảnh cuộn lên xuống mà các thẻ cứ nhảy lại, tốn khung hình.
-  Widget stagger(int index) => _Stagger(index: index, child: this);
+  /// [slow] = nhịp chậm, nhẹ nhàng hơn (vd màn Giao dịch): mỗi phần tử trễ hơn, hiện lâu hơn, bắt đầu sau một nhịp ngắn.
+  Widget stagger(int index, {bool slow = false}) => _Stagger(index: index, slow: slow, child: this);
 }
 
 class _Stagger extends StatefulWidget {
-  const _Stagger({required this.index, required this.child});
+  const _Stagger({required this.index, required this.child, this.slow = false});
   final int index;
   final Widget child;
+  final bool slow;
 
   @override
   State<_Stagger> createState() => _StaggerState();
@@ -431,12 +433,15 @@ class _StaggerState extends State<_Stagger> {
   @override
   Widget build(BuildContext context) {
     if (_play != true) return widget.child;
-    final d = (60 * (widget.index % 12)).ms;
+    final slow = widget.slow;
+    final d = slow ? (120 + 90 * (widget.index % 12)).ms : (60 * (widget.index % 12)).ms;
+    final fade = slow ? 600.ms : 450.ms;
+    final move = slow ? 700.ms : 500.ms;
     return widget.child
         .animate()
-        .fadeIn(duration: 450.ms, delay: d)
-        .slideY(begin: 0.25, end: 0, duration: 500.ms, delay: d, curve: Curves.easeOutCubic)
-        .scaleXY(begin: 0.94, end: 1, duration: 500.ms, delay: d, curve: Curves.easeOutBack);
+        .fadeIn(duration: fade, delay: d)
+        .slideY(begin: slow ? 0.18 : 0.25, end: 0, duration: move, delay: d, curve: Curves.easeOutCubic)
+        .scaleXY(begin: 0.94, end: 1, duration: move, delay: d, curve: Curves.easeOutBack);
   }
 }
 
