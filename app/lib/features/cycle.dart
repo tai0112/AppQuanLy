@@ -674,180 +674,165 @@ class _CyclePageState extends ConsumerState<CyclePage> {
             );
           }
 
-          return Padding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
+          return FormSheetBody(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            action: Row(
               children: [
-                Flexible(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(colors: [c, Color.lerp(c, Colors.black, 0.25)!]),
-                        ),
-                        child: const Icon(Icons.water_drop_rounded, color: Colors.white),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(x == null ? 'Ghi kỳ kinh' : 'Sửa kỳ kinh', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-                            Text(subject == 1 ? 'Bản thân' : 'Người yêu', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-                          ],
-                        ),
-                      ),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: days == null
-                            ? const SizedBox.shrink()
-                            : Container(
-                                key: ValueKey(days),
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                decoration: BoxDecoration(color: c.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
-                                child: Text(
-                                  '$days ngày',
-                                  style: TextStyle(fontWeight: FontWeight.w800, color: c),
-                                ),
-                              ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      dateCard('Bắt đầu', Icons.play_circle_rounded, s, () async {
-                        final d = await pickDateTime(ctx, s, withTime: false, title: 'Ngày bắt đầu');
-                        if (d != null) {
-                          set(() {
-                            s = dateOnly(d);
-                            if (e != null && e!.isBefore(s)) e = null;
-                          });
-                        }
-                      }),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: Icon(Icons.arrow_forward_rounded, size: 18, color: scheme.onSurfaceVariant),
-                      ),
-                      dateCard('Kết thúc', Icons.stop_circle_rounded, e, () async {
-                        final d = await pickDateTime(ctx, e ?? s.add(const Duration(days: 4)), withTime: false, firstDate: s, title: 'Ngày kết thúc');
-                        if (d != null) set(() => e = dateOnly(d));
-                      }, onClear: () => set(() => e = null)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      for (final n in [3, 5, 7])
-                        ChoiceChip(
-                          label: Text('$n ngày'),
-                          selected: days == n,
-                          onSelected: (_) => set(() => e = s.add(Duration(days: n - 1))),
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ChoiceChip(
-                        label: const Text('Đang diễn ra'),
-                        selected: e == null,
-                        onSelected: (_) => set(() => e = null),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Lượng máu', style: TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 8),
-                  Row(children: [flowCard(1, 'Ít'), const SizedBox(width: 8), flowCard(2, 'Vừa'), const SizedBox(width: 8), flowCard(3, 'Nhiều')]),
-                  const SizedBox(height: 16),
-                  const Text('Triệu chứng', style: TextStyle(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final t in _symptoms)
-                        FilterChip(
-                          label: Text(t),
-                          selected: picked[t]!,
-                          onSelected: (_) => toggleSymptom(t),
-                          selectedColor: c.withValues(alpha: 0.2),
-                          checkmarkColor: c,
-                          visualDensity: VisualDensity.compact,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: note,
-                    minLines: 1,
-                    maxLines: 3,
-                    onChanged: (_) => set(() {}),
-                    decoration: InputDecoration(
-                      hintText: 'Ghi chú thêm…',
-                      prefixIcon: const Icon(Icons.edit_note_rounded),
-                      filled: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                if (x != null) ...[
+                  IconButton.outlined(
+                    tooltip: 'Xoá',
+                    style: IconButton.styleFrom(
+                      foregroundColor: AppColors.expense,
+                      side: BorderSide(color: AppColors.expense.withValues(alpha: 0.5)),
+                      minimumSize: const Size(52, 52),
                     ),
+                    onPressed: () {
+                      ref.read(storeProvider).remove(E.cyclePeriods, x.id);
+                      Navigator.pop(ctx);
+                      showToast(context, 'Đã xoá kỳ kinh');
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded),
                   ),
-                      ],
-                    ),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: c, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(52)),
+                    onPressed: () {
+                      ref.read(storeProvider).put(E.cyclePeriods, {
+                        if (x != null) 'id': x.id,
+                        'subject': subject,
+                        'startDate': Fmt.isoDate(s),
+                        'endDate': e == null ? null : Fmt.isoDate(e!),
+                        'flow': flow,
+                        'note': note.text.trim().isEmpty ? null : note.text.trim(),
+                      });
+                      Navigator.pop(ctx);
+                      showToast(context, x == null ? 'Đã ghi kỳ kinh 🌸' : 'Đã cập nhật');
+                    },
+                    icon: const Icon(Icons.check_rounded),
+                    label: Text(x == null ? 'Lưu kỳ kinh' : 'Cập nhật'),
                   ),
                 ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                      if (x != null) ...[
-                        IconButton.outlined(
-                          tooltip: 'Xoá',
-                          style: IconButton.styleFrom(
-                            foregroundColor: AppColors.expense,
-                            side: BorderSide(color: AppColors.expense.withValues(alpha: 0.5)),
-                            minimumSize: const Size(52, 52),
-                          ),
-                          onPressed: () {
-                            ref.read(storeProvider).remove(E.cyclePeriods, x.id);
-                            Navigator.pop(ctx);
-                            showToast(context, 'Đã xoá kỳ kinh');
-                          },
-                          icon: const Icon(Icons.delete_outline_rounded),
-                        ),
-                        const SizedBox(width: 10),
-                      ],
-                      Expanded(
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(backgroundColor: c, foregroundColor: Colors.white, minimumSize: const Size.fromHeight(52)),
-                          onPressed: () {
-                            ref.read(storeProvider).put(E.cyclePeriods, {
-                              if (x != null) 'id': x.id,
-                              'subject': subject,
-                              'startDate': Fmt.isoDate(s),
-                              'endDate': e == null ? null : Fmt.isoDate(e!),
-                              'flow': flow,
-                              'note': note.text.trim().isEmpty ? null : note.text.trim(),
-                            });
-                            Navigator.pop(ctx);
-                            showToast(context, x == null ? 'Đã ghi kỳ kinh 🌸' : 'Đã cập nhật');
-                          },
-                          icon: const Icon(Icons.check_rounded),
-                          label: Text(x == null ? 'Lưu kỳ kinh' : 'Cập nhật'),
-                        ),
-                      ),
-                    ],
-                  ),
               ],
             ),
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: LinearGradient(colors: [c, Color.lerp(c, Colors.black, 0.25)!]),
+                    ),
+                    child: const Icon(Icons.water_drop_rounded, color: Colors.white),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(x == null ? 'Ghi kỳ kinh' : 'Sửa kỳ kinh', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+                        Text(subject == 1 ? 'Bản thân' : 'Người yêu', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: days == null
+                        ? const SizedBox.shrink()
+                        : Container(
+                            key: ValueKey(days),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(color: c.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(12)),
+                            child: Text(
+                              '$days ngày',
+                              style: TextStyle(fontWeight: FontWeight.w800, color: c),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  dateCard('Bắt đầu', Icons.play_circle_rounded, s, () async {
+                    final d = await pickDateTime(ctx, s, withTime: false, title: 'Ngày bắt đầu');
+                    if (d != null) {
+                      set(() {
+                        s = dateOnly(d);
+                        if (e != null && e!.isBefore(s)) e = null;
+                      });
+                    }
+                  }),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Icon(Icons.arrow_forward_rounded, size: 18, color: scheme.onSurfaceVariant),
+                  ),
+                  dateCard('Kết thúc', Icons.stop_circle_rounded, e, () async {
+                    final d = await pickDateTime(ctx, e ?? s.add(const Duration(days: 4)), withTime: false, firstDate: s, title: 'Ngày kết thúc');
+                    if (d != null) set(() => e = dateOnly(d));
+                  }, onClear: () => set(() => e = null)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final n in [3, 5, 7])
+                    ChoiceChip(
+                      label: Text('$n ngày'),
+                      selected: days == n,
+                      onSelected: (_) => set(() => e = s.add(Duration(days: n - 1))),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ChoiceChip(
+                    label: const Text('Đang diễn ra'),
+                    selected: e == null,
+                    onSelected: (_) => set(() => e = null),
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('Lượng máu', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Row(children: [flowCard(1, 'Ít'), const SizedBox(width: 8), flowCard(2, 'Vừa'), const SizedBox(width: 8), flowCard(3, 'Nhiều')]),
+              const SizedBox(height: 16),
+              const Text('Triệu chứng', style: TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final t in _symptoms)
+                    FilterChip(
+                      label: Text(t),
+                      selected: picked[t]!,
+                      onSelected: (_) => toggleSymptom(t),
+                      selectedColor: c.withValues(alpha: 0.2),
+                      checkmarkColor: c,
+                      visualDensity: VisualDensity.compact,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: note,
+                minLines: 1,
+                maxLines: 3,
+                onChanged: (_) => set(() {}),
+                decoration: InputDecoration(
+                  hintText: 'Ghi chú thêm…',
+                  prefixIcon: const Icon(Icons.edit_note_rounded),
+                  filled: true,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -865,90 +850,75 @@ class _CyclePageState extends ConsumerState<CyclePage> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, set) => Padding(
+        builder: (ctx, set) => FormSheetBody(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Cấu hình chu kỳ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                Text('Chu kỳ mặc định: ${cycle.round()} ngày'),
-                Slider(value: cycle, min: 21, max: 45, divisions: 24, onChanged: (v) => set(() => cycle = v)),
-                Text('Số ngày hành kinh mặc định: ${period.round()}'),
-                Slider(value: period, min: 2, max: 10, divisions: 8, onChanged: (v) => set(() => period = v)),
-                Text('Pha hoàng thể: ${luteal.round()} ngày (rụng trứng trước kỳ sau)'),
-                Slider(value: luteal, min: 10, max: 16, divisions: 6, onChanged: (v) => set(() => luteal = v)),
-                Text('Dễ thụ thai: ${before.round()} ngày trước → ${after.round()} ngày sau rụng trứng'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(value: before, min: 0, max: 7, divisions: 7, onChanged: (v) => set(() => before = v)),
-                    ),
-                    Expanded(
-                      child: Slider(value: after, min: 0, max: 3, divisions: 3, onChanged: (v) => set(() => after = v)),
-                    ),
-                  ],
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: daily,
-                  onChanged: (v) => set(() => daily = v),
-                  secondary: const Icon(Icons.notifications_active_rounded, color: AppColors.cycle),
-                  title: const Text('Thông báo mỗi ngày'),
-                  subtitle: const Text('Giai đoạn hôm nay, sắp đến kỳ, trễ kinh, ngày dễ thụ thai…'),
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 250),
-                  child: !daily
-                      ? const SizedBox(width: double.infinity)
-                      : ListTile(
-                          contentPadding: const EdgeInsets.only(left: 40),
-                          leading: const Icon(Icons.schedule_rounded),
-                          title: const Text('Giờ nhận thông báo'),
-                          trailing: Text(remindAt.format(ctx), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                          onTap: () async {
-                            final t = await showModernTimePicker(ctx, initial: remindAt, title: 'Giờ nhận thông báo');
-                            if (t != null) set(() => remindAt = t);
-                          },
-                        ),
-                ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  value: sync,
-                  onChanged: (v) => set(() => sync = v),
-                  title: const Text('Đồng bộ dữ liệu chu kỳ lên máy chủ'),
-                  subtitle: const Text('Tắt: dữ liệu chỉ lưu trên máy này'),
-                ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: () {
-                  ref.read(storeProvider).put(E.cycleSettings, {
-                    ...s.m,
-                    'subject': subject,
-                    'defaultCycleDays': cycle.round(),
-                    'defaultPeriodDays': period.round(),
-                    'lutealDays': luteal.round(),
-                    'fertileDaysBefore': before.round(),
-                    'fertileDaysAfter': after.round(),
-                    'syncEnabled': sync,
-                    'remindersJson': jsonEncode({'daily': daily, 'hour': remindAt.hour, 'minute': remindAt.minute}),
-                  });
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Lưu'),
-              ),
-            ],
+          action: FilledButton(
+            onPressed: () {
+              ref.read(storeProvider).put(E.cycleSettings, {
+                ...s.m,
+                'subject': subject,
+                'defaultCycleDays': cycle.round(),
+                'defaultPeriodDays': period.round(),
+                'lutealDays': luteal.round(),
+                'fertileDaysBefore': before.round(),
+                'fertileDaysAfter': after.round(),
+                'syncEnabled': sync,
+                'remindersJson': jsonEncode({'daily': daily, 'hour': remindAt.hour, 'minute': remindAt.minute}),
+              });
+              Navigator.pop(ctx);
+            },
+            child: const Text('Lưu'),
           ),
+          children: [
+            const Text('Cấu hình chu kỳ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            Text('Chu kỳ mặc định: ${cycle.round()} ngày'),
+            Slider(value: cycle, min: 21, max: 45, divisions: 24, onChanged: (v) => set(() => cycle = v)),
+            Text('Số ngày hành kinh mặc định: ${period.round()}'),
+            Slider(value: period, min: 2, max: 10, divisions: 8, onChanged: (v) => set(() => period = v)),
+            Text('Pha hoàng thể: ${luteal.round()} ngày (rụng trứng trước kỳ sau)'),
+            Slider(value: luteal, min: 10, max: 16, divisions: 6, onChanged: (v) => set(() => luteal = v)),
+            Text('Dễ thụ thai: ${before.round()} ngày trước → ${after.round()} ngày sau rụng trứng'),
+            Row(
+              children: [
+                Expanded(
+                  child: Slider(value: before, min: 0, max: 7, divisions: 7, onChanged: (v) => set(() => before = v)),
+                ),
+                Expanded(
+                  child: Slider(value: after, min: 0, max: 3, divisions: 3, onChanged: (v) => set(() => after = v)),
+                ),
+              ],
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: daily,
+              onChanged: (v) => set(() => daily = v),
+              secondary: const Icon(Icons.notifications_active_rounded, color: AppColors.cycle),
+              title: const Text('Thông báo mỗi ngày'),
+              subtitle: const Text('Giai đoạn hôm nay, sắp đến kỳ, trễ kinh, ngày dễ thụ thai…'),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              child: !daily
+                  ? const SizedBox(width: double.infinity)
+                  : ListTile(
+                      contentPadding: const EdgeInsets.only(left: 40),
+                      leading: const Icon(Icons.schedule_rounded),
+                      title: const Text('Giờ nhận thông báo'),
+                      trailing: Text(remindAt.format(ctx), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                      onTap: () async {
+                        final t = await showModernTimePicker(ctx, initial: remindAt, title: 'Giờ nhận thông báo');
+                        if (t != null) set(() => remindAt = t);
+                      },
+                    ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: sync,
+              onChanged: (v) => set(() => sync = v),
+              title: const Text('Đồng bộ dữ liệu chu kỳ lên máy chủ'),
+              subtitle: const Text('Tắt: dữ liệu chỉ lưu trên máy này'),
+            ),
+          ],
         ),
       ),
     );

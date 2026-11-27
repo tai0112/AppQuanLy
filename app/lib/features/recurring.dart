@@ -61,7 +61,10 @@ class RecurringPage extends ConsumerWidget {
                     Icon(Icons.event_repeat_rounded, size: 18, color: scheme.primary),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text('Ước tính mỗi tháng', style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant, fontSize: 13)),
+                      child: Text(
+                        'Ước tính mỗi tháng',
+                        style: TextStyle(fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant, fontSize: 13),
+                      ),
                     ),
                     Text(
                       '${rules.where((r) => r.isActive).length}/${rules.length} đang bật',
@@ -79,11 +82,17 @@ class RecurringPage extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Thu định kỳ', style: TextStyle(fontSize: 11, color: AppColors.income, fontWeight: FontWeight.w600)),
+                            const Text(
+                              'Thu định kỳ',
+                              style: TextStyle(fontSize: 11, color: AppColors.income, fontWeight: FontWeight.w600),
+                            ),
                             const SizedBox(height: 2),
                             FittedBox(
                               fit: BoxFit.scaleDown,
-                              child: Text(f.money(estIncome), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.income)),
+                              child: Text(
+                                f.money(estIncome),
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.income),
+                              ),
                             ),
                           ],
                         ),
@@ -97,11 +106,17 @@ class RecurringPage extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Chi định kỳ', style: TextStyle(fontSize: 11, color: AppColors.expense, fontWeight: FontWeight.w600)),
+                            const Text(
+                              'Chi định kỳ',
+                              style: TextStyle(fontSize: 11, color: AppColors.expense, fontWeight: FontWeight.w600),
+                            ),
                             const SizedBox(height: 2),
                             FittedBox(
                               fit: BoxFit.scaleDown,
-                              child: Text(f.money(estExpense), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.expense)),
+                              child: Text(
+                                f.money(estExpense),
+                                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: AppColors.expense),
+                              ),
                             ),
                           ],
                         ),
@@ -125,8 +140,7 @@ class RecurringPage extends ConsumerWidget {
               ),
             )
           else
-            for (final (i, r) in rules.indexed)
-              _RuleCard(rule: r, finance: f).stagger(i),
+            for (final (i, r) in rules.indexed) _RuleCard(rule: r, finance: f).stagger(i),
         ],
       ),
     );
@@ -157,17 +171,18 @@ class _RuleCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  CircleIcon(
-                    icon: rule.type == TxType.transfer ? 'swap_horiz' : cat?.icon,
-                    color: color,
-                    size: 42,
-                  ),
+                  CircleIcon(icon: rule.type == TxType.transfer ? 'swap_horiz' : cat?.icon, color: color, size: 42),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(rule.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(
+                          rule.name,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 2),
                         Text(
                           [freqLabel, if (acc != null) acc.name].join(' · '),
@@ -186,10 +201,7 @@ class _RuleCard extends ConsumerWidget {
                         '${rule.type == TxType.income ? '+' : (rule.type == TxType.expense ? '-' : '')}${finance.money(rule.amount, rule.currencyCode)}',
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: txColor(rule.type)),
                       ),
-                      Text(
-                        'Tới: ${Fmt.dateShort(rule.nextRunAt.toLocal())}',
-                        style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-                      ),
+                      Text('Tới: ${Fmt.dateShort(rule.nextRunAt.toLocal())}', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
                     ],
                   ),
                 ],
@@ -232,10 +244,7 @@ class _RuleCard extends ConsumerWidget {
                   const Spacer(),
                   Text(rule.isActive ? 'Đang bật' : 'Tạm dừng', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                   const SizedBox(width: 6),
-                  Switch.adaptive(
-                    value: rule.isActive,
-                    onChanged: (v) => ref.read(storeProvider).put(E.recurringRules, {...rule.m, 'isActive': v}),
-                  ),
+                  Switch.adaptive(value: rule.isActive, onChanged: (v) => ref.read(storeProvider).put(E.recurringRules, {...rule.m, 'isActive': v})),
                 ],
               ),
             ],
@@ -263,7 +272,9 @@ Future<void> editRecurringRule(BuildContext context, WidgetRef ref, RecurringRul
   final parsed = Recurrence.parse(existing?.rrule);
   var freq = parsed['FREQ'] ?? 'MONTHLY';
   var interval = int.tryParse(parsed['INTERVAL'] ?? '1') ?? 1;
-  var weekdays = parsed['BYDAY']?.split(',').map((x) => ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(x) + 1).where((w) => w >= 1).toSet() ?? {DateTime.now().weekday};
+  var weekdays =
+      parsed['BYDAY']?.split(',').map((x) => ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'].indexOf(x) + 1).where((w) => w >= 1).toSet() ??
+      {DateTime.now().weekday};
   var nextRun = existing?.nextRunAt.toLocal() ?? DateTime.now();
   var isActive = existing?.isActive ?? true;
 
@@ -278,226 +289,205 @@ Future<void> editRecurringRule(BuildContext context, WidgetRef ref, RecurringRul
         final scheme = Theme.of(ctx).colorScheme;
         final color = txColor(type);
         final sym = f.currency(account?.currencyCode ?? f.baseCurrency)?.symbol ?? '';
-        return Padding(
-          padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        return FormSheetBody(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          action: Row(
             children: [
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(existing == null ? 'Thêm giao dịch định kỳ' : 'Sửa giao dịch định kỳ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 12),
-                      PillToggle<int>(
-                        value: type,
-                        values: const [TxType.expense, TxType.income, TxType.transfer],
-                        labels: const ['Khoản chi', 'Khoản thu', 'Chuyển tiền'],
-                        icons: const [Icons.north_east_rounded, Icons.south_west_rounded, Icons.swap_horiz_rounded],
-                        colors: const [AppColors.expense, AppColors.income, AppColors.transfer],
-                        onChanged: (v) => set(() {
-                          type = v;
-                          if (category != null && category!.type != type) category = null;
-                        }),
-                      ),
-                      const SizedBox(height: 14),
-                      AmountField(controller: amount, label: 'Số tiền', suffix: sym),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: name,
-                        decoration: InputDecoration(
-                          labelText: 'Tên quy tắc (VD: Tiền nhà, Lương)',
-                          prefixIcon: const Icon(Icons.label_outline_rounded),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      AccountChips(
-                        label: type == TxType.transfer ? 'Từ tài khoản' : (type == TxType.income ? 'Nhận vào' : 'Trả bằng'),
-                        selected: account?.id,
-                        onChanged: (a) => set(() {
-                          account = a;
-                          if (toAccount?.id == a.id) toAccount = null;
-                        }),
-                      ),
-                      if (type == TxType.transfer) ...[
-                        const SizedBox(height: 8),
-                        AccountChips(label: 'Đến tài khoản', selected: toAccount?.id, exclude: account?.id, onChanged: (a) => set(() => toAccount = a)),
-                      ] else
-                        InfoTile(
-                          icon: iconOf(category?.icon),
-                          color: hexColor(category?.color, color),
-                          label: 'Danh mục',
-                          value: category?.name ?? 'Chọn danh mục',
-                          onTap: () async {
-                            final c = await pickCategory(ctx, ref, type);
-                            if (c != null) {
-                              set(() {
-                                category = c;
-                                if (name.text.trim().isEmpty) name.text = c.name;
-                              });
-                            }
-                          },
-                        ),
-                      const SizedBox(height: 10),
-                      const Text('Tần suất lặp', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 6,
-                        children: [
-                          for (final (code, label) in [
-                            ('DAILY', 'Hằng ngày'),
-                            ('WEEKLY', 'Hằng tuần'),
-                            ('MONTHLY', 'Hằng tháng'),
-                            ('YEARLY', 'Hằng năm'),
-                          ])
-                            ChoiceChip(
-                              label: Text(label),
-                              selected: freq == code,
-                              onSelected: (_) => set(() => freq = code),
-                            ),
-                        ],
-                      ),
-                      if (freq == 'WEEKLY') ...[
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 6,
-                          children: [
-                            for (var d = 1; d <= 7; d++)
-                              FilterChip(
-                                label: Text(Fmt.weekdaysShort[d - 1]),
-                                selected: weekdays.contains(d),
-                                visualDensity: VisualDensity.compact,
-                                onSelected: (on) => set(() {
-                                  if (on) {
-                                    weekdays.add(d);
-                                  } else if (weekdays.length > 1) {
-                                    weekdays.remove(d);
-                                  }
-                                }),
-                              ),
-                          ],
-                        ),
-                      ],
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Text('Mỗi $interval ${switch (freq) {
-                            'DAILY' => 'ngày',
-                            'WEEKLY' => 'tuần',
-                            'YEARLY' => 'năm',
-                            _ => 'tháng',
-                          }}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                          const Spacer(),
-                          IconButton.filledTonal(
-                            visualDensity: VisualDensity.compact,
-                            onPressed: interval > 1 ? () => set(() => interval--) : null,
-                            icon: const Icon(Icons.remove_rounded, size: 18),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton.filledTonal(
-                            visualDensity: VisualDensity.compact,
-                            onPressed: interval < 30 ? () => set(() => interval++) : null,
-                            icon: const Icon(Icons.add_rounded, size: 18),
-                          ),
-                        ],
-                      ),
-                      InfoTile(
-                        icon: Icons.event_rounded,
-                        color: scheme.primary,
-                        label: 'Lần chạy kế tiếp',
-                        value: '${Fmt.time(nextRun)} · ${Fmt.date(nextRun)}',
-                        onTap: () async {
-                          final d = await pickDateTime(ctx, nextRun, title: 'Chọn ngày bắt đầu / lần tới');
-                          if (d != null) set(() => nextRun = d);
-                        },
-                      ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: note,
-                        decoration: InputDecoration(
-                          labelText: 'Ghi chú (tuỳ chọn)',
-                          prefixIcon: const Icon(Icons.notes_rounded),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                      ),
-                      if (existing != null)
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const Text('Đang bật tự động'),
-                          value: isActive,
-                          onChanged: (v) => set(() => isActive = v),
-                        ),
-                    ],
+              if (existing != null) ...[
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.expense,
+                    side: const BorderSide(color: AppColors.expense),
+                    minimumSize: const Size(0, 50),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  label: const Text('Xoá'),
+                  onPressed: () {
+                    store.remove(E.recurringRules, existing.id);
+                    Navigator.pop(ctx);
+                  },
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (existing != null) ...[
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.expense,
-                        side: const BorderSide(color: AppColors.expense),
-                        minimumSize: const Size(0, 50),
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      icon: const Icon(Icons.delete_outline_rounded),
-                      label: const Text('Xoá'),
-                      onPressed: () {
-                        store.remove(E.recurringRules, existing.id);
-                        Navigator.pop(ctx);
-                      },
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      ),
-                      onPressed: () {
-                        final amt = parseAmount(amount.text);
-                        if (amt <= 0) return showToast(ctx, 'Nhập số tiền hợp lệ', error: true);
-                        if (account == null) return showToast(ctx, 'Chọn tài khoản', error: true);
-                        if (type == TxType.transfer && toAccount == null) return showToast(ctx, 'Chọn tài khoản nhận', error: true);
-                        final ruleName = name.text.trim().isNotEmpty ? name.text.trim() : (category?.name ?? 'Giao dịch định kỳ');
-                        final rrule = Recurrence.build(freq, weekdays: weekdays.toList()..sort(), interval: interval) ?? 'FREQ=MONTHLY';
-                        final tpl = jsonEncode({
-                          'type': type,
-                          'amount': amt,
-                          'currencyCode': account!.currencyCode,
-                          'accountId': account!.id,
-                          if (type == TxType.transfer && toAccount != null) 'toAccountId': toAccount!.id,
-                          if (type != TxType.transfer && category != null) 'categoryId': category!.id,
-                          if (note.text.trim().isNotEmpty) 'note': note.text.trim(),
-                        });
-                        store.put(E.recurringRules, {
-                          if (existing != null) 'id': existing.id,
-                          'name': ruleName,
-                          'templateJson': tpl,
-                          'rRule': rrule,
-                          'nextRunAt': toIso8601WithOffset(nextRun),
-                          'isActive': isActive,
-                        });
-                        runDueRecurringRules(store);
-                        HapticFeedback.lightImpact();
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('Lưu quy tắc', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                    ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
-                ],
+                  onPressed: () {
+                    final amt = parseAmount(amount.text);
+                    if (amt <= 0) return showToast(ctx, 'Nhập số tiền hợp lệ', error: true);
+                    if (account == null) return showToast(ctx, 'Chọn tài khoản', error: true);
+                    if (type == TxType.transfer && toAccount == null) return showToast(ctx, 'Chọn tài khoản nhận', error: true);
+                    final ruleName = name.text.trim().isNotEmpty ? name.text.trim() : (category?.name ?? 'Giao dịch định kỳ');
+                    final rrule = Recurrence.build(freq, weekdays: weekdays.toList()..sort(), interval: interval) ?? 'FREQ=MONTHLY';
+                    final tpl = jsonEncode({
+                      'type': type,
+                      'amount': amt,
+                      'currencyCode': account!.currencyCode,
+                      'accountId': account!.id,
+                      if (type == TxType.transfer && toAccount != null) 'toAccountId': toAccount!.id,
+                      if (type != TxType.transfer && category != null) 'categoryId': category!.id,
+                      if (note.text.trim().isNotEmpty) 'note': note.text.trim(),
+                    });
+                    store.put(E.recurringRules, {
+                      if (existing != null) 'id': existing.id,
+                      'name': ruleName,
+                      'templateJson': tpl,
+                      'rRule': rrule,
+                      'nextRunAt': toIso8601WithOffset(nextRun),
+                      'isActive': isActive,
+                    });
+                    runDueRecurringRules(store);
+                    HapticFeedback.lightImpact();
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Lưu quy tắc', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
               ),
             ],
           ),
+          children: [
+            Text(existing == null ? 'Thêm giao dịch định kỳ' : 'Sửa giao dịch định kỳ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            PillToggle<int>(
+              value: type,
+              values: const [TxType.expense, TxType.income, TxType.transfer],
+              labels: const ['Khoản chi', 'Khoản thu', 'Chuyển tiền'],
+              icons: const [Icons.north_east_rounded, Icons.south_west_rounded, Icons.swap_horiz_rounded],
+              colors: const [AppColors.expense, AppColors.income, AppColors.transfer],
+              onChanged: (v) => set(() {
+                type = v;
+                if (category != null && category!.type != type) category = null;
+              }),
+            ),
+            const SizedBox(height: 14),
+            AmountField(controller: amount, label: 'Số tiền', suffix: sym),
+            const SizedBox(height: 12),
+            TextField(
+              controller: name,
+              decoration: InputDecoration(
+                labelText: 'Tên quy tắc (VD: Tiền nhà, Lương)',
+                prefixIcon: const Icon(Icons.label_outline_rounded),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            AccountChips(
+              label: type == TxType.transfer ? 'Từ tài khoản' : (type == TxType.income ? 'Nhận vào' : 'Trả bằng'),
+              selected: account?.id,
+              onChanged: (a) => set(() {
+                account = a;
+                if (toAccount?.id == a.id) toAccount = null;
+              }),
+            ),
+            if (type == TxType.transfer) ...[
+              const SizedBox(height: 8),
+              AccountChips(label: 'Đến tài khoản', selected: toAccount?.id, exclude: account?.id, onChanged: (a) => set(() => toAccount = a)),
+            ] else
+              InfoTile(
+                icon: iconOf(category?.icon),
+                color: hexColor(category?.color, color),
+                label: 'Danh mục',
+                value: category?.name ?? 'Chọn danh mục',
+                onTap: () async {
+                  final c = await pickCategory(ctx, ref, type);
+                  if (c != null) {
+                    set(() {
+                      category = c;
+                      if (name.text.trim().isEmpty) name.text = c.name;
+                    });
+                  }
+                },
+              ),
+            const SizedBox(height: 10),
+            const Text('Tần suất lặp', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: [
+                for (final (code, label) in [('DAILY', 'Hằng ngày'), ('WEEKLY', 'Hằng tuần'), ('MONTHLY', 'Hằng tháng'), ('YEARLY', 'Hằng năm')])
+                  ChoiceChip(label: Text(label), selected: freq == code, onSelected: (_) => set(() => freq = code)),
+              ],
+            ),
+            if (freq == 'WEEKLY') ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (var d = 1; d <= 7; d++)
+                    FilterChip(
+                      label: Text(Fmt.weekdaysShort[d - 1]),
+                      selected: weekdays.contains(d),
+                      visualDensity: VisualDensity.compact,
+                      onSelected: (on) => set(() {
+                        if (on) {
+                          weekdays.add(d);
+                        } else if (weekdays.length > 1) {
+                          weekdays.remove(d);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Text(
+                  'Mỗi $interval ${switch (freq) {
+                    'DAILY' => 'ngày',
+                    'WEEKLY' => 'tuần',
+                    'YEARLY' => 'năm',
+                    _ => 'tháng',
+                  }}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                IconButton.filledTonal(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: interval > 1 ? () => set(() => interval--) : null,
+                  icon: const Icon(Icons.remove_rounded, size: 18),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: interval < 30 ? () => set(() => interval++) : null,
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                ),
+              ],
+            ),
+            InfoTile(
+              icon: Icons.event_rounded,
+              color: scheme.primary,
+              label: 'Lần chạy kế tiếp',
+              value: '${Fmt.time(nextRun)} · ${Fmt.date(nextRun)}',
+              onTap: () async {
+                final d = await pickDateTime(ctx, nextRun, title: 'Chọn ngày bắt đầu / lần tới');
+                if (d != null) set(() => nextRun = d);
+              },
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: note,
+              decoration: InputDecoration(
+                labelText: 'Ghi chú (tuỳ chọn)',
+                prefixIcon: const Icon(Icons.notes_rounded),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+            if (existing != null)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Đang bật tự động'),
+                value: isActive,
+                onChanged: (v) => set(() => isActive = v),
+              ),
+          ],
         );
       },
     ),

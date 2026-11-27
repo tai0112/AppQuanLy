@@ -439,104 +439,83 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) {
           final scheme = Theme.of(ctx).colorScheme;
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 8,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          return FormSheetBody(
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 24),
+            action: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                if (current.text.isEmpty) {
+                  return set(() => error = 'Vui lòng nhập mật khẩu hiện tại');
+                }
+                if (next.text.length < 6) {
+                  return set(() => error = 'Mật khẩu mới tối thiểu 6 ký tự');
+                }
+                if (next.text != again.text) {
+                  return set(() => error = 'Mật khẩu nhập lại không khớp');
+                }
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Xác nhận đổi mật khẩu', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.lock_reset_rounded, color: scheme.primary, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Text(
-                          'Đổi mật khẩu',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+                    child: Icon(Icons.lock_reset_rounded, color: scheme.primary, size: 24),
                   ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: current,
-                    obscureText: hideCurrent,
-                    decoration: InputDecoration(
-                      labelText: 'Mật khẩu hiện tại',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(hideCurrent ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                        onPressed: () => set(() => hideCurrent = !hideCurrent),
-                      ),
-                    ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text('Đổi mật khẩu', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                   ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: next,
-                    obscureText: hideNext,
-                    decoration: InputDecoration(
-                      labelText: 'Mật khẩu mới (tối thiểu 6 ký tự)',
-                      prefixIcon: const Icon(Icons.key_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(hideNext ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                        onPressed: () => set(() => hideNext = !hideNext),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: again,
-                    obscureText: hideAgain,
-                    decoration: InputDecoration(
-                      labelText: 'Nhập lại mật khẩu mới',
-                      errorText: error,
-                      prefixIcon: const Icon(Icons.check_circle_outline_rounded),
-                      suffixIcon: IconButton(
-                        icon: Icon(hideAgain ? Icons.visibility_off_rounded : Icons.visibility_rounded),
-                        onPressed: () => set(() => hideAgain = !hideAgain),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    onPressed: () {
-                      if (current.text.isEmpty) {
-                        return set(() => error = 'Vui lòng nhập mật khẩu hiện tại');
-                      }
-                      if (next.text.length < 6) {
-                        return set(() => error = 'Mật khẩu mới tối thiểu 6 ký tự');
-                      }
-                      if (next.text != again.text) {
-                        return set(() => error = 'Mật khẩu nhập lại không khớp');
-                      }
-                      Navigator.pop(ctx, true);
-                    },
-                    child: const Text('Xác nhận đổi mật khẩu', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                  ),
+                  IconButton(onPressed: () => Navigator.pop(ctx, false), icon: const Icon(Icons.close_rounded)),
                 ],
               ),
-            ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: current,
+                obscureText: hideCurrent,
+                decoration: InputDecoration(
+                  labelText: 'Mật khẩu hiện tại',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    icon: Icon(hideCurrent ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                    onPressed: () => set(() => hideCurrent = !hideCurrent),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: next,
+                obscureText: hideNext,
+                decoration: InputDecoration(
+                  labelText: 'Mật khẩu mới (tối thiểu 6 ký tự)',
+                  prefixIcon: const Icon(Icons.key_rounded),
+                  suffixIcon: IconButton(
+                    icon: Icon(hideNext ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                    onPressed: () => set(() => hideNext = !hideNext),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: again,
+                obscureText: hideAgain,
+                decoration: InputDecoration(
+                  labelText: 'Nhập lại mật khẩu mới',
+                  errorText: error,
+                  prefixIcon: const Icon(Icons.check_circle_outline_rounded),
+                  suffixIcon: IconButton(
+                    icon: Icon(hideAgain ? Icons.visibility_off_rounded : Icons.visibility_rounded),
+                    onPressed: () => set(() => hideAgain = !hideAgain),
+                  ),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -563,77 +542,58 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 8,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      builder: (ctx) => FormSheetBody(
+        padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 24),
+        action: Row(
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(Icons.dns_rounded, color: Theme.of(ctx).colorScheme.primary, size: 24),
-                ),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Text(
-                    'Địa chỉ máy chủ',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(ctx, false),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: c,
-              keyboardType: TextInputType.url,
-              decoration: const InputDecoration(
-                labelText: 'URL API Máy chủ',
-                hintText: AppConfig.prodApiUrl,
-                helperText: 'Để trống = dùng máy chủ mặc định',
-                prefixIcon: Icon(Icons.link_rounded),
+            Expanded(
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                onPressed: () {
+                  c.text = '';
+                  Navigator.pop(ctx, true);
+                },
+                child: const Text('Mặc định'),
               ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                    onPressed: () {
-                      c.text = '';
-                      Navigator.pop(ctx, true);
-                    },
-                    child: const Text('Mặc định'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Lưu kết nối'),
-                  ),
-                ),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: FilledButton(
+                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(50)),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Lưu kết nối'),
+              ),
             ),
           ],
         ),
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+                child: Icon(Icons.dns_rounded, color: Theme.of(ctx).colorScheme.primary, size: 24),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Text('Địa chỉ máy chủ', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              ),
+              IconButton(onPressed: () => Navigator.pop(ctx, false), icon: const Icon(Icons.close_rounded)),
+            ],
+          ),
+          const SizedBox(height: 20),
+          TextField(
+            controller: c,
+            keyboardType: TextInputType.url,
+            decoration: const InputDecoration(
+              labelText: 'URL API Máy chủ',
+              hintText: AppConfig.prodApiUrl,
+              helperText: 'Để trống = dùng máy chủ mặc định',
+              prefixIcon: Icon(Icons.link_rounded),
+            ),
+          ),
+        ],
       ),
     );
     if (ok == true) {
@@ -662,133 +622,95 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) {
           final scheme = Theme.of(ctx).colorScheme;
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 8,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          return FormSheetBody(
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 24),
+            action: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Lưu thay đổi', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.person_rounded, color: scheme.primary, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Text(
-                          'Hồ sơ cá nhân',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+                    child: Icon(Icons.person_rounded, color: scheme.primary, size: 24),
                   ),
-                  const SizedBox(height: 20),
-                  // Avatar đổi ảnh
-                  Center(
-                    child: Stack(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: scheme.primary.withValues(alpha: 0.3), width: 2),
-                          ),
-                          child: avatarFid != null
-                              ? ClipOval(child: SizedBox(width: 80, height: 80, child: FileImage2(avatarFid!)))
-                              : UserAvatar(user, radius: 40),
-                        ),
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: GestureDetector(
-                            onTap: () async {
-                              final picked = await pickPhotos(ctx, ref, multiple: false);
-                              if (picked.isNotEmpty) {
-                                set(() => avatarFid = picked.first);
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text('Hồ sơ cá nhân', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                   ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: name,
-                    decoration: const InputDecoration(
-                      labelText: 'Tên hiển thị',
-                      prefixIcon: Icon(Icons.badge_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: bio,
-                    maxLines: 3,
-                    minLines: 1,
-                    decoration: const InputDecoration(
-                      labelText: 'Giới thiệu bản thân',
-                      prefixIcon: Icon(Icons.edit_note_rounded),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.alternate_email_rounded, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            '${user['username']} · ${user['email']}',
-                            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
-                          ),
-                        ),
-                        Icon(Icons.verified_user_rounded, size: 18, color: scheme.primary),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    onPressed: () => Navigator.pop(ctx, true),
-                    child: const Text('Lưu thay đổi', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                  ),
+                  IconButton(onPressed: () => Navigator.pop(ctx, false), icon: const Icon(Icons.close_rounded)),
                 ],
               ),
-            ),
+              const SizedBox(height: 20),
+              // Avatar đổi ảnh
+              Center(
+                child: Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: scheme.primary.withValues(alpha: 0.3), width: 2),
+                      ),
+                      child: avatarFid != null ? ClipOval(child: SizedBox(width: 80, height: 80, child: FileImage2(avatarFid!))) : UserAvatar(user, radius: 40),
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: GestureDetector(
+                        onTap: () async {
+                          final picked = await pickPhotos(ctx, ref, multiple: false);
+                          if (picked.isNotEmpty) {
+                            set(() => avatarFid = picked.first);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 6, offset: const Offset(0, 2))],
+                          ),
+                          child: const Icon(Icons.camera_alt_rounded, size: 18, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: name,
+                decoration: const InputDecoration(labelText: 'Tên hiển thị', prefixIcon: Icon(Icons.badge_outlined)),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: bio,
+                maxLines: 3,
+                minLines: 1,
+                decoration: const InputDecoration(labelText: 'Giới thiệu bản thân', prefixIcon: Icon(Icons.edit_note_rounded)),
+              ),
+              const SizedBox(height: 14),
+              AppCard(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.alternate_email_rounded, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text('${user['username']} · ${user['email']}', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                    ),
+                    Icon(Icons.verified_user_rounded, size: 18, color: scheme.primary),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -1489,12 +1411,7 @@ class SyncStatusPage extends ConsumerWidget {
 
     final (statusColor, statusIcon, statusTitle, statusSub) = switch (sync.state) {
       SyncState.syncing => (scheme.primary, Icons.sync_rounded, 'Đang đồng bộ...', 'Đang trao đổi dữ liệu với máy chủ'),
-      SyncState.error => (
-        AppColors.expense,
-        Icons.cloud_off_rounded,
-        'Đồng bộ gặp lỗi',
-        sync.lastError ?? 'Chưa kết nối được máy chủ',
-      ),
+      SyncState.error => (AppColors.expense, Icons.cloud_off_rounded, 'Đồng bộ gặp lỗi', sync.lastError ?? 'Chưa kết nối được máy chủ'),
       _ => (
         AppColors.income,
         Icons.cloud_done_rounded,
@@ -1526,9 +1443,7 @@ class SyncStatusPage extends ConsumerWidget {
       if (confirm == true) {
         await store.clearDownloadedFiles();
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Đã dọn sạch ảnh trên máy, giải phóng dung lượng')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã dọn sạch ảnh trên máy, giải phóng dung lượng')));
         }
       }
     }
@@ -1551,9 +1466,15 @@ class SyncStatusPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 10),
-          Text('$count', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: count > 0 ? color : scheme.onSurface)),
+          Text(
+            '$count',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: count > 0 ? color : scheme.onSurface),
+          ),
           const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500),
+          ),
         ],
       ),
     );
@@ -1571,10 +1492,7 @@ class SyncStatusPage extends ConsumerWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  statusColor.withValues(alpha: 0.16),
-                  statusColor.withValues(alpha: 0.05),
-                ],
+                colors: [statusColor.withValues(alpha: 0.16), statusColor.withValues(alpha: 0.05)],
               ),
               border: Border.all(color: statusColor.withValues(alpha: 0.28)),
             ),
@@ -1586,10 +1504,7 @@ class SyncStatusPage extends ConsumerWidget {
                     Container(
                       width: 48,
                       height: 48,
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.18),
-                        shape: BoxShape.circle,
-                      ),
+                      decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.18), shape: BoxShape.circle),
                       child: Icon(statusIcon, color: statusColor, size: 26),
                     ),
                     const SizedBox(width: 14),
@@ -1597,7 +1512,10 @@ class SyncStatusPage extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(statusTitle, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: statusColor)),
+                          Text(
+                            statusTitle,
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: statusColor),
+                          ),
                           const SizedBox(height: 2),
                           Text(statusSub, style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant)),
                         ],
@@ -1612,18 +1530,11 @@ class SyncStatusPage extends ConsumerWidget {
                   children: [
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: scheme.surface.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
+                      decoration: BoxDecoration(color: scheme.surface.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(999)),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.circle,
-                            size: 8,
-                            color: rt.connected ? AppColors.income : scheme.outline,
-                          ),
+                          Icon(Icons.circle, size: 8, color: rt.connected ? AppColors.income : scheme.outline),
                           const SizedBox(width: 6),
                           Text(
                             rt.connected ? 'Realtime: Đã kết nối' : 'Realtime: Chưa kết nối',
@@ -1634,10 +1545,7 @@ class SyncStatusPage extends ConsumerWidget {
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: scheme.surface.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
+                      decoration: BoxDecoration(color: scheme.surface.withValues(alpha: 0.85), borderRadius: BorderRadius.circular(999)),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1665,10 +1573,7 @@ class SyncStatusPage extends ConsumerWidget {
               secondary: Container(
                 width: 40,
                 height: 40,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
                 child: Icon(sync.autoSync ? Icons.cloud_sync_rounded : Icons.phone_iphone_rounded, color: scheme.primary),
               ),
               title: const Text('Tự động đồng bộ', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -1710,11 +1615,11 @@ class SyncStatusPage extends ConsumerWidget {
                           onTap: clearCache,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.expense.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(8),
+                            decoration: BoxDecoration(color: AppColors.expense.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
+                            child: const Text(
+                              'Dọn',
+                              style: TextStyle(color: AppColors.expense, fontSize: 11.5, fontWeight: FontWeight.w700),
                             ),
-                            child: const Text('Dọn', style: TextStyle(color: AppColors.expense, fontSize: 11.5, fontWeight: FontWeight.w700)),
                           ),
                         )
                       : null,
@@ -1763,9 +1668,7 @@ class SyncStatusPage extends ConsumerWidget {
                           if (confirm == true) {
                             await sync.resetAndPullAll();
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Đã đồng bộ lại toàn bộ dữ liệu')),
-                              );
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã đồng bộ lại toàn bộ dữ liệu')));
                             }
                           }
                         },
@@ -1803,9 +1706,7 @@ class SyncStatusPage extends ConsumerWidget {
                       if (confirm == true) {
                         await sync.wipeAndResync();
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Đã làm sạch máy và tải lại dữ liệu từ máy chủ')),
-                          );
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã làm sạch máy và tải lại dữ liệu từ máy chủ')));
                         }
                       }
                     },
@@ -1834,10 +1735,7 @@ class SyncStatusPage extends ConsumerWidget {
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
-              borderRadius: BorderRadius.circular(14),
-            ),
+            decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: 0.45), borderRadius: BorderRadius.circular(14)),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -137,113 +137,98 @@ class BudgetsPage extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, set) => Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
+        builder: (ctx, set) => FormSheetBody(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          action: Row(
             children: [
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(b == null ? 'Thêm định mức' : 'Sửa định mức', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Tên (VD: Ăn uống tháng)'),
+              if (b != null)
+                TextButton(
+                  onPressed: () {
+                    ref.read(storeProvider).remove(E.budgets, b.id);
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Xoá', style: TextStyle(color: AppColors.expense)),
                 ),
-                const SizedBox(height: 12),
-                AmountField(controller: limit, label: 'Hạn mức', suffix: f.currency(f.baseCurrency)?.symbol),
-                const SizedBox(height: 12),
-                const Text('Áp dụng cho'),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final e in {1: 'Tổng chi', 2: 'Danh mục', 3: 'Tài khoản'}.entries)
-                      ChoiceChip(
-                        label: Text(e.value),
-                        selected: scope == e.key,
-                        onSelected: (_) => set(() {
-                          scope = e.key;
-                          refId = null;
-                        }),
-                      ),
-                  ],
-                ),
-                if (scope == 2)
-                  InfoTile(
-                    icon: Icons.category,
-                    label: 'Danh mục',
-                    value: f.category(refId)?.name ?? 'Chọn',
-                    onTap: () async {
-                      final c = await pickCategory(ctx, ref, 1);
-                      if (c != null) set(() => refId = c.id);
-                    },
-                  ),
-                if (scope == 3)
-                  InfoTile(
-                    icon: Icons.account_balance_wallet,
-                    label: 'Tài khoản',
-                    value: f.account(refId)?.name ?? 'Chọn',
-                    onTap: () async {
-                      final a = await pickAccount(ctx, ref);
-                      if (a != null) set(() => refId = a.id);
-                    },
-                  ),
-                const SizedBox(height: 8),
-                const Text('Chu kỳ'),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    for (final e in _periods.entries) ChoiceChip(label: Text(e.value), selected: period == e.key, onSelected: (_) => set(() => period = e.key)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text('Cảnh báo khi đạt ${warn.toStringAsFixed(0)}%'),
-                Slider(value: warn, min: 50, max: 100, divisions: 10, label: '${warn.toStringAsFixed(0)}%', onChanged: (v) => set(() => warn = v)),
-                      SwitchListTile(contentPadding: EdgeInsets.zero, value: active, onChanged: (v) => set(() => active = v), title: const Text('Đang bật')),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (b != null)
-                    TextButton(
-                      onPressed: () {
-                        ref.read(storeProvider).remove(E.budgets, b.id);
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('Xoá', style: TextStyle(color: AppColors.expense)),
-                    ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () {
-                      final v = parseAmount(limit.text);
-                      if (v <= 0 || (scope != 1 && refId == null)) return showToast(ctx, 'Nhập đủ thông tin', error: true);
-                      ref.read(storeProvider).put(E.budgets, {
-                        if (b != null) 'id': b.id,
-                        'name': name.text.trim().isEmpty ? 'Định mức' : name.text.trim(),
-                        'scope': scope,
-                        'refId': refId,
-                        'period': period,
-                        'limitAmount': v,
-                        'currencyCode': f.baseCurrency,
-                        'warnPercent': warn.round(),
-                        'isActive': active,
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text('Lưu'),
-                  ),
-                ],
+              const Spacer(),
+              FilledButton(
+                onPressed: () {
+                  final v = parseAmount(limit.text);
+                  if (v <= 0 || (scope != 1 && refId == null)) return showToast(ctx, 'Nhập đủ thông tin', error: true);
+                  ref.read(storeProvider).put(E.budgets, {
+                    if (b != null) 'id': b.id,
+                    'name': name.text.trim().isEmpty ? 'Định mức' : name.text.trim(),
+                    'scope': scope,
+                    'refId': refId,
+                    'period': period,
+                    'limitAmount': v,
+                    'currencyCode': f.baseCurrency,
+                    'warnPercent': warn.round(),
+                    'isActive': active,
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Lưu'),
               ),
             ],
           ),
+          children: [
+            Text(b == null ? 'Thêm định mức' : 'Sửa định mức', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Tên (VD: Ăn uống tháng)'),
+            ),
+            const SizedBox(height: 12),
+            AmountField(controller: limit, label: 'Hạn mức', suffix: f.currency(f.baseCurrency)?.symbol),
+            const SizedBox(height: 12),
+            const Text('Áp dụng cho'),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final e in {1: 'Tổng chi', 2: 'Danh mục', 3: 'Tài khoản'}.entries)
+                  ChoiceChip(
+                    label: Text(e.value),
+                    selected: scope == e.key,
+                    onSelected: (_) => set(() {
+                      scope = e.key;
+                      refId = null;
+                    }),
+                  ),
+              ],
+            ),
+            if (scope == 2)
+              InfoTile(
+                icon: Icons.category,
+                label: 'Danh mục',
+                value: f.category(refId)?.name ?? 'Chọn',
+                onTap: () async {
+                  final c = await pickCategory(ctx, ref, 1);
+                  if (c != null) set(() => refId = c.id);
+                },
+              ),
+            if (scope == 3)
+              InfoTile(
+                icon: Icons.account_balance_wallet,
+                label: 'Tài khoản',
+                value: f.account(refId)?.name ?? 'Chọn',
+                onTap: () async {
+                  final a = await pickAccount(ctx, ref);
+                  if (a != null) set(() => refId = a.id);
+                },
+              ),
+            const SizedBox(height: 8),
+            const Text('Chu kỳ'),
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final e in _periods.entries) ChoiceChip(label: Text(e.value), selected: period == e.key, onSelected: (_) => set(() => period = e.key)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text('Cảnh báo khi đạt ${warn.toStringAsFixed(0)}%'),
+            Slider(value: warn, min: 50, max: 100, divisions: 10, label: '${warn.toStringAsFixed(0)}%', onChanged: (v) => set(() => warn = v)),
+            SwitchListTile(contentPadding: EdgeInsets.zero, value: active, onChanged: (v) => set(() => active = v), title: const Text('Đang bật')),
+          ],
         ),
       ),
     );

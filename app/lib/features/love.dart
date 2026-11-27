@@ -144,89 +144,74 @@ class LovePage extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, set) => Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Thiết lập ngày yêu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Pressable(
-                      onTap: () async {
-                        final ids = await pickPhotos(ctx, ref, multiple: false);
-                        if (ids.isNotEmpty) set(() => myPhoto = ids.first);
-                      },
-                      child: _Avatar(fileId: myPhoto, label: 'Ảnh của tôi', dark: true),
-                    ),
-                    Pressable(
-                      onTap: () async {
-                        final ids = await pickPhotos(ctx, ref, multiple: false);
-                        if (ids.isNotEmpty) set(() => partnerPhoto = ids.first);
-                      },
-                      child: _Avatar(fileId: partnerPhoto, label: 'Ảnh người ấy', dark: true),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Tên người ấy'),
-                ),
-                InfoTile(
-                  icon: Icons.favorite,
-                  label: 'Ngày bắt đầu',
-                  value: Fmt.date(start),
-                  color: AppColors.love,
-                  onTap: () async {
-                    final d = await pickDateTime(ctx, start, withTime: false);
-                    if (d != null) set(() => start = d);
-                  },
-                ),
-                InfoTile(
-                  icon: Icons.cake,
-                  label: 'Sinh nhật người ấy',
-                  value: bd == null ? 'Chưa đặt' : Fmt.date(bd!),
-                  color: AppColors.love,
-                  onTap: () async {
-                    final d = await pickDateTime(ctx, bd ?? DateTime(2000), withTime: false);
-                    if (d != null) set(() => bd = d);
-                  },
-                ),
-                Text('Nhắc trước ${reminder.round()} ngày'),
-                Slider(value: reminder, min: 0, max: 14, divisions: 14, onChanged: (v) => set(() => reminder = v)),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: () {
-                  if (name.text.trim().isEmpty) return;
-                  ref.read(storeProvider).put(E.loveCounters, {
-                    if (l != null) 'id': l.id,
-                    'partnerName': name.text.trim(),
-                    'startDate': Fmt.isoDate(start),
-                    'partnerBirthday': bd == null ? null : Fmt.isoDate(bd!),
-                    'myPhotoFileId': myPhoto,
-                    'partnerPhotoFileId': partnerPhoto,
-                    'milestoneReminderDays': reminder.round(),
-                  });
-                  Navigator.pop(ctx);
-                },
-                child: const Text('Lưu'),
-              ),
-            ],
+        builder: (ctx, set) => FormSheetBody(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          action: FilledButton(
+            onPressed: () {
+              if (name.text.trim().isEmpty) return;
+              ref.read(storeProvider).put(E.loveCounters, {
+                if (l != null) 'id': l.id,
+                'partnerName': name.text.trim(),
+                'startDate': Fmt.isoDate(start),
+                'partnerBirthday': bd == null ? null : Fmt.isoDate(bd!),
+                'myPhotoFileId': myPhoto,
+                'partnerPhotoFileId': partnerPhoto,
+                'milestoneReminderDays': reminder.round(),
+              });
+              Navigator.pop(ctx);
+            },
+            child: const Text('Lưu'),
           ),
+          children: [
+            const Text('Thiết lập ngày yêu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                Pressable(
+                  onTap: () async {
+                    final ids = await pickPhotos(ctx, ref, multiple: false);
+                    if (ids.isNotEmpty) set(() => myPhoto = ids.first);
+                  },
+                  child: _Avatar(fileId: myPhoto, label: 'Ảnh của tôi', dark: true),
+                ),
+                Pressable(
+                  onTap: () async {
+                    final ids = await pickPhotos(ctx, ref, multiple: false);
+                    if (ids.isNotEmpty) set(() => partnerPhoto = ids.first);
+                  },
+                  child: _Avatar(fileId: partnerPhoto, label: 'Ảnh người ấy', dark: true),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Tên người ấy'),
+            ),
+            InfoTile(
+              icon: Icons.favorite,
+              label: 'Ngày bắt đầu',
+              value: Fmt.date(start),
+              color: AppColors.love,
+              onTap: () async {
+                final d = await pickDateTime(ctx, start, withTime: false);
+                if (d != null) set(() => start = d);
+              },
+            ),
+            InfoTile(
+              icon: Icons.cake,
+              label: 'Sinh nhật người ấy',
+              value: bd == null ? 'Chưa đặt' : Fmt.date(bd!),
+              color: AppColors.love,
+              onTap: () async {
+                final d = await pickDateTime(ctx, bd ?? DateTime(2000), withTime: false);
+                if (d != null) set(() => bd = d);
+              },
+            ),
+            Text('Nhắc trước ${reminder.round()} ngày'),
+            Slider(value: reminder, min: 0, max: 14, divisions: 14, onChanged: (v) => set(() => reminder = v)),
+          ],
         ),
       ),
     );

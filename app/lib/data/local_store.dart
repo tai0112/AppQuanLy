@@ -496,7 +496,7 @@ class LocalStore extends ChangeNotifier {
       if (fid != null && missing.contains(fid)) {
         final tx = get(E.transactions, a['ownerId'] as String? ?? '');
         if (tx != null) {
-          final date = DateTime.tryParse(tx['date'] as String? ?? '');
+          final date = DateTime.tryParse(tx['occurredAt'] as String? ?? '');
           if (date != null && date.isAfter(cutoff)) {
             priority.add(fid);
             missing.remove(fid);
@@ -513,19 +513,22 @@ class LocalStore extends ChangeNotifier {
   /// Xoá tệp ảnh không còn bản ghi nào dùng (bản ghi đã xoá). Ảnh chờ tải lên luôn được giữ.
   Future<void> pruneLocalFiles({bool immediate = true}) async {
     final used = referencedFileIds();
-    // Nếu immediate = true (mặc định), dọn dẹp ngay các ảnh không còn bản ghi nào tham chiếu.
-    final cutoff = immediate
-        ? DateTime.now().millisecondsSinceEpoch + 1000
-        : DateTime.now().subtract(const Duration(minutes: 5)).millisecondsSinceEpoch;
+    // Dọn ngay các ảnh không còn bản ghi nào tham chiếu (vd giao dịch đã xoá) — TRỪ ảnh mới lưu trong [_freshGrace]:
+    // ảnh vừa chọn trong form (chưa bấm Lưu nên chưa có bản ghi dùng) có thể đã được đồng bộ tải lên giữa chừng;
+    // xoá nó lúc này sẽ làm ảnh biến mất khỏi form (nhất là khi offline).
+    final cutoff = DateTime.now().subtract(immediate ? _freshGrace : const Duration(minutes: 30)).millisecondsSinceEpoch;
     for (final id in _localFiles.keys.cast<String>().toList()) {
       if (_fileMeta.containsKey(id)) continue; // ảnh đang chờ upload luôn giữ
       final at = int.tryParse(_localFiles.get(id)!.split('|').last) ?? 0;
-      if (!used.contains(id) && (immediate || at < cutoff)) {
+      if (!used.contains(id) && at < cutoff) {
         await _localFiles.delete(id);
         await _blobs.delete(id);
       }
     }
   }
+
+  /// Ảnh mới lưu trong khoảng này chưa bị dọn dù chưa có bản ghi nào dùng (đang nằm trong form chưa bấm Lưu).
+  static const _freshGrace = Duration(minutes: 10);
 
   /// Có lưu ảnh ngoại tuyến trên máy không (mặc định false: chỉ dùng server để tiết kiệm dung lượng).
   bool get offlineImages => meta('offlineImages') == 'true';

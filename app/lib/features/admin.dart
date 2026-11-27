@@ -275,10 +275,7 @@ class _AdminPageState extends ConsumerState<AdminPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Quyền của "${r['name']}"', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                            Text(
-                              'Đã bật ${selected.length}/${allOpIds.length} chức năng',
-                              style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
-                            ),
+                            Text('Đã bật ${selected.length}/${allOpIds.length} chức năng', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                           ],
                         ),
                       ),
@@ -327,10 +324,7 @@ class _AdminPageState extends ConsumerState<AdminPage> {
                                       }),
                                       secondary: Container(
                                         padding: const EdgeInsets.all(8),
-                                        decoration: BoxDecoration(
-                                          color: scheme.primary.withValues(alpha: 0.1),
-                                          borderRadius: BorderRadius.circular(10),
-                                        ),
+                                        decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
                                         child: Icon(iconOf(m['icon'] as String?), size: 20, color: scheme.primary),
                                       ),
                                       title: Row(
@@ -416,111 +410,106 @@ class _AdminPageState extends ConsumerState<AdminPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) {
           final scheme = Theme.of(ctx).colorScheme;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
+          return FormSheetBody(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            action: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _run(() => api.put('/admin/users/${u['id']}/roles', {'ids': selected.toList()}), 'Đã cập nhật vai trò');
+              },
+              child: const Text('Lưu vai trò', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            ),
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                    child: Icon(Icons.badge_rounded, color: scheme.primary),
                   ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                      child: Icon(Icons.badge_rounded, color: scheme.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Phân vai trò', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                        Text('${u['displayName']} · @${u['username']}', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Phân vai trò', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                          Text(
-                            '${u['displayName']} · @${u['username']}',
-                            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                  ),
+                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              for (final r in roles)
+                Builder(
+                  builder: (_) {
+                    final isSelected = selected.contains(r['id']);
+                    final isAdmin = (r['code'] as String?)?.toUpperCase() == 'ADMIN';
+                    final roleColor = isAdmin ? Colors.amber.shade700 : scheme.primary;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Pressable(
+                        scale: 0.98,
+                        onTap: () => set(() => isSelected ? selected.remove(r['id']) : selected.add(r['id'] as String)),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: isSelected ? roleColor.withValues(alpha: 0.08) : scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                            border: Border.all(color: isSelected ? roleColor : scheme.outlineVariant.withValues(alpha: 0.4), width: isSelected ? 1.5 : 1),
+                            borderRadius: BorderRadius.circular(16),
                           ),
-                        ],
-                      ),
-                    ),
-                    IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                for (final r in roles)
-                  Builder(
-                    builder: (_) {
-                      final isSelected = selected.contains(r['id']);
-                      final isAdmin = (r['code'] as String?)?.toUpperCase() == 'ADMIN';
-                      final roleColor = isAdmin ? Colors.amber.shade700 : scheme.primary;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Pressable(
-                          scale: 0.98,
-                          onTap: () => set(() => isSelected ? selected.remove(r['id']) : selected.add(r['id'] as String)),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isSelected ? roleColor.withValues(alpha: 0.08) : scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                              border: Border.all(color: isSelected ? roleColor : scheme.outlineVariant.withValues(alpha: 0.4), width: isSelected ? 1.5 : 1),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(color: roleColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)),
-                                  child: Icon(isAdmin ? Icons.shield_rounded : Icons.person_rounded, color: roleColor, size: 22),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(r['name'] as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                                      const SizedBox(height: 2),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(color: roleColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
-                                        child: Text(r['code'] as String, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: roleColor)),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(color: roleColor.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12)),
+                                child: Icon(isAdmin ? Icons.shield_rounded : Icons.person_rounded, color: roleColor, size: 22),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(r['name'] as String, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                                    const SizedBox(height: 2),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(color: roleColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6)),
+                                      child: Text(
+                                        r['code'] as String,
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: roleColor),
                                       ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
-                                Icon(
-                                  isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                                  color: isSelected ? roleColor : scheme.onSurfaceVariant,
-                                  size: 26,
-                                ),
-                              ],
-                            ),
+                              ),
+                              Icon(
+                                isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                color: isSelected ? roleColor : scheme.onSurfaceVariant,
+                                size: 26,
+                              ),
+                            ],
                           ),
                         ),
-                      );
-                    },
-                  ),
-                const SizedBox(height: 10),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _run(() => api.put('/admin/users/${u['id']}/roles', {'ids': selected.toList()}), 'Đã cập nhật vai trò');
+                      ),
+                    );
                   },
-                  child: const Text('Lưu vai trò', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 ),
-              ],
-            ),
+            ],
           );
         },
       ),
@@ -783,131 +772,127 @@ class _AdminPageState extends ConsumerState<AdminPage> {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) {
           final scheme = Theme.of(ctx).colorScheme;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+          return FormSheetBody(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            action: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                if (name.text.trim().isEmpty) return set(() => error = 'Vui lòng nhập tên hiển thị');
+                if (username.text.trim().isEmpty) return set(() => error = 'Vui lòng nhập tên đăng nhập');
+                if (password.text.length < 6) return set(() => error = 'Mật khẩu tối thiểu 6 ký tự');
+                Navigator.pop(ctx, true);
+              },
+              child: const Text('Tạo người dùng', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+            ),
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              Row(
                 children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                    child: Icon(Icons.person_add_alt_1_rounded, color: scheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Thêm người dùng mới', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                        Text('Tạo tài khoản và phân quyền ban đầu', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
                     ),
                   ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                        child: Icon(Icons.person_add_alt_1_rounded, color: scheme.primary),
-                      ),
-                      const SizedBox(width: 12),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Thêm người dùng mới', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                            Text('Tạo tài khoản và phân quyền ban đầu', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                          ],
-                        ),
-                      ),
-                      IconButton(onPressed: () => Navigator.pop(ctx, false), icon: const Icon(Icons.close_rounded)),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: name,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: InputDecoration(
-                      labelText: 'Tên hiển thị',
-                      prefixIcon: const Icon(Icons.person_outline_rounded),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: username,
-                    decoration: InputDecoration(
-                      labelText: 'Tên đăng nhập (chữ thường, số, _ .)',
-                      prefixIcon: const Icon(Icons.alternate_email_rounded),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: email,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: password,
-                    decoration: InputDecoration(
-                      labelText: 'Mật khẩu ban đầu',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                      suffixIcon: IconButton(
-                        tooltip: 'Tạo ngẫu nhiên',
-                        onPressed: () => set(() => password.text = _randomPassword()),
-                        icon: const Icon(Icons.casino_rounded),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Vai trò', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final r in roles)
-                        Builder(
-                          builder: (_) {
-                            final isSelected = selected.contains(r['id']);
-                            final isAdmin = (r['code'] as String?)?.toUpperCase() == 'ADMIN';
-                            return FilterChip(
-                              selected: isSelected,
-                              avatar: Icon(isAdmin ? Icons.shield_rounded : Icons.person_rounded, size: 16),
-                              label: Text('${r['name']} (${r['code']})'),
-                              onSelected: (v) => set(() => v ? selected.add(r['id'] as String) : selected.remove(r['id'])),
-                            );
-                          },
-                        ),
-                    ],
-                  ),
-                  if (error != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: AppColors.expense.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-                      child: Text(error!, style: const TextStyle(color: AppColors.expense, fontSize: 13, fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    onPressed: () {
-                      if (name.text.trim().isEmpty) return set(() => error = 'Vui lòng nhập tên hiển thị');
-                      if (username.text.trim().isEmpty) return set(() => error = 'Vui lòng nhập tên đăng nhập');
-                      if (password.text.length < 6) return set(() => error = 'Mật khẩu tối thiểu 6 ký tự');
-                      Navigator.pop(ctx, true);
-                    },
-                    child: const Text('Tạo người dùng', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                  ),
+                  IconButton(onPressed: () => Navigator.pop(ctx, false), icon: const Icon(Icons.close_rounded)),
                 ],
               ),
-            ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: name,
+                textCapitalization: TextCapitalization.words,
+                decoration: InputDecoration(
+                  labelText: 'Tên hiển thị',
+                  prefixIcon: const Icon(Icons.person_outline_rounded),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: username,
+                decoration: InputDecoration(
+                  labelText: 'Tên đăng nhập (chữ thường, số, _ .)',
+                  prefixIcon: const Icon(Icons.alternate_email_rounded),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: email,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: password,
+                decoration: InputDecoration(
+                  labelText: 'Mật khẩu ban đầu',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  suffixIcon: IconButton(
+                    tooltip: 'Tạo ngẫu nhiên',
+                    onPressed: () => set(() => password.text = _randomPassword()),
+                    icon: const Icon(Icons.casino_rounded),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Vai trò', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final r in roles)
+                    Builder(
+                      builder: (_) {
+                        final isSelected = selected.contains(r['id']);
+                        final isAdmin = (r['code'] as String?)?.toUpperCase() == 'ADMIN';
+                        return FilterChip(
+                          selected: isSelected,
+                          avatar: Icon(isAdmin ? Icons.shield_rounded : Icons.person_rounded, size: 16),
+                          label: Text('${r['name']} (${r['code']})'),
+                          onSelected: (v) => set(() => v ? selected.add(r['id'] as String) : selected.remove(r['id'])),
+                        );
+                      },
+                    ),
+                ],
+              ),
+              if (error != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: AppColors.expense.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+                  child: Text(
+                    error!,
+                    style: const TextStyle(color: AppColors.expense, fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ],
           );
         },
       ),

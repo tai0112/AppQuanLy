@@ -69,73 +69,68 @@ class _ChatListPageState extends ConsumerState<ChatListPage> {
       builder: (c) => StatefulBuilder(
         builder: (c, set) {
           final scheme = Theme.of(c).colorScheme;
-          return Padding(
-            padding: EdgeInsets.fromLTRB(20, 8, 20, MediaQuery.of(c).viewInsets.bottom + 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
-                  ),
+          return FormSheetBody(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            action: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('Tạo nhóm', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ),
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(color: scheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
                 ),
-                Row(
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                    child: Icon(Icons.group_add_rounded, color: scheme.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Tạo nhóm chat', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                  ),
+                  IconButton(onPressed: () => Navigator.pop(c, false), icon: const Icon(Icons.close_rounded)),
+                ],
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: name,
+                decoration: InputDecoration(
+                  labelText: 'Tên nhóm',
+                  prefixIcon: const Icon(Icons.groups_outlined),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text('Chọn thành viên (${selected.length})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              const SizedBox(height: 6),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 260),
+                child: ListView(
+                  shrinkWrap: true,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                      child: Icon(Icons.group_add_rounded, color: scheme.primary),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text('Tạo nhóm chat', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                    ),
-                    IconButton(onPressed: () => Navigator.pop(c, false), icon: const Icon(Icons.close_rounded)),
+                    for (final f in friends)
+                      CheckboxListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                        secondary: UserAvatar(f, radius: 18),
+                        value: selected.contains(f['id']),
+                        onChanged: (v) => set(() => v == true ? selected.add(f['id'] as String) : selected.remove(f['id'])),
+                        title: Text(f['displayName'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: name,
-                  decoration: InputDecoration(
-                    labelText: 'Tên nhóm',
-                    prefixIcon: const Icon(Icons.groups_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text('Chọn thành viên (${selected.length})', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                const SizedBox(height: 6),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 260),
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      for (final f in friends)
-                        CheckboxListTile(
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                          secondary: UserAvatar(f, radius: 18),
-                          value: selected.contains(f['id']),
-                          onChanged: (v) => set(() => v == true ? selected.add(f['id'] as String) : selected.remove(f['id'])),
-                          title: Text(f['displayName'] as String, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  onPressed: () => Navigator.pop(c, true),
-                  child: const Text('Tạo nhóm', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),
@@ -376,16 +371,8 @@ class _ChatListPageState extends ConsumerState<ChatListPage> {
           decoration: BoxDecoration(
             color: unread > 0 ? scheme.primaryContainer.withValues(alpha: 0.3) : scheme.surfaceContainerLow,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: unread > 0 ? scheme.primary.withValues(alpha: 0.3) : scheme.outlineVariant.withValues(alpha: 0.28),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.025),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            border: Border.all(color: unread > 0 ? scheme.primary.withValues(alpha: 0.3) : scheme.outlineVariant.withValues(alpha: 0.28)),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.025), blurRadius: 8, offset: const Offset(0, 2))],
           ),
           child: Row(
             children: [

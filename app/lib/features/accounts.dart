@@ -189,7 +189,10 @@ class _AccountDetailSheetState extends ConsumerState<_AccountDetailSheet> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Số dư hiện tại', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500)),
+                  Text(
+                    'Số dư hiện tại',
+                    style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant, fontWeight: FontWeight.w500),
+                  ),
                   CountText(
                     values: [f.balance(a)],
                     text: (cv) => f.money(cv[0], a.currencyCode),
@@ -204,7 +207,10 @@ class _AccountDetailSheetState extends ConsumerState<_AccountDetailSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Tổng thu', style: TextStyle(fontSize: 12, color: AppColors.income, fontWeight: FontWeight.w600)),
+                        const Text(
+                          'Tổng thu',
+                          style: TextStyle(fontSize: 12, color: AppColors.income, fontWeight: FontWeight.w600),
+                        ),
                         const SizedBox(height: 2),
                         SizedBox(
                           height: 20,
@@ -212,7 +218,10 @@ class _AccountDetailSheetState extends ConsumerState<_AccountDetailSheet> {
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
-                            child: Text(f.money(totalIncome, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.income)),
+                            child: Text(
+                              f.money(totalIncome, a.currencyCode),
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.income),
+                            ),
                           ),
                         ),
                       ],
@@ -224,7 +233,10 @@ class _AccountDetailSheetState extends ConsumerState<_AccountDetailSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Tổng chi', style: TextStyle(fontSize: 12, color: AppColors.expense, fontWeight: FontWeight.w600)),
+                        const Text(
+                          'Tổng chi',
+                          style: TextStyle(fontSize: 12, color: AppColors.expense, fontWeight: FontWeight.w600),
+                        ),
                         const SizedBox(height: 2),
                         SizedBox(
                           height: 20,
@@ -232,7 +244,10 @@ class _AccountDetailSheetState extends ConsumerState<_AccountDetailSheet> {
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
-                            child: Text(f.money(totalExpense, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.expense)),
+                            child: Text(
+                              f.money(totalExpense, a.currencyCode),
+                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.expense),
+                            ),
                           ),
                         ),
                       ],
@@ -309,17 +324,11 @@ class _AccountDetailSheetState extends ConsumerState<_AccountDetailSheet> {
                                   style: TextStyle(fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600, fontSize: 14),
                                 ),
                               ),
-                              Text(
-                                f.money(g.amount, a.currencyCode),
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                              ),
+                              Text(f.money(g.amount, a.currencyCode), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                               const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: catColor.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
+                                decoration: BoxDecoration(color: catColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
                                 child: Text(
                                   '${pct.toStringAsFixed(0)}%',
                                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: catColor),
@@ -561,13 +570,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
     final relatedTxs = (f.transactions as List<Txn>).where((t) => t.accountId == accId || t.toAccountId == accId).toList();
 
     if (relatedTxs.isEmpty) {
-      final ok = await confirm(
-        context,
-        'Xoá tài khoản "$accName"?',
-        message: 'Tài khoản này sẽ bị xoá khỏi danh sách.',
-        danger: true,
-        ok: 'Xoá',
-      );
+      final ok = await confirm(context, 'Xoá tài khoản "$accName"?', message: 'Tài khoản này sẽ bị xoá khỏi danh sách.', danger: true, ok: 'Xoá');
       if (ok) {
         _performDelete(store, accId);
         if (context.mounted) Navigator.of(context).maybePop();
@@ -629,12 +632,7 @@ class _AccountEditPageState extends ConsumerState<AccountEditPage> {
 }
 
 class _DeleteAccountSheet extends StatefulWidget {
-  const _DeleteAccountSheet({
-    required this.accName,
-    required this.txCount,
-    required this.otherAccounts,
-    required this.onConfirm,
-  });
+  const _DeleteAccountSheet({required this.accName, required this.txCount, required this.otherAccounts, required this.onConfirm});
 
   final String accName;
   final int txCount;
@@ -659,103 +657,88 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return FormSheetBody(
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 20, bottom: 24),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      action: Row(
         children: [
-          Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: AppColors.expense, size: 28),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Xoá tài khoản "${widget.accName}"?',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
-                ),
-              ),
-            ],
+          Expanded(
+            child: OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Huỷ')),
           ),
-          const SizedBox(height: 12),
-          Text(
-            'Tài khoản này đang có ${widget.txCount} giao dịch. Vui lòng chọn cách xử lý:',
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-          ),
-          const SizedBox(height: 16),
-          RadioListTile<int>(
-            value: 0,
-            groupValue: _mode,
-            onChanged: (v) => setState(() => _mode = v!),
-            title: const Text('Chuyển tất cả giao dịch sang tài khoản khác rồi xoá', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Khuyên dùng để số dư và lịch sử giao dịch không bị lệch.'),
-            contentPadding: EdgeInsets.zero,
-          ),
-          if (_mode == 0 && widget.otherAccounts.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: 32, bottom: 8),
-              child: DropdownButtonFormField<String>(
-                value: _targetAccountId,
-                decoration: const InputDecoration(
-                  labelText: 'Tài khoản đích nhận giao dịch',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  for (final a in widget.otherAccounts)
-                    DropdownMenuItem(
-                      value: a.id,
-                      child: Row(
-                        children: [
-                          CircleIcon(icon: a.icon, color: hexColor(a.color), size: 24),
-                          const SizedBox(width: 8),
-                          Text(a.name),
-                        ],
-                      ),
-                    ),
-                ],
-                onChanged: (v) => setState(() => _targetAccountId = v),
-              ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
+              onPressed: () {
+                if (_mode == 0 && _targetAccountId == null) {
+                  return;
+                }
+                widget.onConfirm(_mode == 0 ? _targetAccountId : null);
+              },
+              child: const Text('Xác nhận xoá'),
             ),
-          RadioListTile<int>(
-            value: 1,
-            groupValue: _mode,
-            onChanged: (v) => setState(() => _mode = v!),
-            title: const Text('Xoá tài khoản và giữ nguyên lịch sử', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Các giao dịch cũ vẫn lưu tên tài khoản nhưng tài khoản sẽ bị xoá khỏi danh mục.'),
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Huỷ'),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.expense),
-                  onPressed: () {
-                    if (_mode == 0 && _targetAccountId == null) {
-                      return;
-                    }
-                    widget.onConfirm(_mode == 0 ? _targetAccountId : null);
-                  },
-                  child: const Text('Xác nhận xoá'),
-                ),
-              ),
-            ],
           ),
         ],
       ),
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: AppColors.expense, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('Xoá tài khoản "${widget.accName}"?', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Tài khoản này đang có ${widget.txCount} giao dịch. Vui lòng chọn cách xử lý:',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 16),
+        RadioListTile<int>(
+          value: 0,
+          groupValue: _mode,
+          onChanged: (v) => setState(() => _mode = v!),
+          title: const Text('Chuyển tất cả giao dịch sang tài khoản khác rồi xoá', style: TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: const Text('Khuyên dùng để số dư và lịch sử giao dịch không bị lệch.'),
+          contentPadding: EdgeInsets.zero,
+        ),
+        if (_mode == 0 && widget.otherAccounts.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 32, bottom: 8),
+            child: DropdownButtonFormField<String>(
+              value: _targetAccountId,
+              decoration: const InputDecoration(
+                labelText: 'Tài khoản đích nhận giao dịch',
+                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                for (final a in widget.otherAccounts)
+                  DropdownMenuItem(
+                    value: a.id,
+                    child: Row(
+                      children: [
+                        CircleIcon(icon: a.icon, color: hexColor(a.color), size: 24),
+                        const SizedBox(width: 8),
+                        Text(a.name),
+                      ],
+                    ),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _targetAccountId = v),
+            ),
+          ),
+        RadioListTile<int>(
+          value: 1,
+          groupValue: _mode,
+          onChanged: (v) => setState(() => _mode = v!),
+          title: const Text('Xoá tài khoản và giữ nguyên lịch sử', style: TextStyle(fontWeight: FontWeight.w600)),
+          subtitle: const Text('Các giao dịch cũ vẫn lưu tên tài khoản nhưng tài khoản sẽ bị xoá khỏi danh mục.'),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ],
     );
   }
 }
@@ -842,146 +825,116 @@ class CurrenciesPage extends ConsumerWidget {
           final sampleNumber = dec > 0 ? '1.234.567,89' : '1.234.567';
           final preview = before ? '$sym $sampleNumber' : '$sampleNumber $sym';
 
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 8,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          return FormSheetBody(
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 24),
+            action: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                if (code.text.trim().isEmpty) return;
+                ref.read(storeProvider).put(E.currencies, {
+                  if (c != null) 'id': c.id,
+                  'code': code.text.trim().toUpperCase(),
+                  'name': name.text.trim().isEmpty ? code.text.trim().toUpperCase() : name.text.trim(),
+                  'symbol': symbol.text.trim().isEmpty ? code.text.trim().toUpperCase() : symbol.text.trim(),
+                  'decimals': int.tryParse(decimals.text) ?? 0,
+                  'symbolPosition': before ? 2 : 1,
+                  'isBase': c?.isBase ?? false,
+                });
+                Navigator.pop(ctx);
+              },
+              child: const Text('Lưu tiền tệ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.currency_exchange_rounded, color: scheme.primary, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          c == null ? 'Thêm tiền tệ mới' : 'Sửa ${c.code}',
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+                    child: Icon(Icons.currency_exchange_rounded, color: scheme.primary, size: 24),
                   ),
-                  const SizedBox(height: 16),
-                  // Live Preview Card
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundColor: scheme.primary.withValues(alpha: 0.15),
-                          child: Text(sym, style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800)),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name.text.trim().isEmpty ? 'Tên tiền tệ' : name.text.trim(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                              Text('Định dạng hiển thị: $preview', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
-                            ],
-                          ),
-                        ),
-                      ],
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(c == null ? 'Thêm tiền tệ mới' : 'Sửa ${c.code}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                  ),
+                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Live Preview Card
+              AppCard(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: scheme.primary.withValues(alpha: 0.15),
+                      child: Text(
+                        sym,
+                        style: TextStyle(color: scheme.primary, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name.text.trim().isEmpty ? 'Tên tiền tệ' : name.text.trim(), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                          Text('Định dạng hiển thị: $preview', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: code,
+                enabled: c == null,
+                textCapitalization: TextCapitalization.characters,
+                onChanged: (_) => set(() {}),
+                decoration: const InputDecoration(labelText: 'Mã tiền tệ (VD: JPY, USD, EUR)', prefixIcon: Icon(Icons.code_rounded)),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: name,
+                onChanged: (_) => set(() {}),
+                decoration: const InputDecoration(labelText: 'Tên tiền tệ (VD: Yên Nhật)', prefixIcon: Icon(Icons.badge_outlined)),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: symbol,
+                      onChanged: (_) => set(() {}),
+                      decoration: const InputDecoration(labelText: r'Ký hiệu (VD: ¥, $, €)', prefixIcon: Icon(Icons.monetization_on_outlined)),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: code,
-                    enabled: c == null,
-                    textCapitalization: TextCapitalization.characters,
-                    onChanged: (_) => set(() {}),
-                    decoration: const InputDecoration(
-                      labelText: 'Mã tiền tệ (VD: JPY, USD, EUR)',
-                      prefixIcon: Icon(Icons.code_rounded),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: decimals,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => set(() {}),
+                      decoration: const InputDecoration(labelText: 'Chữ số thập phân', prefixIcon: Icon(Icons.pin_outlined)),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: name,
-                    onChanged: (_) => set(() {}),
-                    decoration: const InputDecoration(
-                      labelText: 'Tên tiền tệ (VD: Yên Nhật)',
-                      prefixIcon: Icon(Icons.badge_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: symbol,
-                          onChanged: (_) => set(() {}),
-                          decoration: const InputDecoration(
-                            labelText: r'Ký hiệu (VD: ¥, $, €)',
-                            prefixIcon: Icon(Icons.monetization_on_outlined),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: decimals,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => set(() {}),
-                          decoration: const InputDecoration(
-                            labelText: 'Chữ số thập phân',
-                            prefixIcon: Icon(Icons.pin_outlined),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    child: SwitchListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                      value: before,
-                      onChanged: (v) => set(() => before = v),
-                      title: const Text('Ký hiệu đứng trước số', style: TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text(before ? 'Ví dụ: \$ 100' : 'Ví dụ: 100 ₫'),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    onPressed: () {
-                      if (code.text.trim().isEmpty) return;
-                      ref.read(storeProvider).put(E.currencies, {
-                        if (c != null) 'id': c.id,
-                        'code': code.text.trim().toUpperCase(),
-                        'name': name.text.trim().isEmpty ? code.text.trim().toUpperCase() : name.text.trim(),
-                        'symbol': symbol.text.trim().isEmpty ? code.text.trim().toUpperCase() : symbol.text.trim(),
-                        'decimals': int.tryParse(decimals.text) ?? 0,
-                        'symbolPosition': before ? 2 : 1,
-                        'isBase': c?.isBase ?? false,
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text('Lưu tiền tệ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 14),
+              AppCard(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                child: SwitchListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                  value: before,
+                  onChanged: (v) => set(() => before = v),
+                  title: const Text('Ký hiệu đứng trước số', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(before ? 'Ví dụ: \$ 100' : 'Ví dụ: 100 ₫'),
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -1005,135 +958,114 @@ class CurrenciesPage extends ConsumerWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, set) {
           final scheme = Theme.of(ctx).colorScheme;
-          return Padding(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 8,
-              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          return FormSheetBody(
+            padding: const EdgeInsets.only(left: 20, right: 20, top: 8, bottom: 24),
+            action: FilledButton(
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () {
+                final r = double.tryParse(rate.text.replaceAll(',', '.'));
+                if (r == null || r <= 0 || from == to) {
+                  return showToast(ctx, 'Vui lòng nhập tỷ giá hợp lệ và 2 loại tiền khác nhau', error: true);
+                }
+                ref.read(storeProvider).put(E.exchangeRates, {'fromCode': from, 'toCode': to, 'rate': r, 'effectiveDate': Fmt.isoDate(date)});
+                Navigator.pop(ctx);
+              },
+              child: const Text('Lưu tỷ giá', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
             ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(Icons.trending_up_rounded, color: scheme.primary, size: 24),
-                      ),
-                      const SizedBox(width: 14),
-                      const Expanded(
-                        child: Text(
-                          'Thêm tỷ giá hối đoái',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.12), shape: BoxShape.circle),
+                    child: Icon(Icons.trending_up_rounded, color: scheme.primary, size: 24),
                   ),
-                  const SizedBox(height: 20),
-                  AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('1 ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: from,
-                              items: [for (final c in codes) DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontWeight: FontWeight.w700)))],
-                              onChanged: (v) => set(() => from = v!),
-                            ),
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 12),
-                          child: Icon(Icons.arrow_forward_rounded),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
-                              value: to,
-                              items: [for (final c in codes) DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontWeight: FontWeight.w700)))],
-                              onChanged: (v) => set(() => to = v!),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text('Thêm tỷ giá hối đoái', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                   ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: rate,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Tỷ giá (1 $from bằng bao nhiêu $to)',
-                      prefixIcon: const Icon(Icons.calculate_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  AppCard(
-                    onTap: () async {
-                      final d = await pickDateTime(ctx, date, withTime: false);
-                      if (d != null) set(() => date = d);
-                    },
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.today_rounded),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Áp dụng từ ngày', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-                              Text(Fmt.date(date), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                            ],
-                          ),
-                        ),
-                        const Icon(Icons.chevron_right_rounded),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    onPressed: () {
-                      final r = double.tryParse(rate.text.replaceAll(',', '.'));
-                      if (r == null || r <= 0 || from == to) {
-                        return showToast(ctx, 'Vui lòng nhập tỷ giá hợp lệ và 2 loại tiền khác nhau', error: true);
-                      }
-                      ref.read(storeProvider).put(E.exchangeRates, {'fromCode': from, 'toCode': to, 'rate': r, 'effectiveDate': Fmt.isoDate(date)});
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text('Lưu tỷ giá', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                  ),
+                  IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close_rounded)),
                 ],
               ),
-            ),
+              const SizedBox(height: 20),
+              AppCard(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('1 ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: from,
+                          items: [
+                            for (final c in codes)
+                              DropdownMenuItem(
+                                value: c,
+                                child: Text(c, style: const TextStyle(fontWeight: FontWeight.w700)),
+                              ),
+                          ],
+                          onChanged: (v) => set(() => from = v!),
+                        ),
+                      ),
+                    ),
+                    const Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Icon(Icons.arrow_forward_rounded)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(color: scheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: to,
+                          items: [
+                            for (final c in codes)
+                              DropdownMenuItem(
+                                value: c,
+                                child: Text(c, style: const TextStyle(fontWeight: FontWeight.w700)),
+                              ),
+                          ],
+                          onChanged: (v) => set(() => to = v!),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: rate,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(labelText: 'Tỷ giá (1 $from bằng bao nhiêu $to)', prefixIcon: const Icon(Icons.calculate_outlined)),
+              ),
+              const SizedBox(height: 14),
+              AppCard(
+                onTap: () async {
+                  final d = await pickDateTime(ctx, date, withTime: false);
+                  if (d != null) set(() => date = d);
+                },
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                child: Row(
+                  children: [
+                    const Icon(Icons.today_rounded),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Áp dụng từ ngày', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                          Text(Fmt.date(date), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded),
+                  ],
+                ),
+              ),
+            ],
           );
         },
       ),

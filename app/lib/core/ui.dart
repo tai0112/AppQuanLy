@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' show PointerDeviceKind;
 
@@ -413,8 +414,18 @@ class _StaggerState extends State<_Stagger> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Quyết định MỘT lần khi gắn vào cây: đang cuộn → không chạy hiệu ứng.
-    _play ??= !(Scrollable.maybeOf(context)?.position.isScrollingNotifier.value ?? false);
+    // Quyết định MỘT lần khi gắn vào cây: bất kỳ vùng cuộn bao ngoài nào đang cuộn → không chạy hiệu ứng.
+    // (Lưới/danh sách con không cuộn nằm trong trang cuộn: phải xét cả các Scrollable phía trên, không chỉ cái gần nhất.)
+    _play ??= !_anyAncestorScrolling();
+  }
+
+  bool _anyAncestorScrolling() {
+    var s = Scrollable.maybeOf(context);
+    for (var depth = 0; s != null && depth < 8; depth++) {
+      if (s.position.isScrollingNotifier.value) return true;
+      s = Scrollable.maybeOf(s.context);
+    }
+    return false;
   }
 
   @override
@@ -1045,36 +1056,119 @@ class _EdgeSwipeState extends State<EdgeSwipe> with SingleTickerProviderStateMix
   }
 }
 
-/// Ẩn thanh nút lưu ở `bottomNavigationBar` khi bàn phím đang mở để chừa tối đa diện tích nhập liệu, chỉ hiện khi đóng bàn phím.
+/// Ẩn [child] (nút xác nhận) khi bàn phím đang mở để chừa chỗ cho ô nhập; bàn phím đóng hẳn mới hiện lại.
+/// - Bàn phím bắt đầu mở → thu gọn nhanh (150 ms).
+/// - Bàn phím đóng xong (insets về 0) → chờ một nhịp rồi mở dần chiều cao + hiện mờ + trượt nhẹ lên (280 ms).
+/// Chỉ phụ thuộc `viewInsets` và tự chạy hiệu ứng bằng AnimationController riêng → không dựng lại màn hình cha.
+class KeyboardHideable extends StatefulWidget {
+  const KeyboardHideable({super.key, required this.child});
+  final Widget child;
+
+  @override
+  State<KeyboardHideable> createState() => _KeyboardHideableState();
+}
+
+class _KeyboardHideableState extends State<KeyboardHideable> with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 280),
+    reverseDuration: const Duration(milliseconds: 150),
+  );
+  late final Animation<double> _curve = CurvedAnimation(parent: _c, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic);
+  late final Animation<Offset> _slide = Tween(begin: const Offset(0, 0.3), end: Offset.zero).animate(_curve);
+  Timer? _show;
+  bool? _open;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final open = MediaQuery.viewInsetsOf(context).bottom > 0;
+    if (open == _open) return; // bàn phím đang trượt: insets đổi từng khung hình nhưng trạng thái không đổi → bỏ qua
+    final first = _open == null;
+    _open = open;
+    _show?.cancel();
+    if (first) {
+      _c.value = open ? 0 : 1; // mở màn: hiện đúng trạng thái, không chạy hiệu ứng
+    } else if (open) {
+      _c.reverse();
+    } else {
+      // Đợi bàn phím khuất hẳn rồi mới hiện nút → không chồng hiệu ứng, không giật.
+      _show = Timer(const Duration(milliseconds: 90), () {
+        if (mounted && _open == false) _c.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _show?.cancel();
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizeTransition(
+    sizeFactor: _curve,
+    axisAlignment: -1,
+    child: FadeTransition(
+      opacity: _curve,
+      child: SlideTransition(position: _slide, child: widget.child),
+    ),
+  );
+}
+
+/// Thanh nút lưu ở `bottomNavigationBar`: ẩn khi bàn phím mở, hiện nhẹ nhàng khi đóng (xem [KeyboardHideable]).
+/// Nằm ngoài vùng cuộn nên luôn dính đáy màn hình và Scaffold tự chừa chỗ → không che ô nhập.
 class KeyboardAvoidBottomBar extends StatelessWidget {
   const KeyboardAvoidBottomBar({super.key, required this.child, this.minimum = EdgeInsets.zero});
   final Widget child;
   final EdgeInsets minimum;
 
   @override
-  Widget build(BuildContext context) {
-    final show = MediaQuery.viewInsetsOf(context).bottom == 0;
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOutCubic,
-      alignment: Alignment.topCenter,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (c, anim) => FadeTransition(
-          opacity: anim,
-          child: SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(anim),
-            child: c,
+  Widget build(BuildContext context) => KeyboardHideable(
+    child: SafeArea(minimum: minimum, child: child),
+  );
+}
+
+/// Khung chung cho bảng nhập (bottom sheet): ô nhập cuộn được ở trên, nút xác nhận dính đáy bảng.
+/// Nút chỉ hiện khi đã đóng bàn phím ([KeyboardHideable]) nên lúc gõ ô nhập có trọn chỗ và không bị che.
+/// Dùng với `showModalBottomSheet(isScrollControlled: true, ...)`.
+class FormSheetBody extends StatelessWidget {
+  const FormSheetBody({
+    super.key,
+    required this.children,
+    this.action,
+    this.padding = const EdgeInsets.fromLTRB(20, 0, 20, 16),
+    this.crossAxisAlignment = CrossAxisAlignment.stretch,
+  });
+
+  final List<Widget> children;
+
+  /// Nút xác nhận (hoặc một Row nhiều nút) dính đáy bảng.
+  final Widget? action;
+  final EdgeInsets padding;
+  final CrossAxisAlignment crossAxisAlignment;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Flexible(
+          child: SingleChildScrollView(
+            padding: action == null ? padding : padding.copyWith(bottom: 8),
+            child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: crossAxisAlignment, children: children),
           ),
         ),
-        child: show
-            ? SafeArea(key: const ValueKey('visible'), minimum: minimum, child: child)
-            : const SizedBox.shrink(key: ValueKey('hidden')),
-      ),
-    );
-  }
+        if (action != null)
+          KeyboardHideable(
+            child: SafeArea(top: false, minimum: EdgeInsets.fromLTRB(padding.left, 4, padding.right, padding.bottom), child: action!),
+          ),
+      ],
+    ),
+  );
 }
 
 /// Cấu hình thanh máy tính (+ − × ÷ =) gắn lên thanh bàn phím khi đang nhập số tiền.
@@ -1127,9 +1221,7 @@ class KeyboardDismissShell extends StatelessWidget {
                 color: scheme.surfaceContainerHigh,
                 child: Container(
                   decoration: BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45)),
-                    ),
+                    border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.45))),
                   ),
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: ValueListenableBuilder<KeyboardCalcBar?>(

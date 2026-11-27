@@ -189,60 +189,45 @@ Future<void> editJar(BuildContext context, WidgetRef ref, Jar? j) async {
     context: context,
     isScrollControlled: true,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, set) => Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(j == null ? 'Tạo hũ tiết kiệm' : 'Sửa hũ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Tên hũ (VD: Du lịch Nhật)'),
-              ),
-              const SizedBox(height: 12),
-              AmountField(controller: target, label: 'Mục tiêu', suffix: f.currency(f.baseCurrency)?.symbol),
-              InfoTile(
-                icon: Icons.flag_rounded,
-                label: 'Hạn hoàn thành',
-                value: deadline == null ? 'Không đặt' : Fmt.date(deadline!),
-                onTap: () async {
-                  final d = await pickDateTime(ctx, deadline ?? DateTime.now().add(const Duration(days: 180)), withTime: false);
-                  set(() => deadline = d);
-                },
-              ),
-              const SizedBox(height: 8),
-              ColorPickerRow(value: color, onChanged: (c) => set(() => color = c)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () {
-                if (name.text.trim().isEmpty) return;
-                ref.read(storeProvider).put(E.savingsJars, {
-                  if (j != null) ...j.m,
-                  'name': name.text.trim(),
-                  'targetAmount': parseAmount(target.text),
-                  'currencyCode': j?.currencyCode ?? f.baseCurrency,
-                  'deadline': deadline == null ? null : Fmt.isoDate(deadline!),
-                  'color': colorHex(color),
-                  'icon': icon,
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text('Lưu'),
-            ),
-          ],
+      builder: (ctx, set) => FormSheetBody(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        action: FilledButton(
+          onPressed: () {
+            if (name.text.trim().isEmpty) return;
+            ref.read(storeProvider).put(E.savingsJars, {
+              if (j != null) ...j.m,
+              'name': name.text.trim(),
+              'targetAmount': parseAmount(target.text),
+              'currencyCode': j?.currencyCode ?? f.baseCurrency,
+              'deadline': deadline == null ? null : Fmt.isoDate(deadline!),
+              'color': colorHex(color),
+              'icon': icon,
+            });
+            Navigator.pop(ctx);
+          },
+          child: const Text('Lưu'),
         ),
+        children: [
+          Text(j == null ? 'Tạo hũ tiết kiệm' : 'Sửa hũ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: name,
+            decoration: const InputDecoration(labelText: 'Tên hũ (VD: Du lịch Nhật)'),
+          ),
+          const SizedBox(height: 12),
+          AmountField(controller: target, label: 'Mục tiêu', suffix: f.currency(f.baseCurrency)?.symbol),
+          InfoTile(
+            icon: Icons.flag_rounded,
+            label: 'Hạn hoàn thành',
+            value: deadline == null ? 'Không đặt' : Fmt.date(deadline!),
+            onTap: () async {
+              final d = await pickDateTime(ctx, deadline ?? DateTime.now().add(const Duration(days: 180)), withTime: false);
+              set(() => deadline = d);
+            },
+          ),
+          const SizedBox(height: 8),
+          ColorPickerRow(value: color, onChanged: (c) => set(() => color = c)),
+        ],
       ),
     ),
   );
@@ -468,49 +453,44 @@ class JarDetailPage extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, set) => Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(deposit ? 'Nạp vào hũ' : 'Rút từ hũ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 12),
-              AmountField(controller: amount, autofocus: true, suffix: f.currency(j.currencyCode)?.symbol),
-              InfoTile(
-                icon: Icons.account_balance_wallet,
-                label: deposit ? 'Lấy từ' : 'Chuyển về',
-                value: acc?.name ?? 'Không chọn',
-                onTap: () async {
-                  final a = await pickAccount(ctx, ref);
-                  set(() => acc = a);
-                },
-              ),
-              TextField(
-                controller: note,
-                decoration: const InputDecoration(labelText: 'Ghi chú'),
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () {
-                  final v = parseAmount(amount.text);
-                  if (v <= 0) return;
-                  ref.read(storeProvider).put(E.jarTransactions, {
-                    'jarId': j.id,
-                    'accountId': acc?.id,
-                    'amount': deposit ? v : -v,
-                    'note': note.text.trim().isEmpty ? null : note.text.trim(),
-                    'occurredAt': toIso8601WithOffset(DateTime.now()),
-                  });
-                  Navigator.pop(ctx);
-                  if (deposit && f.jarSaved(j.id) + v >= j.target && j.target > 0) {
-                    ref.read(notifierProvider).show('Chúc mừng! 🎉', 'Hũ "${j.name}" đã đạt mục tiêu', kind: NotifyKind.finance);
-                  }
-                },
-                child: Text(deposit ? 'Nạp' : 'Rút'),
-              ),
-            ],
+        builder: (ctx, set) => FormSheetBody(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          action: FilledButton(
+            onPressed: () {
+              final v = parseAmount(amount.text);
+              if (v <= 0) return;
+              ref.read(storeProvider).put(E.jarTransactions, {
+                'jarId': j.id,
+                'accountId': acc?.id,
+                'amount': deposit ? v : -v,
+                'note': note.text.trim().isEmpty ? null : note.text.trim(),
+                'occurredAt': toIso8601WithOffset(DateTime.now()),
+              });
+              Navigator.pop(ctx);
+              if (deposit && f.jarSaved(j.id) + v >= j.target && j.target > 0) {
+                ref.read(notifierProvider).show('Chúc mừng! 🎉', 'Hũ "${j.name}" đã đạt mục tiêu', kind: NotifyKind.finance);
+              }
+            },
+            child: Text(deposit ? 'Nạp' : 'Rút'),
           ),
+          children: [
+            Text(deposit ? 'Nạp vào hũ' : 'Rút từ hũ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            AmountField(controller: amount, autofocus: true, suffix: f.currency(j.currencyCode)?.symbol),
+            InfoTile(
+              icon: Icons.account_balance_wallet,
+              label: deposit ? 'Lấy từ' : 'Chuyển về',
+              value: acc?.name ?? 'Không chọn',
+              onTap: () async {
+                final a = await pickAccount(ctx, ref);
+                set(() => acc = a);
+              },
+            ),
+            TextField(
+              controller: note,
+              decoration: const InputDecoration(labelText: 'Ghi chú'),
+            ),
+          ],
         ),
       ),
     );

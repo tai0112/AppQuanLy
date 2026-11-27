@@ -1,6 +1,6 @@
 {
   "appName": "LinTin",
-  "updated": "20/11/2026",
+  "updated": "27/11/2026",
   "contact": "tai023156@gmail.com",
   "privacy": {
     "title": "Chính sách quyền riêng tư",
@@ -19,23 +19,27 @@
         "body": "Ứng dụng chỉ truy cập máy ảnh khi bạn bấm \"Chụp ảnh\" và chỉ đọc những ảnh bạn tự chọn trong thư viện, nhằm đính kèm hoá đơn / ảnh vào giao dịch, ảnh kỷ niệm vào lịch trình, ảnh vào bài viết hoặc tin nhắn. Ứng dụng không tự chụp, không quét thư viện, không nhận diện khuôn mặt và không dùng ảnh cho mục đích nào khác."
       },
       {
-        "title": "4. Mục đích sử dụng",
+        "title": "4. Vị trí",
+        "body": "Khi bạn tạo một giao dịch mới, ứng dụng có thể tự ghi lại địa điểm hiện tại (toạ độ GPS và địa chỉ gần đúng) để bạn biết khoản chi phát sinh ở đâu. Việc này chỉ diễn ra khi bạn đang mở ứng dụng và đang tạo giao dịch; ứng dụng không theo dõi vị trí chạy nền.\n• Ứng dụng chỉ hỏi quyền vị trí một lần. Nếu bạn từ chối, ứng dụng không hỏi lại và giao dịch được lưu không kèm địa điểm.\n• Bạn có thể bỏ địa điểm của từng giao dịch ngay trên màn hình giao dịch, hoặc thu hồi quyền vị trí bất cứ lúc nào trong Cài đặt của thiết bị.\n• Địa điểm được lưu cùng giao dịch: chỉ trên thiết bị nếu bạn không đăng nhập, hoặc đồng bộ lên máy chủ cùng giao dịch nếu bạn có tài khoản. Địa điểm không được chia sẻ cho người khác hay bên thứ ba."
+      },
+      {
+        "title": "5. Mục đích sử dụng",
         "body": "Dữ liệu chỉ dùng để cung cấp tính năng cho chính bạn: lưu trữ, đồng bộ giữa các thiết bị, thống kê, nhắc nhở, và chia sẻ với những người bạn chủ động chọn (bạn bè, người tham gia lịch trình, người nhận tin nhắn). Chúng tôi không bán dữ liệu, không dùng cho quảng cáo, không theo dõi bạn trên ứng dụng / trang web khác và không chia sẻ cho bên thứ ba."
       },
       {
-        "title": "5. Lưu trữ và bảo mật",
+        "title": "6. Lưu trữ và bảo mật",
         "body": "Dữ liệu được truyền qua kết nối mã hoá (HTTPS) và lưu trên máy chủ của LinTin. Mật khẩu được băm một chiều. Chỉ bạn (và những người bạn chủ động chia sẻ) xem được dữ liệu của mình."
       },
       {
-        "title": "6. Xoá dữ liệu và tài khoản",
+        "title": "7. Xoá dữ liệu và tài khoản",
         "body": "Bạn có thể xoá từng mục bất cứ lúc nào. Để xoá toàn bộ, vào Cài đặt → Xoá tài khoản. Khi xoá tài khoản: mọi dữ liệu cá nhân, ảnh, bài viết bị xoá vĩnh viễn khỏi máy chủ; bình luận và tin nhắn bạn đã gửi bị xoá nội dung; hồ sơ được ẩn danh hoá. Thao tác không thể hoàn tác."
       },
       {
-        "title": "7. Trẻ em",
+        "title": "8. Trẻ em",
         "body": "Ứng dụng không dành cho trẻ em dưới 13 tuổi và không cố ý thu thập dữ liệu của trẻ dưới 13 tuổi."
       },
       {
-        "title": "8. Liên hệ",
+        "title": "9. Liên hệ",
         "body": "Mọi câu hỏi về quyền riêng tư hoặc yêu cầu về dữ liệu, vui lòng liên hệ: {contact}."
       }
     ]

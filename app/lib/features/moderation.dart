@@ -167,66 +167,61 @@ class _ReportSheetState extends ConsumerState<_ReportSheet> {
       ReportTarget.message => 'tin nhắn',
       _ => 'người dùng',
     };
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Báo cáo $what', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text('Báo cáo được gửi ẩn danh tới quản trị viên. Nội dung sẽ được ẩn ngay với bạn.', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final (v, label, icon) in reportReasons)
-                ChoiceChip(
-                  avatar: Icon(icon, size: 16),
-                  label: Text(label),
-                  selected: reason == v,
-                  onSelected: (_) {
-                    HapticFeedback.selectionClick();
-                    setState(() => reason = v);
-                  },
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: note,
-            maxLines: 3,
-            minLines: 1,
-            maxLength: 1000,
-            decoration: const InputDecoration(hintText: 'Mô tả thêm (không bắt buộc)', counterText: ''),
-          ),
-          if (widget.userName != null && widget.type != ReportTarget.user)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: block,
-              onChanged: (v) => setState(() => block = v ?? false),
-              title: Text('Chặn luôn ${widget.userName}'),
-              subtitle: const Text('Không thấy nội dung và không nhận tin nhắn từ người này'),
-            ),
-          if (widget.type == ReportTarget.user)
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              value: block,
-              onChanged: (v) => setState(() => block = v ?? false),
-              title: const Text('Chặn người dùng này'),
-            ),
-          const SizedBox(height: 8),
-          FilledButton.icon(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48), backgroundColor: AppColors.expense),
-            onPressed: reason == null || sending ? null : _send,
-            icon: sending
-                ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.flag_rounded),
-            label: const Text('Gửi báo cáo'),
-          ),
-        ],
+    return FormSheetBody(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      action: FilledButton.icon(
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48), backgroundColor: AppColors.expense),
+        onPressed: reason == null || sending ? null : _send,
+        icon: sending
+            ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.flag_rounded),
+        label: const Text('Gửi báo cáo'),
       ),
+      children: [
+        Text('Báo cáo $what', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        Text('Báo cáo được gửi ẩn danh tới quản trị viên. Nội dung sẽ được ẩn ngay với bạn.', style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final (v, label, icon) in reportReasons)
+              ChoiceChip(
+                avatar: Icon(icon, size: 16),
+                label: Text(label),
+                selected: reason == v,
+                onSelected: (_) {
+                  HapticFeedback.selectionClick();
+                  setState(() => reason = v);
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: note,
+          maxLines: 3,
+          minLines: 1,
+          maxLength: 1000,
+          decoration: const InputDecoration(hintText: 'Mô tả thêm (không bắt buộc)', counterText: ''),
+        ),
+        if (widget.userName != null && widget.type != ReportTarget.user)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: block,
+            onChanged: (v) => setState(() => block = v ?? false),
+            title: Text('Chặn luôn ${widget.userName}'),
+            subtitle: const Text('Không thấy nội dung và không nhận tin nhắn từ người này'),
+          ),
+        if (widget.type == ReportTarget.user)
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: block,
+            onChanged: (v) => setState(() => block = v ?? false),
+            title: const Text('Chặn người dùng này'),
+          ),
+      ],
     );
   }
 }

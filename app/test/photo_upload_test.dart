@@ -121,12 +121,28 @@ void main() {
   test('đồng bộ tải về ảnh còn thiếu (thêm từ máy khác) và lưu vào tệp', () async {
     api.loggedIn = true;
     api.serverFiles['f-remote'] = img(5000);
+    // Ảnh chỉ được tải về khi giao dịch sở hữu nó có trên máy (ảnh của giao dịch không tồn tại thì bỏ qua).
     api.changes = {
+      E.transactions: [
+        {
+          'id': 't1',
+          'type': 1,
+          'amount': 1000,
+          'currencyCode': 'VND',
+          'accountId': 'acc',
+          'occurredAt': DateTime.now().toUtc().toIso8601String(),
+          'updatedAt': '2026-11-22T00:00:00Z',
+        },
+      ],
       E.attachments: [
         {'id': 'a1', 'fileId': 'f-remote', 'ownerType': 1, 'ownerId': 't1', 'updatedAt': '2026-11-22T00:00:00Z'},
       ],
     };
     await sync.sync();
+    // Ảnh được tải ở nền (không chặn đồng bộ dữ liệu) → chờ tối đa 2 giây.
+    for (var i = 0; i < 40 && !store.hasLocalFile('f-remote'); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
     expect(store.hasLocalFile('f-remote'), isTrue);
     expect((await store.readFile('f-remote'))!.length, 5000);
     expect(store.missingFiles(), isEmpty);

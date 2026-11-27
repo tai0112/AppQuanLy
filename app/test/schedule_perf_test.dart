@@ -86,5 +86,7 @@ void main() {
     );
     expect(steady, lessThan(4));
     expect(first, lessThan(60));
-  });
+    // Đo thời gian thật: khi chạy cùng các file test khác (song song, máy bận) có thể trượt ngẫu nhiên → cho thử lại,
+    // vẫn giữ nguyên ngưỡng nên màn chậm thật sự vẫn bị bắt.
+  }, retry: 2);
 }

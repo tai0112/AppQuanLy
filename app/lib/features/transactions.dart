@@ -92,10 +92,7 @@ class GroupedTxDays extends ConsumerWidget {
                       ),
                       Divider(height: 1, thickness: 1, indent: 14, endIndent: 14, color: scheme.outlineVariant.withValues(alpha: 0.35)),
                       const SizedBox(height: 4),
-                      for (final (j, tx) in dayItems.indexed) ...[
-                        if (j > 0) const SizedBox(height: 4),
-                        TxTile(txn: tx),
-                      ],
+                      for (final (j, tx) in dayItems.indexed) ...[if (j > 0) const SizedBox(height: 4), TxTile(txn: tx)],
                     ],
                   ),
                 ),
@@ -126,10 +123,7 @@ class TxTile extends ConsumerWidget {
     final catColor = isTransfer ? AppColors.transfer : hexColor(cat?.color, scheme.primary);
     final title = isTransfer ? 'Chuyển khoản' : (cat?.name ?? txn.categoryName ?? 'Không có danh mục');
     final accLabel = isTransfer ? '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' : (acc?.name ?? '');
-    final extraMeta = [
-      if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
-      if (showDate) Fmt.dateShort(txn.occurredAt),
-    ].join(' · ');
+    final extraMeta = [if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}', if (showDate) Fmt.dateShort(txn.occurredAt)].join(' · ');
     // Bấm vào giao dịch: thẻ "biến hình" thành màn sửa giao dịch
     return OpenCard(
       radius: 14,
@@ -137,10 +131,7 @@ class TxTile extends ConsumerWidget {
       page: TransactionEditPage(id: txn.id, type: txn.type),
       child: Row(
         children: [
-          if (photos.isNotEmpty) ...[
-            _StackedTxPhotos(photos: photos),
-            const SizedBox(width: 12),
-          ],
+          if (photos.isNotEmpty) ...[_StackedTxPhotos(photos: photos), const SizedBox(width: 12)],
           Expanded(
             child: _TxMetaColumn(
               title: title,
@@ -298,9 +289,7 @@ class _StackedTxPhotos extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: surface, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4, offset: const Offset(0, 1)),
-                  ],
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 4, offset: const Offset(0, 1))],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(8.5),
@@ -416,11 +405,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
       appBar: AppBar(
         title: const Text('Giao dịch'),
         actions: [
-          IconButton(
-            tooltip: 'Giao dịch định kỳ',
-            onPressed: () => context.push('/recurring'),
-            icon: const Icon(Icons.event_repeat_rounded),
-          ),
+          IconButton(tooltip: 'Giao dịch định kỳ', onPressed: () => context.push('/recurring'), icon: const Icon(Icons.event_repeat_rounded)),
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: PillToggle<bool>(
@@ -631,10 +616,7 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                     child: c,
                   ),
                 ),
-                child: KeyedSubtree(
-                  key: ValueKey('view-$calendar-$from'),
-                  child: calendar ? _calendarView(list, from) : _listView(list),
-                ),
+                child: KeyedSubtree(key: ValueKey('view-$calendar-$from'), child: calendar ? _calendarView(list, from) : _listView(list)),
               ),
             ),
           ],
@@ -1115,7 +1097,9 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
       HapticFeedback.selectionClick();
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => TransactionEditPage(type: txType, preset: {'date': atDay(selectedDay)})),
+        MaterialPageRoute(
+          builder: (_) => TransactionEditPage(type: txType, preset: {'date': atDay(selectedDay)}),
+        ),
       );
     }
 
@@ -1167,30 +1151,15 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
           Row(
             children: [
               Expanded(
-                child: _QuickTxBtn(
-                  label: 'Khoản chi',
-                  icon: Icons.north_east_rounded,
-                  color: AppColors.expense,
-                  onTap: () => openNew(TxType.expense),
-                ),
+                child: _QuickTxBtn(label: 'Khoản chi', icon: Icons.north_east_rounded, color: AppColors.expense, onTap: () => openNew(TxType.expense)),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _QuickTxBtn(
-                  label: 'Khoản thu',
-                  icon: Icons.south_west_rounded,
-                  color: AppColors.income,
-                  onTap: () => openNew(TxType.income),
-                ),
+                child: _QuickTxBtn(label: 'Khoản thu', icon: Icons.south_west_rounded, color: AppColors.income, onTap: () => openNew(TxType.income)),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _QuickTxBtn(
-                  label: 'Chuyển tiền',
-                  icon: Icons.swap_horiz_rounded,
-                  color: AppColors.transfer,
-                  onTap: () => openNew(TxType.transfer),
-                ),
+                child: _QuickTxBtn(label: 'Chuyển tiền', icon: Icons.swap_horiz_rounded, color: AppColors.transfer, onTap: () => openNew(TxType.transfer)),
               ),
             ],
           ),
@@ -1201,12 +1170,19 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
             padding: const EdgeInsets.symmetric(horizontal: 4),
             child: Row(
               children: [
-                Text('Giao dịch gần đây', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant)),
-                const Spacer(),
+                // Màn hẹp / chữ to: tiêu đề tự rút gọn, nút "Xem tất cả" luôn hiện đủ.
+                Expanded(
+                  child: Text(
+                    'Giao dịch gần đây',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
+                  ),
+                ),
                 TextButton(
                   style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                   onPressed: () => setState(() => calendar = false),
-                  child: Text('Xem tất cả (${recent.length})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                  child: Text('Xem tất cả (${recent.length})', maxLines: 1, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                 ),
               ],
             ),
@@ -1544,8 +1520,6 @@ class _TxGridCard extends ConsumerWidget {
   }
 }
 
-
-
 /// Kiểu xem trong bảng giao dịch của ngày (lưu trên máy).
 const _dayViewKey = 'txDayView';
 
@@ -1606,7 +1580,9 @@ class _DaySheetState extends ConsumerState<_DaySheet> {
           for (final x in items)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: RepaintBoundary(child: _DayRow(txn: x, photo: photoOf[x.id]?.file)),
+              child: RepaintBoundary(
+                child: _DayRow(txn: x, photo: photoOf[x.id]?.file),
+              ),
             ),
           SizedBox(height: 64, child: _AddDayCard(day: d, row: true)),
         ],
@@ -1621,7 +1597,10 @@ class _DaySheetState extends ConsumerState<_DaySheet> {
         crossAxisSpacing: 8,
         childAspectRatio: view == 4 ? 0.66 : 0.72,
         children: [
-          for (final x in items) RepaintBoundary(child: _TxGridCard(txn: x, photo: photoOf[x.id]?.file, cols: view)),
+          for (final x in items)
+            RepaintBoundary(
+              child: _TxGridCard(txn: x, photo: photoOf[x.id]?.file, cols: view),
+            ),
           _AddDayCard(day: d, compact: true),
         ],
       );
@@ -1733,13 +1712,14 @@ class _DayRow extends ConsumerWidget {
     };
     final acc = f.account(txn.accountId);
     final accLabel = isTransfer ? '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' : (acc?.name ?? '');
-    final extraMeta = [
-      Fmt.time(txn.occurredAt),
-      if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}',
-    ].join(' · ');
+    final extraMeta = [Fmt.time(txn.occurredAt), if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}'].join(' · ');
     return AppCard(
       padding: const EdgeInsets.all(10),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => TransactionEditPage(id: txn.id, type: txn.type))),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TransactionEditPage(id: txn.id, type: txn.type),
+        ),
+      ),
       child: Row(
         children: [
           ClipRRect(
@@ -1905,12 +1885,7 @@ class _Total extends StatelessWidget {
                   child: Text(
                     fmt(value),
                     key: ValueKey(fmt(value)),
-                    style: TextStyle(
-                      color: color,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
+                    style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15, fontFeatures: const [FontFeature.tabularFigures()]),
                   ),
                 ),
               ),
@@ -1923,6 +1898,22 @@ class _Total extends StatelessWidget {
 }
 
 /// Thêm / sửa giao dịch (chi, thu, chuyển khoản) + ảnh đính kèm.
+/// Gợi ý thêm số 0 khi người dùng gõ tay số tiền nhỏ (tiền không có phần lẻ, vd VND):
+/// 25 → 25.000 · 250.000 · 2.500.000; 250 → 250.000 · 2.500.000 · 25.000.000; 2.500 → 25.000 · 250.000.
+/// Từ 5 chữ số trở lên (đã đủ lớn) hoặc số lẻ / ≤ 0 → không gợi ý.
+List<double> zeroSuggestions(double v) {
+  if (v <= 0 || v != v.roundToDouble()) return const [];
+  final List<int> mul;
+  if (v < 1000) {
+    mul = const [1000, 10000, 100000];
+  } else if (v < 10000) {
+    mul = const [10, 100];
+  } else {
+    return const [];
+  }
+  return [for (final m in mul) v * m];
+}
+
 class TransactionEditPage extends ConsumerStatefulWidget {
   const TransactionEditPage({super.key, this.id, this.type = 1, this.preset = const {}});
   final String? id;
@@ -1970,6 +1961,16 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   String? _calcOp;
   String? _expandedParentId;
 
+  /// Số tiền do người dùng tự gõ (khác với bấm chip / OCR) → hiện gợi ý thêm số 0.
+  bool _typed = false;
+
+  /// Vị trí tự lấy ngầm cho giao dịch mới (null = không lấy).
+  Future<LocationResult?>? _autoLocation;
+
+  /// Bộ đệm danh mục hay dùng (chỉ tính lại khi đổi loại / danh mục chọn / dữ liệu giao dịch).
+  String? _freqKey;
+  List<Category> _freqCache = const [];
+
   @override
   void initState() {
     super.initState();
@@ -2005,7 +2006,24 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
       if (widget.preset['categoryName'] != null) {
         category = f.categories.where((c) => c.name == widget.preset['categoryName']).firstOrNull;
       }
+      if (location.text.isEmpty) _startAutoLocation(store);
     }
+  }
+
+  /// Giao dịch mới: tự lấy vị trí hiện tại ở nền (không hiện thông báo). Chỉ xin quyền vị trí một lần duy nhất.
+  void _startAutoLocation(LocalStore store) {
+    final asked = store.meta('txLocAsked') == '1';
+    // Đợi màn trượt vào xong để hộp thoại xin quyền (nếu có) không chen giữa hiệu ứng.
+    _autoLocation = Future<void>.delayed(const Duration(milliseconds: 450))
+        .then((_) => fetchLocationSilently(mayAsk: !asked, onAsked: () => store.setMeta('txLocAsked', '1')));
+    _autoLocation!.then((r) {
+      if (r == null || !mounted || location.text.isNotEmpty) return;
+      setState(() {
+        location.text = r.address;
+        latitude = r.latitude;
+        longitude = r.longitude;
+      });
+    });
   }
 
   void _save() {
@@ -2055,6 +2073,15 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     }
 
     store.setMeta('lastAccountId', account!.id); // nhớ nguồn tiền vừa dùng
+    // Vị trí chưa lấy xong lúc bấm Lưu → về sau thì gắn thêm vào giao dịch vừa lưu.
+    if (widget.id == null && location.text.trim().isEmpty && _autoLocation != null) {
+      final id = saved['id'] as String;
+      _autoLocation!.then((r) {
+        final cur = store.get(E.transactions, id);
+        if (r == null || cur == null || cur['location'] != null) return;
+        store.put(E.transactions, {'id': id, 'location': r.address, 'latitude': r.latitude, 'longitude': r.longitude});
+      });
+    }
     if (widget.id == null && repeatFreq != 'NONE') {
       final rrule = Recurrence.build(repeatFreq) ?? 'FREQ=MONTHLY';
       final nextAt = Recurrence.nextOccurrence(rrule, at);
@@ -2110,17 +2137,31 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
   void _addAmount(double v) {
     HapticFeedback.selectionClick();
     final cur = parseAmount(amount.text);
-    setState(() => amount.text = amountText(cur + v));
+    _typed = false;
+    _setAmount(cur + v);
+  }
+
+  /// Điền số tiền và đặt con trỏ ở cuối.
+  void _setAmount(num v) {
+    final t = amountText(v);
+    amount.value = TextEditingValue(
+      text: t,
+      selection: TextSelection.collapsed(offset: t.length),
+    );
+  }
+
+  List<Category> _frequentCached(Finance f, int n) {
+    final key = '$type|${category?.id}|${ref.read(storeProvider).versionKey(const [E.transactions, E.categories])}';
+    if (key != _freqKey) {
+      _freqKey = key;
+      _freqCache = _frequent(f, n);
+    }
+    return _freqCache;
   }
 
   void _syncKeyboardCalc() {
     if (_amountFocus.hasFocus) {
-      keyboardCalcNotifier.value = KeyboardCalcBar(
-        onOp: _pressOp,
-        onEval: _evalCalc,
-        activeOp: _calcOp,
-        canEval: _calcOp != null,
-      );
+      keyboardCalcNotifier.value = KeyboardCalcBar(onOp: _pressOp, onEval: _evalCalc, activeOp: _calcOp, canEval: _calcOp != null);
     } else if (keyboardCalcNotifier.value != null) {
       keyboardCalcNotifier.value = null;
     }
@@ -2231,9 +2272,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
               : 'Đã đọc số ${f.money(targetValue, account?.currencyCode)} từ ảnh',
         );
       } else if (forceFill) {
-        final msg = (lastRes == null || lastRes.rawText.trim().isEmpty)
-            ? 'Không nhận diện được chữ/số trong ảnh'
-            : 'Không tìm thấy số tiền phù hợp trong ảnh';
+        final msg = (lastRes == null || lastRes.rawText.trim().isEmpty) ? 'Không nhận diện được chữ/số trong ảnh' : 'Không tìm thấy số tiền phù hợp trong ảnh';
         showToast(context, msg, error: true);
       }
     } catch (e) {
@@ -2281,7 +2320,7 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
     final color = txColor(type);
     final event = ref.watchTables(const [E.events]).get(E.events, eventId);
     final symbol = f.currency(account?.currencyCode ?? 'VND')?.symbol ?? '₫';
-    final value = parseAmount(amount.text);
+    final wholeOnly = (f.currency(account?.currencyCode ?? 'VND')?.decimals ?? 0) == 0;
     final today = dateOnly(DateTime.now());
     final hue = type == TxType.expense ? -16.0 : 20.0; // đỏ ngả hồng, xanh ngả ngọc
     final typeName = switch (type) {
@@ -2345,697 +2384,735 @@ class _TransactionEditPageState extends ConsumerState<TransactionEditPage> {
               boxShadow: [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 16, offset: const Offset(0, 6))],
             ),
             alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(Icons.check_rounded, color: Colors.white),
                 const SizedBox(width: 8),
-                Text(
-                  value > 0 ? 'Lưu $typeName · ${f.money(value, account?.currencyCode)}' : 'Lưu $typeName',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+                Flexible(
+                  child: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: amount,
+                    builder: (_, v, _) {
+                      final value = parseAmount(v.text);
+                      return Text(
+                        value > 0 ? 'Lưu $typeName · ${f.money(value, account?.currencyCode)}' : 'Lưu $typeName',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+                      );
+                    },
+                  ),
                 ),
               ],
             ),
           ),
         ),
       ),
-      body: ListView(
+      // SingleChildScrollView (không phải ListView): các khối không bị huỷ khi cuộn khuất → cuộn lại không dựng lại,
+      // ô số tiền không tự bật bàn phím lần nữa, lưới danh mục không chạy lại hiệu ứng.
+      body: SingleChildScrollView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-        children: [
-          _TypeSwitch(
-            value: type,
-            onChanged: (v) => setState(() {
-              type = v;
-              if (category != null && category!.type != type) {
-                category = null;
-                _expandedParentId = null;
-              }
-            }),
-          ),
-          const SizedBox(height: 10),
-          // Thẻ số tiền
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 350),
-            curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  heroOf(color),
-                  accentOf(heroOf(color), hue: hue),
-                ],
-              ),
-              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 8))],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Row(
-                        children: [
-                          Text('Số tiền $typeName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
-                          if (_calcOp != null && _calcLeft != null) ...[
-                            const SizedBox(width: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
-                              child: Text(
-                                '${f.money(_calcLeft!, account?.currencyCode)} $_calcOp',
-                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    if (OcrService.isSupported)
-                      Pressable(
-                        onTap: ocrBusy ? null : _pickAndScanReceipt,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (ocrBusy)
-                                const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              else
-                                const Icon(Icons.document_scanner_rounded, size: 14, color: Colors.white),
-                              const SizedBox(width: 5),
-                              Text(ocrBusy ? 'Đang đọc...' : 'Quét ảnh', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: amount,
-                        focusNode: _amountFocus,
-                        autofocus: widget.id == null,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: const [ThousandsInputFormatter()],
-                        onChanged: (_) => setState(() {}),
-                        cursorColor: Colors.white,
-                        style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5),
-                        decoration: InputDecoration(
-                          hintText: '0',
-                          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 38, fontWeight: FontWeight.w900),
-                          filled: false,
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      symbol,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 24, fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  height: 32,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      for (final v in const [10000.0, 50000.0, 100000.0, 200000.0, 500000.0])
-                        Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: Pressable(
-                            onTap: () => _addAmount(v),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(16)),
-                              child: Text(
-                                '+${Fmt.compact(v)}',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
-                              ),
-                            ),
-                          ),
-                        ),
-                      if (value > 0 || _calcOp != null)
-                        Pressable(
-                          onTap: () {
-                            setState(() {
-                              amount.clear();
-                              _calcLeft = null;
-                              _calcOp = null;
-                            });
-                            _syncKeyboardCalc();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
-                            child: const Icon(Icons.backspace_rounded, color: Colors.white, size: 16),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (ocrCandidates.isNotEmpty) ...[
-            Text('Số đọc được từ ảnh (chạm để chọn):', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                for (final v in ocrCandidates)
-                  ChoiceChip(
-                    avatar: const Icon(Icons.document_scanner_rounded, size: 15),
-                    label: Text(f.money(v, account?.currencyCode)),
-                    selected: parseAmount(amount.text) == v,
-                    onSelected: (_) => setState(() => amount.text = amountText(v)),
-                  ),
-              ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _TypeSwitch(
+              value: type,
+              onChanged: (v) => setState(() {
+                type = v;
+                if (category != null && category!.type != type) {
+                  category = null;
+                  _expandedParentId = null;
+                }
+              }),
             ),
             const SizedBox(height: 10),
-          ],
-          // Ghi chú + Ảnh hoá đơn / kỷ niệm gộp gọn ngay dưới Số tiền
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: note,
-                  maxLines: 3,
-                  minLines: 1,
-                  decoration: const InputDecoration(
-                    hintText: 'Ghi chú (ăn gì, mua gì, với ai…)',
-                    prefixIcon: Icon(Icons.edit_note_rounded),
-                    isDense: true,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  ),
+            // Thẻ số tiền
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    heroOf(color),
+                    accentOf(heroOf(color), hue: hue),
+                  ],
                 ),
+                boxShadow: [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 8))],
               ),
-              const SizedBox(width: 8),
-              Pressable(
-                onTap: _addPhotos,
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: photos.isNotEmpty ? scheme.primaryContainer : scheme.surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(14),
-                    border: photos.isNotEmpty ? Border.all(color: scheme.primary.withValues(alpha: 0.45)) : null,
-                  ),
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_a_photo_rounded,
-                        size: 21,
-                        color: photos.isNotEmpty ? scheme.onPrimaryContainer : scheme.primary,
-                      ),
-                      if (photos.isNotEmpty)
-                        Positioned(
-                          right: 4,
-                          top: 4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                            decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(999)),
-                            child: Text(
-                              '${photos.length}',
-                              style: TextStyle(color: scheme.onPrimary, fontSize: 9, fontWeight: FontWeight.w800),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
-            child: photos.isEmpty
-                ? const SizedBox.shrink()
-                : Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: PhotoGrid(fileIds: photos, size: 68, onAdd: _addPhotos, onRemove: _removePhoto),
-                  ),
-          ),
-          // Danh mục: đặt ngay dưới Ghi chú & Ảnh để thấy trọn vẹn trong màn đầu
-          if (type != TxType.transfer)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Text('Danh mục', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                      const SizedBox(width: 8),
-                      if (category == null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.warning.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: const Text('Chưa chọn', style: TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w700)),
-                        )
-                      else
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: hexColor(category!.color, color).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            category!.name,
-                            style: TextStyle(color: hexColor(category!.color, color), fontSize: 11, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      const Spacer(),
-                      TextButton(
-                        style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                        onPressed: () async {
-                          final c = await pickCategory(context, ref, type);
-                          if (c != null) setState(() => category = c);
-                        },
-                        child: const Text('Tất cả'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Builder(
-                    builder: (_) {
-                      final cats = _frequent(f, 7);
-                      final parentIdForSub = _expandedParentId;
-                      final parentCat = parentIdForSub == null ? null : f.category(parentIdForSub);
-                      final subCats = parentCat == null
-                          ? const <Category>[]
-                          : (f.categories.where((x) => x.parentId == parentCat.id).toList());
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          GridView.count(
-                            crossAxisCount: 4,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            mainAxisSpacing: 7,
-                            crossAxisSpacing: 7,
-                            childAspectRatio: 1.15,
-                            children: [
-                              for (final (i, c) in cats.indexed)
-                                Builder(
-                                  builder: (_) {
-                                    final on = category?.id == c.id || category?.parentId == c.id;
-                                    final cc = hexColor(c.color, color);
-                                    final hasSub = f.categories.any((x) => x.parentId == c.id);
-                                    return Pressable(
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        setState(() {
-                                          // Nếu đang mở danh mục con của chính cha này và đang chọn cha -> thu gọn; nếu đang chọn con -> quay về cha
-                                          if (_expandedParentId == c.id && category?.id == c.id) {
-                                            _expandedParentId = null;
-                                          } else {
-                                            category = c;
-                                            _expandedParentId = hasSub ? c.id : null;
-                                          }
-                                        });
-                                      },
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 220),
-                                        decoration: BoxDecoration(
-                                          color: on ? cc.withValues(alpha: 0.18) : scheme.surfaceContainerHigh,
-                                          borderRadius: BorderRadius.circular(16),
-                                          border: Border.all(
-                                            color: on ? cc : (category == null ? AppColors.warning.withValues(alpha: 0.35) : Colors.transparent),
-                                            width: on ? 1.8 : 1.0,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            AnimatedScale(
-                                              scale: on ? 1.1 : 1,
-                                              duration: const Duration(milliseconds: 220),
-                                              curve: Curves.easeOutBack,
-                                              child: CircleIcon(icon: c.icon, color: cc, size: 32),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Padding(
-                                              padding: const EdgeInsets.symmetric(horizontal: 4),
-                                              child: Text(
-                                                c.name,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(fontSize: 11.5, fontWeight: on ? FontWeight.w800 : FontWeight.w500),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ).stagger(i);
-                                  },
-                                ),
-                              Pressable(
-                                onTap: () async {
-                                  final c = await pickCategory(context, ref, type);
-                                  if (c != null) {
-                                    setState(() {
-                                      category = c;
-                                      _expandedParentId = c.parentId ?? (f.categories.any((x) => x.parentId == c.id) ? c.id : null);
-                                    });
-                                  }
-                                },
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(color: scheme.outlineVariant),
-                                  ),
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.apps_rounded, color: scheme.onSurfaceVariant),
-                                      const SizedBox(height: 5),
-                                      Text('Xem thêm', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
-                                    ],
-                                  ),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Text('Số tiền $typeName', style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13)),
+                            if (_calcOp != null && _calcLeft != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(10)),
+                                child: Text(
+                                  '${f.money(_calcLeft!, account?.currencyCode)} $_calcOp',
+                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
                                 ),
                               ),
                             ],
+                          ],
+                        ),
+                      ),
+                      if (OcrService.isSupported)
+                        Pressable(
+                          onTap: ocrBusy ? null : _pickAndScanReceipt,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(14)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (ocrBusy)
+                                  const SizedBox(width: 13, height: 13, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                else
+                                  const Icon(Icons.document_scanner_rounded, size: 14, color: Colors.white),
+                                const SizedBox(width: 5),
+                                Text(
+                                  ocrBusy ? 'Đang đọc...' : 'Quét ảnh',
+                                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
                           ),
-                          AnimatedSize(
-                            duration: const Duration(milliseconds: 240),
-                            curve: Curves.easeOutCubic,
-                            child: subCats.isEmpty
-                                ? const SizedBox.shrink()
-                                : Container(
-                                    margin: const EdgeInsets.only(top: 10),
-                                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                                    decoration: BoxDecoration(
-                                      color: scheme.surfaceContainerLow,
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.55)),
+                        ),
+                    ],
+                  ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: amount,
+                          focusNode: _amountFocus,
+                          autofocus: widget.id == null,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: const [ThousandsInputFormatter()],
+                          onChanged: (_) => _typed = true, // không setState: chỉ các phần nghe [amount] dựng lại
+                          cursorColor: Colors.white,
+                          style: const TextStyle(fontSize: 38, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5),
+                          decoration: InputDecoration(
+                            hintText: '0',
+                            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 38, fontWeight: FontWeight.w900),
+                            filled: false,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        symbol,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 24, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Hàng chip: gõ tay số nhỏ → gợi ý thêm số 0 (25 → 25.000…); còn lại → chip cộng nhanh. Chỉ phần này nghe [amount].
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: amount,
+                    builder: (_, v, _) {
+                      final value = parseAmount(v.text);
+                      final hints = wholeOnly && _typed && _calcOp == null ? zeroSuggestions(value) : const <double>[];
+                      return SizedBox(
+                        height: 32,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (c, a) => FadeTransition(
+                            opacity: a,
+                            child: SlideTransition(
+                              position: Tween(begin: const Offset(0, 0.25), end: Offset.zero).animate(a),
+                              child: c,
+                            ),
+                          ),
+                          layoutBuilder: (cur, prev) => Stack(alignment: Alignment.centerLeft, children: [...prev, ?cur]),
+                          child: ListView(
+                            key: ValueKey(hints.isEmpty ? 'quick' : 'hints'),
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              if (hints.isNotEmpty)
+                                for (final h in hints)
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: Pressable(
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        _typed = false;
+                                        _setAmount(h);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(alpha: 0.26),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                                        ),
+                                        child: Text(
+                                          amountText(h),
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13),
+                                        ),
+                                      ),
                                     ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Container(
-                                              width: 7,
-                                              height: 7,
-                                              margin: const EdgeInsets.only(right: 6),
-                                              decoration: BoxDecoration(color: hexColor(parentCat?.color, color), shape: BoxShape.circle),
-                                            ),
-                                            Expanded(
-                                              child: Text(
-                                                parentCat!.name,
-                                                style: TextStyle(
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w700,
-                                                  color: hexColor(parentCat.color, color),
-                                                ),
-                                              ),
-                                            ),
-                                            if (category?.parentId == parentCat.id)
-                                              GestureDetector(
-                                                onTap: () {
-                                                  HapticFeedback.selectionClick();
-                                                  setState(() => category = parentCat);
-                                                },
-                                                child: Padding(
-                                                  padding: const EdgeInsets.only(right: 8),
-                                                  child: Text(
-                                                    'Bỏ chọn con',
-                                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: scheme.primary),
-                                                  ),
-                                                ),
-                                              ),
-                                            GestureDetector(
-                                              onTap: () => setState(() => _expandedParentId = null),
-                                              child: Icon(Icons.close_rounded, size: 16, color: scheme.onSurfaceVariant),
-                                            ),
-                                          ],
+                                  )
+                              else
+                                for (final v in const [10000.0, 50000.0, 100000.0, 200000.0, 500000.0])
+                                  Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: Pressable(
+                                      onTap: () => _addAmount(v),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(16)),
+                                        child: Text(
+                                          '+${Fmt.compact(v)}',
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
                                         ),
-                                        const SizedBox(height: 8),
-                                        Wrap(
-                                          spacing: 8,
-                                          runSpacing: 8,
-                                          children: [
-                                            for (final sub in subCats)
-                                              (() {
-                                                final subOn = category?.id == sub.id;
-                                                final sc = hexColor(sub.color, hexColor(parentCat.color, color));
-                                                return Pressable(
-                                                  onTap: () {
-                                                    HapticFeedback.selectionClick();
-                                                    setState(() => category = subOn ? parentCat : sub);
-                                                  },
-                                                  child: AnimatedContainer(
-                                                    duration: const Duration(milliseconds: 180),
-                                                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-                                                    decoration: BoxDecoration(
-                                                      color: subOn ? sc.withValues(alpha: 0.16) : scheme.surfaceContainerLowest,
-                                                      borderRadius: BorderRadius.circular(999),
-                                                      border: Border.all(
-                                                        color: subOn ? sc : scheme.outlineVariant.withValues(alpha: 0.6),
-                                                        width: subOn ? 1.5 : 1,
-                                                      ),
-                                                    ),
-                                                    child: Row(
-                                                      mainAxisSize: MainAxisSize.min,
-                                                      children: [
-                                                        Icon(iconOf(sub.icon), size: 15, color: sc),
-                                                        const SizedBox(width: 6),
-                                                        Text(
-                                                          sub.name,
-                                                          style: TextStyle(
-                                                            fontSize: 12.5,
-                                                            fontWeight: subOn ? FontWeight.w700 : FontWeight.w500,
-                                                            color: subOn ? sc : scheme.onSurface,
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                  ),
-                                                );
-                                              })(),
-                                          ],
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   ),
+                              if (value > 0 || _calcOp != null)
+                                Pressable(
+                                  onTap: () {
+                                    setState(() {
+                                      amount.clear();
+                                      _calcLeft = null;
+                                      _calcOp = null;
+                                    });
+                                    _syncKeyboardCalc();
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(16)),
+                                    child: const Icon(Icons.backspace_rounded, color: Colors.white, size: 16),
+                                  ),
+                                ),
+                            ],
                           ),
-                        ],
+                        ),
                       );
                     },
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: 14),
-          AccountChips(
-            label: type == TxType.transfer ? 'Từ tài khoản' : (type == TxType.income ? 'Nhận vào' : 'Trả bằng'),
-            selected: account?.id,
-            onChanged: (a) => setState(() {
-              account = a;
-              if (toAccount?.id == a.id) toAccount = null;
-            }),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            child: type == TxType.transfer
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Column(
+            const SizedBox(height: 12),
+            if (ocrCandidates.isNotEmpty) ...[
+              Text(
+                'Số đọc được từ ảnh (chạm để chọn):',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: scheme.primary),
+              ),
+              const SizedBox(height: 6),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: amount,
+                builder: (_, cur, _) => Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    for (final v in ocrCandidates)
+                      ChoiceChip(
+                        avatar: const Icon(Icons.document_scanner_rounded, size: 15),
+                        label: Text(f.money(v, account?.currencyCode)),
+                        selected: parseAmount(cur.text) == v,
+                        onSelected: (_) {
+                          _typed = false;
+                          _setAmount(v);
+                        },
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            // Ghi chú + Ảnh hoá đơn / kỷ niệm gộp gọn ngay dưới Số tiền
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: note,
+                    maxLines: 3,
+                    minLines: 1,
+                    decoration: const InputDecoration(
+                      hintText: 'Ghi chú (ăn gì, mua gì, với ai…)',
+                      prefixIcon: Icon(Icons.edit_note_rounded),
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Pressable(
+                  onTap: _addPhotos,
+                  child: Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: photos.isNotEmpty ? scheme.primaryContainer : scheme.surfaceContainerHigh,
+                      borderRadius: BorderRadius.circular(14),
+                      border: photos.isNotEmpty ? Border.all(color: scheme.primary.withValues(alpha: 0.45)) : null,
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        AccountChips(label: 'Đến tài khoản', selected: toAccount?.id, exclude: account?.id, onChanged: (a) => setState(() => toAccount = a)),
-                        if (toAccount != null && account != null && toAccount!.currencyCode != account!.currencyCode)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 10),
-                            child: TextField(
-                              controller: toAmount,
-                              keyboardType: TextInputType.number,
-                              inputFormatters: const [ThousandsInputFormatter()],
-                              decoration: InputDecoration(
-                                labelText: 'Số tiền nhận (${toAccount!.currencyCode})',
-                                helperText: 'Để trống sẽ tự quy đổi theo tỷ giá',
-                                prefixIcon: const Icon(Icons.currency_exchange_rounded),
+                        Icon(Icons.add_a_photo_rounded, size: 21, color: photos.isNotEmpty ? scheme.onPrimaryContainer : scheme.primary),
+                        if (photos.isNotEmpty)
+                          Positioned(
+                            right: 4,
+                            top: 4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(999)),
+                              child: Text(
+                                '${photos.length}',
+                                style: TextStyle(color: scheme.onPrimary, fontSize: 9, fontWeight: FontWeight.w800),
                               ),
                             ),
                           ),
                       ],
                     ),
-                  )
-                : const SizedBox(width: double.infinity),
-          ),
-          // Thời gian: chọn nhanh + chọn cụ thể
-          section(
-            'Thời gian',
-            Row(
-              children: [
-                for (final (label, d) in [('Hôm nay', today), ('Hôm qua', today.subtract(const Duration(days: 1)))])
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      label: Text(label),
-                      selected: dateOnly(at) == d,
-                      onSelected: (_) => setState(() => at = DateTime(d.year, d.month, d.day, at.hour, at.minute)),
-                    ),
-                  ),
-                Expanded(
-                  child: Pressable(
-                    onTap: () async {
-                      final d = await pickDateTime(context, at);
-                      if (d != null) setState(() => at = d);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                      decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(14)),
-                      child: Row(
-                        children: [
-                          Icon(Icons.event_rounded, size: 18, color: scheme.primary),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              '${Fmt.time(at)} · ${at.year == today.year ? Fmt.dateShort(at) : Fmt.date(at)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          if (event != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: AppCard(
-                padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
-                child: Row(
-                  children: [
-                    const Icon(Icons.event_rounded, color: Color(0xFF0090FF)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text('Lịch trình: ${event['title']}', style: const TextStyle(fontWeight: FontWeight.w600)),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              child: photos.isEmpty
+                  ? const SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: PhotoGrid(fileIds: photos, size: 68, onAdd: _addPhotos, onRemove: _removePhoto),
                     ),
-                    IconButton(tooltip: 'Bỏ liên kết', onPressed: () => setState(() => eventId = null), icon: const Icon(Icons.close_rounded)),
+            ),
+            // Danh mục: đặt ngay dưới Ghi chú & Ảnh để thấy trọn vẹn trong màn đầu
+            if (type != TxType.transfer)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text('Danh mục', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                        const SizedBox(width: 8),
+                        if (category == null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(999)),
+                            child: const Text(
+                              'Chưa chọn',
+                              style: TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w700),
+                            ),
+                          )
+                        else
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: hexColor(category!.color, color).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              category!.name,
+                              style: TextStyle(color: hexColor(category!.color, color), fontSize: 11, fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        const Spacer(),
+                        TextButton(
+                          style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                          onPressed: () async {
+                            final c = await pickCategory(context, ref, type);
+                            if (c != null) setState(() => category = c);
+                          },
+                          child: const Text('Tất cả'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Builder(
+                      builder: (_) {
+                        final cats = _frequentCached(f, 7);
+                        final hasChildren = {for (final x in f.categories) ?x.parentId};
+                        final parentIdForSub = _expandedParentId;
+                        final parentCat = parentIdForSub == null ? null : f.category(parentIdForSub);
+                        final subCats = parentCat == null ? const <Category>[] : (f.categories.where((x) => x.parentId == parentCat.id).toList());
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            GridView.count(
+                              crossAxisCount: 4,
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              mainAxisSpacing: 7,
+                              crossAxisSpacing: 7,
+                              childAspectRatio: 1.15,
+                              children: [
+                                for (final (i, c) in cats.indexed)
+                                  Builder(
+                                    builder: (_) {
+                                      final on = category?.id == c.id || category?.parentId == c.id;
+                                      final cc = hexColor(c.color, color);
+                                      final hasSub = hasChildren.contains(c.id);
+                                      return Pressable(
+                                        onTap: () {
+                                          HapticFeedback.selectionClick();
+                                          setState(() {
+                                            // Nếu đang mở danh mục con của chính cha này và đang chọn cha -> thu gọn; nếu đang chọn con -> quay về cha
+                                            if (_expandedParentId == c.id && category?.id == c.id) {
+                                              _expandedParentId = null;
+                                            } else {
+                                              category = c;
+                                              _expandedParentId = hasSub ? c.id : null;
+                                            }
+                                          });
+                                        },
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 220),
+                                          decoration: BoxDecoration(
+                                            color: on ? cc.withValues(alpha: 0.18) : scheme.surfaceContainerHigh,
+                                            borderRadius: BorderRadius.circular(16),
+                                            border: Border.all(
+                                              color: on ? cc : (category == null ? AppColors.warning.withValues(alpha: 0.35) : Colors.transparent),
+                                              width: on ? 1.8 : 1.0,
+                                            ),
+                                          ),
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              AnimatedScale(
+                                                scale: on ? 1.1 : 1,
+                                                duration: const Duration(milliseconds: 220),
+                                                curve: Curves.easeOutBack,
+                                                child: CircleIcon(icon: c.icon, color: cc, size: 32),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 4),
+                                                child: Text(
+                                                  c.name,
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: TextStyle(fontSize: 11.5, fontWeight: on ? FontWeight.w800 : FontWeight.w500),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ).stagger(i);
+                                    },
+                                  ),
+                                Pressable(
+                                  onTap: () async {
+                                    final c = await pickCategory(context, ref, type);
+                                    if (c != null) {
+                                      setState(() {
+                                        category = c;
+                                        _expandedParentId = c.parentId ?? (f.categories.any((x) => x.parentId == c.id) ? c.id : null);
+                                      });
+                                    }
+                                  },
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(color: scheme.outlineVariant),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.apps_rounded, color: scheme.onSurfaceVariant),
+                                        const SizedBox(height: 5),
+                                        Text('Xem thêm', style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            AnimatedSize(
+                              duration: const Duration(milliseconds: 240),
+                              curve: Curves.easeOutCubic,
+                              child: subCats.isEmpty
+                                  ? const SizedBox.shrink()
+                                  : Container(
+                                      margin: const EdgeInsets.only(top: 10),
+                                      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                                      decoration: BoxDecoration(
+                                        color: scheme.surfaceContainerLow,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.55)),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                width: 7,
+                                                height: 7,
+                                                margin: const EdgeInsets.only(right: 6),
+                                                decoration: BoxDecoration(color: hexColor(parentCat?.color, color), shape: BoxShape.circle),
+                                              ),
+                                              Expanded(
+                                                child: Text(
+                                                  parentCat!.name,
+                                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: hexColor(parentCat.color, color)),
+                                                ),
+                                              ),
+                                              if (category?.parentId == parentCat.id)
+                                                GestureDetector(
+                                                  onTap: () {
+                                                    HapticFeedback.selectionClick();
+                                                    setState(() => category = parentCat);
+                                                  },
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.only(right: 8),
+                                                    child: Text(
+                                                      'Bỏ chọn con',
+                                                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: scheme.primary),
+                                                    ),
+                                                  ),
+                                                ),
+                                              GestureDetector(
+                                                onTap: () => setState(() => _expandedParentId = null),
+                                                child: Icon(Icons.close_rounded, size: 16, color: scheme.onSurfaceVariant),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              for (final sub in subCats)
+                                                (() {
+                                                  final subOn = category?.id == sub.id;
+                                                  final sc = hexColor(sub.color, hexColor(parentCat.color, color));
+                                                  return Pressable(
+                                                    onTap: () {
+                                                      HapticFeedback.selectionClick();
+                                                      setState(() => category = subOn ? parentCat : sub);
+                                                    },
+                                                    child: AnimatedContainer(
+                                                      duration: const Duration(milliseconds: 180),
+                                                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                                                      decoration: BoxDecoration(
+                                                        color: subOn ? sc.withValues(alpha: 0.16) : scheme.surfaceContainerLowest,
+                                                        borderRadius: BorderRadius.circular(999),
+                                                        border: Border.all(
+                                                          color: subOn ? sc : scheme.outlineVariant.withValues(alpha: 0.6),
+                                                          width: subOn ? 1.5 : 1,
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          Icon(iconOf(sub.icon), size: 15, color: sc),
+                                                          const SizedBox(width: 6),
+                                                          Text(
+                                                            sub.name,
+                                                            style: TextStyle(
+                                                              fontSize: 12.5,
+                                                              fontWeight: subOn ? FontWeight.w700 : FontWeight.w500,
+                                                              color: subOn ? sc : scheme.onSurface,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  );
+                                                })(),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
-            ),
-          section(
-            'Vị trí',
-            trailing: GpsIconButton(
-              tooltip: 'Lấy vị trí hiện tại',
-              onPickedResult: (res) => setState(() {
-                location.text = res.address;
-                latitude = res.latitude;
-                longitude = res.longitude;
+            const SizedBox(height: 14),
+            AccountChips(
+              label: type == TxType.transfer ? 'Từ tài khoản' : (type == TxType.income ? 'Nhận vào' : 'Trả bằng'),
+              selected: account?.id,
+              onChanged: (a) => setState(() {
+                account = a;
+                if (toAccount?.id == a.id) toAccount = null;
               }),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: location,
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    hintText: 'Quán ăn, cửa hàng, địa chỉ…',
-                    prefixIcon: const Icon(Icons.place_rounded),
-                    suffixIcon: location.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Xoá vị trí',
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              child: type == TxType.transfer
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: Column(
+                        children: [
+                          AccountChips(label: 'Đến tài khoản', selected: toAccount?.id, exclude: account?.id, onChanged: (a) => setState(() => toAccount = a)),
+                          if (toAccount != null && account != null && toAccount!.currencyCode != account!.currencyCode)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: TextField(
+                                controller: toAmount,
+                                keyboardType: TextInputType.number,
+                                inputFormatters: const [ThousandsInputFormatter()],
+                                decoration: InputDecoration(
+                                  labelText: 'Số tiền nhận (${toAccount!.currencyCode})',
+                                  helperText: 'Để trống sẽ tự quy đổi theo tỷ giá',
+                                  prefixIcon: const Icon(Icons.currency_exchange_rounded),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+            // Thời gian: chọn nhanh + chọn cụ thể
+            section(
+              'Thời gian',
+              Row(
+                children: [
+                  for (final (label, d) in [('Hôm nay', today), ('Hôm qua', today.subtract(const Duration(days: 1)))])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(label),
+                        selected: dateOnly(at) == d,
+                        onSelected: (_) => setState(() => at = DateTime(d.year, d.month, d.day, at.hour, at.minute)),
+                      ),
+                    ),
+                  Expanded(
+                    child: Pressable(
+                      onTap: () async {
+                        final d = await pickDateTime(context, at);
+                        if (d != null) setState(() => at = d);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                        decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(14)),
+                        child: Row(
+                          children: [
+                            Icon(Icons.event_rounded, size: 18, color: scheme.primary),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '${Fmt.time(at)} · ${at.year == today.year ? Fmt.dateShort(at) : Fmt.date(at)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (event != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: AppCard(
+                  padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.event_rounded, color: Color(0xFF0090FF)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text('Lịch trình: ${event['title']}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                      ),
+                      IconButton(tooltip: 'Bỏ liên kết', onPressed: () => setState(() => eventId = null), icon: const Icon(Icons.close_rounded)),
+                    ],
+                  ),
+                ),
+              ),
+            // Vị trí: tự gắn khi tạo giao dịch mới (không có ô nhập); chỉ hiện để xem và bỏ đi nếu không muốn.
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: location.text.isEmpty
+                  ? const SizedBox(width: double.infinity)
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 10, left: 4),
+                      child: Row(
+                        children: [
+                          Icon(Icons.place_rounded, size: 16, color: scheme.primary),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              location.text,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12.5, color: scheme.onSurfaceVariant),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Bỏ vị trí',
+                            visualDensity: VisualDensity.compact,
                             onPressed: () => setState(() {
                               location.clear();
                               latitude = null;
                               longitude = null;
+                              _autoLocation = null; // không gắn lại vị trí sau khi người dùng đã bỏ
                             }),
-                            icon: const Icon(Icons.close_rounded, size: 18),
+                            icon: const Icon(Icons.close_rounded, size: 16),
                           ),
-                  ),
-                ),
-                if (latitude != null && longitude != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6, left: 4),
-                    child: Row(
-                      children: [
-                        Icon(Icons.gps_fixed_rounded, size: 13, color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            'GPS: ${latitude!.toStringAsFixed(5)}, ${longitude!.toStringAsFixed(5)}',
-                            style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => setState(() {
-                            latitude = null;
-                            longitude = null;
-                          }),
-                          child: Text(
-                            'Bỏ tọa độ',
-                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Theme.of(context).colorScheme.primary),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (widget.id == null)
-            section(
-              'Lặp lại định kỳ',
-              SizedBox(
-                height: 38,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    for (final (code, label) in const [
-                      ('NONE', 'Không lặp'),
-                      ('DAILY', 'Hằng ngày'),
-                      ('WEEKLY', 'Hằng tuần'),
-                      ('MONTHLY', 'Hằng tháng'),
-                      ('YEARLY', 'Hằng năm'),
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(label),
-                          selected: repeatFreq == code,
-                          onSelected: (_) => setState(() => repeatFreq = code),
-                        ),
+                        ],
                       ),
-                  ],
+                    ),
+            ),
+            if (widget.id == null)
+              section(
+                'Lặp lại định kỳ',
+                SizedBox(
+                  height: 38,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      for (final (code, label) in const [
+                        ('NONE', 'Không lặp'),
+                        ('DAILY', 'Hằng ngày'),
+                        ('WEEKLY', 'Hằng tuần'),
+                        ('MONTHLY', 'Hằng tháng'),
+                        ('YEARLY', 'Hằng năm'),
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(label: Text(label), selected: repeatFreq == code, onSelected: (_) => setState(() => repeatFreq = code)),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

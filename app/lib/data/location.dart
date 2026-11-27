@@ -28,11 +28,7 @@ Future<LocationResult?> fetchCurrentLocation(BuildContext context) async {
     }
     if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
       if (context.mounted) {
-        showToast(
-          context,
-          perm == LocationPermission.deniedForever ? 'Quyền vị trí đang bị chặn trong Cài đặt' : 'Chưa được cấp quyền vị trí',
-          error: true,
-        );
+        showToast(context, perm == LocationPermission.deniedForever ? 'Quyền vị trí đang bị chặn trong Cài đặt' : 'Chưa được cấp quyền vị trí', error: true);
       }
       return null;
     }
@@ -64,6 +60,55 @@ Future<LocationResult?> fetchCurrentLocation(BuildContext context) async {
   } catch (e) {
     if (context.mounted) showToast(context, 'Không lấy được vị trí hiện tại', error: true);
     return null;
+  }
+}
+
+/// Lấy vị trí hiện tại một cách lặng lẽ (dùng khi tự gắn vị trí cho giao dịch mới): không hiện thông báo, lỗi gì cũng trả null.
+/// [mayAsk] = được phép hiện hộp thoại xin quyền (chỉ nên cho lần đầu; bị từ chối thì thôi, không hỏi lại).
+/// [onAsked] được gọi khi đã thực sự hỏi quyền, để nơi gọi ghi nhớ.
+Future<LocationResult?> fetchLocationSilently({required bool mayAsk, VoidCallback? onAsked}) async {
+  try {
+    if (!await Geolocator.isLocationServiceEnabled()) return null;
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied && mayAsk) {
+      onAsked?.call();
+      perm = await Geolocator.requestPermission();
+    }
+    if (perm != LocationPermission.always && perm != LocationPermission.whileInUse) return null;
+
+    Position? pos;
+    if (!kIsWeb) {
+      pos = await Geolocator.getLastKnownPosition();
+      // Vị trí cũ quá 10 phút thì lấy mới (người dùng có thể đã đi chỗ khác).
+      if (pos != null && DateTime.now().difference(pos.timestamp).inMinutes > 10) pos = null;
+    }
+    pos ??= await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium, timeLimit: Duration(seconds: 8)),
+    );
+    return LocationResult(address: await _addressOf(pos), latitude: pos.latitude, longitude: pos.longitude);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Địa chỉ dạng "đường, phường, quận, tỉnh" từ toạ độ; không tra được (offline / web) thì trả toạ độ.
+Future<String> _addressOf(Position pos) async {
+  final fallback = '${pos.latitude.toStringAsFixed(5)}, ${pos.longitude.toStringAsFixed(5)}';
+  if (kIsWeb) return fallback;
+  try {
+    final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
+    if (marks.isEmpty) return fallback;
+    final p = marks.first;
+    final seen = <String>{};
+    final parts = [
+      p.street,
+      p.subLocality,
+      p.locality,
+      p.administrativeArea,
+    ].whereType<String>().map((s) => s.trim()).where((s) => s.isNotEmpty && seen.add(s));
+    return parts.isEmpty ? fallback : parts.join(', ');
+  } catch (_) {
+    return fallback;
   }
 }
 

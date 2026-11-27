@@ -436,46 +436,49 @@ Future<void> editCategory(BuildContext context, WidgetRef ref, {required int typ
                 ),
               ),
 
-              // Nút cố định ở đáy (không bị bàn phím che)
+              // Nút cố định ở đáy: ẩn khi bàn phím mở, hiện lại khi đóng; phần đệm đáy đẩy danh sách lên trên bàn phím
               AnimatedPadding(
                 duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 12 + MediaQuery.viewInsetsOf(ctx).bottom),
-                child: SafeArea(
-                  top: false,
-                  child: Row(
-                    children: [
-                      if (existing != null) ...[
-                        OutlinedButton.icon(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.expense,
-                            minimumSize: const Size(64, 50),
-                            side: const BorderSide(color: AppColors.expense),
-                          ),
-                          onPressed: () async {
-                            if (await confirm(
-                              ctx,
-                              'Xoá "${existing.name}"?',
-                              message: 'Các mục con cũng bị xoá. Giao dịch cũ vẫn giữ nguyên.',
-                              danger: true,
-                              ok: 'Xoá',
-                            )) {
-                              final store = ref.read(storeProvider);
-                              store.remove(E.categories, existing.id);
-                              for (final ch in store.all(E.categories).where((c) => c['parentId'] == existing.id)) {
-                                store.remove(E.categories, ch['id'] as String);
+                padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+                child: KeyboardHideable(
+                  child: SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                    child: Row(
+                      children: [
+                        if (existing != null) ...[
+                          OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.expense,
+                              minimumSize: const Size(64, 50),
+                              side: const BorderSide(color: AppColors.expense),
+                            ),
+                            onPressed: () async {
+                              if (await confirm(
+                                ctx,
+                                'Xoá "${existing.name}"?',
+                                message: 'Các mục con cũng bị xoá. Giao dịch cũ vẫn giữ nguyên.',
+                                danger: true,
+                                ok: 'Xoá',
+                              )) {
+                                final store = ref.read(storeProvider);
+                                store.remove(E.categories, existing.id);
+                                for (final ch in store.all(E.categories).where((c) => c['parentId'] == existing.id)) {
+                                  store.remove(E.categories, ch['id'] as String);
+                                }
+                                if (ctx.mounted) Navigator.pop(ctx);
                               }
-                              if (ctx.mounted) Navigator.pop(ctx);
-                            }
-                          },
-                          icon: const Icon(Icons.delete_outline_rounded),
-                          label: const Text('Xoá'),
+                            },
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            label: const Text('Xoá'),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        Expanded(
+                          child: FilledButton.icon(onPressed: save, icon: const Icon(Icons.check_rounded), label: const Text('Lưu')),
                         ),
-                        const SizedBox(width: 10),
                       ],
-                      Expanded(
-                        child: FilledButton.icon(onPressed: save, icon: const Icon(Icons.check_rounded), label: const Text('Lưu')),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),

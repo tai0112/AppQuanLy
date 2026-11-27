@@ -1149,10 +1149,7 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
                                 children: [
                                   CircleIcon(icon: c.icon, color: cc, size: 24),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    c.name,
-                                    style: TextStyle(fontSize: 12.5, fontWeight: on ? FontWeight.w800 : FontWeight.w500),
-                                  ),
+                                  Text(c.name, style: TextStyle(fontSize: 12.5, fontWeight: on ? FontWeight.w800 : FontWeight.w500)),
                                 ],
                               ),
                             );
@@ -1359,7 +1356,9 @@ class _EventEditPageState extends ConsumerState<EventEditPage> {
             children: [
               Row(
                 children: [
-                  Expanded(child: SectionField(controller: location, hint: 'Địa điểm', icon: Icons.place_rounded)),
+                  Expanded(
+                    child: SectionField(controller: location, hint: 'Địa điểm', icon: Icons.place_rounded),
+                  ),
                   GpsIconButton(onPicked: (addr) => setState(() => location.text = addr)),
                 ],
               ),
@@ -1449,187 +1448,171 @@ Future<void> editEventItem(
     context: context,
     isScrollControlled: true,
     builder: (ctx) => StatefulBuilder(
-      builder: (ctx, set) => Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisSize: MainAxisSize.min,
+      builder: (ctx, set) => FormSheetBody(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        action: Row(
           children: [
-            Flexible(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      item == null ? 'Thêm hoạt động · ${Fmt.dayHeader(day)}' : 'Sửa hoạt động',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _TimeBox(
-                      label: 'Bắt đầu',
-                      value: timeStr(start),
-                      color: color,
-                      onTap: () async {
-                        final t = await _pickTime(ctx, start);
-                        if (t != null) set(() => start = t);
-                      },
-                    ),
-                  ),
-                  const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_forward_rounded)),
-                  Expanded(
-                    child: _TimeBox(
-                      label: 'Kết thúc',
-                      value: end == null ? '--:--' : timeStr(end!),
-                      color: color,
-                      onTap: () async {
-                        final t = await _pickTime(ctx, end ?? ((start.$1 + 1) % 24, start.$2));
-                        if (t != null) set(() => end = t);
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: title,
-                autofocus: item == null,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                decoration: const InputDecoration(hintText: 'Làm gì? (VD: Ăn sáng phở)'),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 36,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    // Mẫu hoạt động do người dùng cấu hình (Danh mục → Hoạt động)
-                    for (final t in ref.read(financeProvider).categories.where((c) => c.type == 4))
-                      Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: ActionChip(
-                          avatar: Icon(iconOf(t.icon), size: 16, color: hexColor(t.color)),
-                          label: Text(t.name),
-                          onPressed: () => set(() {
-                            title.text = t.name;
-                            icon = t.icon ?? 'event';
-                          }),
-                        ),
-                      ),
-                    ActionChip(
-                      avatar: const Icon(Icons.tune_rounded, size: 16),
-                      label: const Text('Sửa mẫu'),
-                      onPressed: () => GoRouter.of(ctx).push('/categories', extra: {'type': 4}),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              FormSection(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(child: SectionField(controller: location, hint: 'Địa điểm', icon: Icons.place_rounded)),
-                      GpsIconButton(onPicked: (addr) => set(() => location.text = addr)),
-                    ],
-                  ),
-                  SectionField(
-                    controller: cost,
-                    hint: 'Chi phí',
-                    icon: Icons.payments_rounded,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: const [ThousandsInputFormatter()],
-                  ),
-                  SectionField(controller: note, hint: 'Ghi chú', icon: Icons.notes_rounded, maxLines: 3),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Icon(Icons.photo_library_rounded, size: 18, color: color),
-                  const SizedBox(width: 6),
-                  Text('Ảnh${photoIds.isEmpty ? '' : ' · ${photoIds.length}'}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              PhotoGrid(
-                size: 76,
-                fileIds: photoIds,
-                onAdd: () async {
-                  final ids = await pickPhotos(ctx, ref);
-                  if (ids.isNotEmpty) set(() => photoIds.addAll(ids));
+            if (item != null)
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: AppColors.expense),
+                onPressed: () {
+                  final store = ref.read(storeProvider);
+                  for (final p in oldPhotos) {
+                    store.remove(E.eventPhotos, p.id);
+                  }
+                  store.remove(E.eventItems, item.id);
+                  Navigator.pop(ctx);
                 },
-                onRemove: (id) => set(() => photoIds.remove(id)),
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Xoá'),
               ),
-                  ],
-                ),
-              ),
+            const Spacer(),
+            FilledButton(
+              onPressed: () {
+                if (title.text.trim().isEmpty) return showToast(ctx, 'Nhập tên hoạt động', error: true);
+                final store = ref.read(storeProvider);
+                store.put(E.eventItems, {
+                  ...?item?.m,
+                  'id': itemId,
+                  'eventId': event.id,
+                  'occurrenceDate': Fmt.isoDate(day),
+                  'startTime': timeIso(start),
+                  'endTime': end == null ? null : timeIso(end!),
+                  'title': title.text.trim(),
+                  'location': location.text.trim().isEmpty ? null : location.text.trim(),
+                  'note': note.text.trim().isEmpty ? null : note.text.trim(),
+                  'cost': cost.text.trim().isEmpty ? null : parseAmount(cost.text),
+                  'icon': icon,
+                  'isDone': item?.isDone ?? false,
+                  'sortOrder': 0,
+                  'addedByUserId': item?.m['addedByUserId'] ?? ref.read(sessionProvider).userId ?? '00000000-0000-0000-0000-000000000000',
+                });
+                for (final p in oldPhotos) {
+                  if (!photoIds.contains(p.fileId)) store.remove(E.eventPhotos, p.id);
+                }
+                final had = {for (final p in oldPhotos) p.fileId};
+                for (final (i, fid) in photoIds.indexed) {
+                  if (had.contains(fid)) continue;
+                  store.put(E.eventPhotos, {
+                    'eventId': event.id,
+                    'eventItemId': itemId,
+                    'fileId': fid,
+                    'occurrenceDate': Fmt.isoDate(day),
+                    'addedByUserId': ref.read(sessionProvider).userId ?? '00000000-0000-0000-0000-000000000000',
+                    'sortOrder': i,
+                  });
+                }
+                HapticFeedback.lightImpact();
+                Navigator.pop(ctx);
+              },
+              child: Text(item == null ? 'Thêm' : 'Lưu'),
             ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                  if (item != null)
-                    TextButton.icon(
-                      style: TextButton.styleFrom(foregroundColor: AppColors.expense),
-                      onPressed: () {
-                        final store = ref.read(storeProvider);
-                        for (final p in oldPhotos) {
-                          store.remove(E.eventPhotos, p.id);
-                        }
-                        store.remove(E.eventItems, item.id);
-                        Navigator.pop(ctx);
-                      },
-                      icon: const Icon(Icons.delete_outline_rounded),
-                      label: const Text('Xoá'),
-                    ),
-                  const Spacer(),
-                  FilledButton(
-                    onPressed: () {
-                      if (title.text.trim().isEmpty) return showToast(ctx, 'Nhập tên hoạt động', error: true);
-                      final store = ref.read(storeProvider);
-                      store.put(E.eventItems, {
-                        ...?item?.m,
-                        'id': itemId,
-                        'eventId': event.id,
-                        'occurrenceDate': Fmt.isoDate(day),
-                        'startTime': timeIso(start),
-                        'endTime': end == null ? null : timeIso(end!),
-                        'title': title.text.trim(),
-                        'location': location.text.trim().isEmpty ? null : location.text.trim(),
-                        'note': note.text.trim().isEmpty ? null : note.text.trim(),
-                        'cost': cost.text.trim().isEmpty ? null : parseAmount(cost.text),
-                        'icon': icon,
-                        'isDone': item?.isDone ?? false,
-                        'sortOrder': 0,
-                        'addedByUserId': item?.m['addedByUserId'] ?? ref.read(sessionProvider).userId ?? '00000000-0000-0000-0000-000000000000',
-                      });
-                      for (final p in oldPhotos) {
-                        if (!photoIds.contains(p.fileId)) store.remove(E.eventPhotos, p.id);
-                      }
-                      final had = {for (final p in oldPhotos) p.fileId};
-                      for (final (i, fid) in photoIds.indexed) {
-                        if (had.contains(fid)) continue;
-                        store.put(E.eventPhotos, {
-                          'eventId': event.id,
-                          'eventItemId': itemId,
-                          'fileId': fid,
-                          'occurrenceDate': Fmt.isoDate(day),
-                          'addedByUserId': ref.read(sessionProvider).userId ?? '00000000-0000-0000-0000-000000000000',
-                          'sortOrder': i,
-                        });
-                      }
-                      HapticFeedback.lightImpact();
-                      Navigator.pop(ctx);
-                    },
-                    child: Text(item == null ? 'Thêm' : 'Lưu'),
-                  ),
-                ],
-              ),
           ],
         ),
+        children: [
+          Text(item == null ? 'Thêm hoạt động · ${Fmt.dayHeader(day)}' : 'Sửa hoạt động', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: _TimeBox(
+                  label: 'Bắt đầu',
+                  value: timeStr(start),
+                  color: color,
+                  onTap: () async {
+                    final t = await _pickTime(ctx, start);
+                    if (t != null) set(() => start = t);
+                  },
+                ),
+              ),
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Icon(Icons.arrow_forward_rounded)),
+              Expanded(
+                child: _TimeBox(
+                  label: 'Kết thúc',
+                  value: end == null ? '--:--' : timeStr(end!),
+                  color: color,
+                  onTap: () async {
+                    final t = await _pickTime(ctx, end ?? ((start.$1 + 1) % 24, start.$2));
+                    if (t != null) set(() => end = t);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: title,
+            autofocus: item == null,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            decoration: const InputDecoration(hintText: 'Làm gì? (VD: Ăn sáng phở)'),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                // Mẫu hoạt động do người dùng cấu hình (Danh mục → Hoạt động)
+                for (final t in ref.read(financeProvider).categories.where((c) => c.type == 4))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ActionChip(
+                      avatar: Icon(iconOf(t.icon), size: 16, color: hexColor(t.color)),
+                      label: Text(t.name),
+                      onPressed: () => set(() {
+                        title.text = t.name;
+                        icon = t.icon ?? 'event';
+                      }),
+                    ),
+                  ),
+                ActionChip(
+                  avatar: const Icon(Icons.tune_rounded, size: 16),
+                  label: const Text('Sửa mẫu'),
+                  onPressed: () => GoRouter.of(ctx).push('/categories', extra: {'type': 4}),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          FormSection(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: SectionField(controller: location, hint: 'Địa điểm', icon: Icons.place_rounded),
+                  ),
+                  GpsIconButton(onPicked: (addr) => set(() => location.text = addr)),
+                ],
+              ),
+              SectionField(
+                controller: cost,
+                hint: 'Chi phí',
+                icon: Icons.payments_rounded,
+                keyboardType: TextInputType.number,
+                inputFormatters: const [ThousandsInputFormatter()],
+              ),
+              SectionField(controller: note, hint: 'Ghi chú', icon: Icons.notes_rounded, maxLines: 3),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Icon(Icons.photo_library_rounded, size: 18, color: color),
+              const SizedBox(width: 6),
+              Text('Ảnh${photoIds.isEmpty ? '' : ' · ${photoIds.length}'}', style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          PhotoGrid(
+            size: 76,
+            fileIds: photoIds,
+            onAdd: () async {
+              final ids = await pickPhotos(ctx, ref);
+              if (ids.isNotEmpty) set(() => photoIds.addAll(ids));
+            },
+            onRemove: (id) => set(() => photoIds.remove(id)),
+          ),
+        ],
       ),
     ),
   );
@@ -3524,7 +3507,11 @@ class _WeekGridState extends ConsumerState<_WeekGrid> {
     if (rec == null) return;
     final shift = Duration(days: dDays, minutes: dMin);
     final e = EventRec(rec);
-    store.put(E.events, {...rec, 'startAt': toIso8601WithOffset(e.startAt.add(shift)), 'endAt': e.endAt != null ? toIso8601WithOffset(e.endAt!.add(shift)) : null});
+    store.put(E.events, {
+      ...rec,
+      'startAt': toIso8601WithOffset(e.startAt.add(shift)),
+      'endAt': e.endAt != null ? toIso8601WithOffset(e.endAt!.add(shift)) : null,
+    });
     if (dDays != 0) {
       for (final it in store.all(E.eventItems).map(EventItemRec.new).where((i) => i.eventId == e.id && i.occurrenceDate != null).toList()) {
         final od = DateTime.tryParse(it.occurrenceDate!);

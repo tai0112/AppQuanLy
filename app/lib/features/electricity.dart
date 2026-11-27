@@ -312,150 +312,135 @@ class _ElectricityPageState extends ConsumerState<ElectricityPage> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, set) => Padding(
-          padding: EdgeInsets.fromLTRB(16, 0, 16, MediaQuery.of(ctx).viewInsets.bottom + 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
+        builder: (ctx, set) => FormSheetBody(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          action: Row(
             children: [
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(table == null ? 'Bảng giá mới' : 'Sửa bảng giá', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: name,
-                  decoration: const InputDecoration(labelText: 'Tên bảng giá'),
+              if (table != null && store.all(E.priceTables).length > 1)
+                TextButton(
+                  onPressed: () {
+                    store.remove(E.priceTables, table.id);
+                    Navigator.pop(ctx);
+                  },
+                  child: const Text('Xoá bảng', style: TextStyle(color: AppColors.expense)),
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: vat,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'VAT (%)'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: fee,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: const [ThousandsInputFormatter()],
-                        decoration: const InputDecoration(labelText: 'Phí cố định'),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Text('Các bậc (để trống "Đến" ở bậc cuối = không giới hạn)', style: TextStyle(fontWeight: FontWeight.w600)),
-                for (final (i, r) in rows.indexed)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Row(
-                      children: [
-                        SizedBox(width: 48, child: Text('Bậc ${i + 1}')),
-                        Expanded(
-                          child: TextField(
-                            controller: r.from,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Từ', isDense: true),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: TextField(
-                            controller: r.to,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Đến', isDense: true),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          flex: 2,
-                          child: TextField(
-                            controller: r.price,
-                            keyboardType: TextInputType.number,
-                            inputFormatters: const [ThousandsInputFormatter()],
-                            decoration: const InputDecoration(labelText: 'Đơn giá', isDense: true),
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: rows.length == 1
-                              ? null
-                              : () => set(() {
-                                  if (r.id != null) removed.add(r.id!);
-                                  rows.removeAt(i);
-                                }),
-                          icon: const Icon(Icons.remove_circle_outline),
-                        ),
-                      ],
-                    ),
-                  ),
-                TextButton.icon(
-                  onPressed: () => set(() {
-                    final lastTo = int.tryParse(rows.last.to.text);
-                    rows.add((
-                      from: TextEditingController(text: lastTo == null ? '' : '${lastTo + 1}'),
-                      to: TextEditingController(),
-                      price: TextEditingController(),
-                      id: null,
-                    ));
-                  }),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Thêm bậc'),
-                ),
-                    ],
-                  ),
-                ),
+              const Spacer(),
+              FilledButton(
+                onPressed: () {
+                  final saved = store.put(E.priceTables, {
+                    if (table != null) ...table.m,
+                    'name': name.text.trim(),
+                    'vatPercent': double.tryParse(vat.text) ?? 0,
+                    'fixedFee': parseAmount(fee.text),
+                    'isDefault': table?.isDefault ?? store.all(E.priceTables).isEmpty,
+                  });
+                  for (final id in removed) {
+                    store.remove(E.tiers, id);
+                  }
+                  for (final (i, r) in rows.indexed) {
+                    store.put(E.tiers, {
+                      if (r.id != null) 'id': r.id,
+                      'priceTableId': saved['id'],
+                      'tierOrder': i + 1,
+                      'fromKwh': int.tryParse(r.from.text) ?? 0,
+                      'toKwh': int.tryParse(r.to.text),
+                      'price': parseAmount(r.price.text),
+                    });
+                  }
+                  setState(() => tableId = saved['id'] as String);
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Lưu'),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                    if (table != null && store.all(E.priceTables).length > 1)
-                      TextButton(
-                        onPressed: () {
-                          store.remove(E.priceTables, table.id);
-                          Navigator.pop(ctx);
-                        },
-                        child: const Text('Xoá bảng', style: TextStyle(color: AppColors.expense)),
-                      ),
-                    const Spacer(),
-                    FilledButton(
-                      onPressed: () {
-                        final saved = store.put(E.priceTables, {
-                          if (table != null) ...table.m,
-                          'name': name.text.trim(),
-                          'vatPercent': double.tryParse(vat.text) ?? 0,
-                          'fixedFee': parseAmount(fee.text),
-                          'isDefault': table?.isDefault ?? store.all(E.priceTables).isEmpty,
-                        });
-                        for (final id in removed) {
-                          store.remove(E.tiers, id);
-                        }
-                        for (final (i, r) in rows.indexed) {
-                          store.put(E.tiers, {
-                            if (r.id != null) 'id': r.id,
-                            'priceTableId': saved['id'],
-                            'tierOrder': i + 1,
-                            'fromKwh': int.tryParse(r.from.text) ?? 0,
-                            'toKwh': int.tryParse(r.to.text),
-                            'price': parseAmount(r.price.text),
-                          });
-                        }
-                        setState(() => tableId = saved['id'] as String);
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('Lưu'),
-                    ),
-                  ],
-                ),
             ],
           ),
+          children: [
+            Text(table == null ? 'Bảng giá mới' : 'Sửa bảng giá', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: name,
+              decoration: const InputDecoration(labelText: 'Tên bảng giá'),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: vat,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'VAT (%)'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: fee,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: const [ThousandsInputFormatter()],
+                    decoration: const InputDecoration(labelText: 'Phí cố định'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text('Các bậc (để trống "Đến" ở bậc cuối = không giới hạn)', style: TextStyle(fontWeight: FontWeight.w600)),
+            for (final (i, r) in rows.indexed)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Row(
+                  children: [
+                    SizedBox(width: 48, child: Text('Bậc ${i + 1}')),
+                    Expanded(
+                      child: TextField(
+                        controller: r.from,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Từ', isDense: true),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: TextField(
+                        controller: r.to,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(labelText: 'Đến', isDense: true),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: r.price,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: const [ThousandsInputFormatter()],
+                        decoration: const InputDecoration(labelText: 'Đơn giá', isDense: true),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: rows.length == 1
+                          ? null
+                          : () => set(() {
+                              if (r.id != null) removed.add(r.id!);
+                              rows.removeAt(i);
+                            }),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                  ],
+                ),
+              ),
+            TextButton.icon(
+              onPressed: () => set(() {
+                final lastTo = int.tryParse(rows.last.to.text);
+                rows.add((
+                  from: TextEditingController(text: lastTo == null ? '' : '${lastTo + 1}'),
+                  to: TextEditingController(),
+                  price: TextEditingController(),
+                  id: null,
+                ));
+              }),
+              icon: const Icon(Icons.add),
+              label: const Text('Thêm bậc'),
+            ),
+          ],
         ),
       ),
     );
