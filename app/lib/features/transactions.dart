@@ -346,8 +346,16 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
   final _rowCache = <String, (Object, Widget)>{};
   String _cellEnv = '';
 
+  /// Vuốt lịch sang tháng khác: lịch tự trượt trang; đợi trượt xong mới đổi tháng (tiêu đề, tổng, danh sách)
+  /// để phần tính toán / dựng lại không chen vào giữa hiệu ứng trượt.
+  Timer? _pageTimer;
+
+  /// Trang lịch đang hiện trong lúc chờ đổi tháng (giữ lịch đứng yên ở trang mới nếu có gì dựng lại giữa chừng).
+  DateTime? _calFocus;
+
   @override
   void dispose() {
+    _pageTimer?.cancel();
     search.dispose();
     super.dispose();
   }
@@ -619,7 +627,12 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                     child: c,
                   ),
                 ),
-                child: KeyedSubtree(key: ValueKey('view-$calendar-$from'), child: calendar ? _calendarView(list, from) : _listView(list)),
+                // Dạng lịch: KHÔNG đổi key theo tháng → giữ một lịch duy nhất, đổi tháng bằng hiệu ứng trượt trang có sẵn của lịch
+                // (trước đây vừa trượt trang vừa mờ chéo cả khối lịch → hai hiệu ứng chồng nhau, giật).
+                child: KeyedSubtree(
+                  key: ValueKey(calendar ? 'view-cal' : 'view-list-$from'),
+                  child: calendar ? _calendarView(list, from, _wideList(f, from, to)) : _listView(list),
+                ),
               ),
             ),
           ],
@@ -890,9 +903,33 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
   }
 
   /// Đổi tháng; ngày đang chọn ở dạng lịch nhảy về hôm nay (nếu thuộc tháng) hoặc ngày đầu kỳ.
+  /// Giao dịch cho các ô lịch: tháng đang xem ± 1 tháng (cùng bộ lọc) → vuốt sang tháng bên cạnh, trang mới đã có sẵn số liệu.
+  List<Txn> _wideList(Finance f, DateTime from, DateTime to) {
+    final wf = DateTime(from.year, from.month - 1, 1).subtract(const Duration(days: 7));
+    final wt = DateTime(to.year, to.month + 1, 1).add(const Duration(days: 7));
+    return _filtered(f, f.inRange(wf, wt));
+  }
+
+  /// Áp các bộ lọc đang bật (nguồn tiền, danh mục, loại, tìm kiếm); không lọc gì thì trả nguyên danh sách.
+  List<Txn> _filtered(Finance f, List<Txn> all) {
+    final q = query.toLowerCase();
+    if (source == MoneySource.all && cats.isEmpty && type == null && q.isEmpty) return all;
+    bool pass(Txn t) =>
+        (source == MoneySource.all || (f.account(t.accountId)?.matches(source) ?? false)) &&
+        (cats.isEmpty || _inCats(f, cats, t)) &&
+        (type == null || t.type == type) &&
+        (q.isEmpty ||
+            (t.note ?? '').toLowerCase().contains(q) ||
+            (t.location ?? '').toLowerCase().contains(q) ||
+            (f.category(t.categoryId)?.name ?? '').toLowerCase().contains(q));
+    return all.where(pass).toList();
+  }
+
   void _goMonth(int delta) {
     final f = ref.read(financeProvider);
+    _pageTimer?.cancel();
     setState(() {
+      _calFocus = null;
       month = DateTime(month.year, month.month + delta, 15);
       final (from, to) = f.monthRange(month);
       final today = dateOnly(DateTime.now());
@@ -1020,16 +1057,16 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     );
   }
 
-  Widget _calendarView(List<Txn> list, DateTime from) {
+  Widget _calendarView(List<Txn> list, DateTime from, List<Txn> cellTxs) {
     final f = ref.read(financeProvider);
     final byDay = <DateTime, List<Txn>>{};
-    for (final t in list) {
+    for (final t in cellTxs) {
       byDay.putIfAbsent(dateOnly(f.at(t)), () => []).add(t); // f.at: thời điểm đã parse sẵn
     }
     // Ảnh đầu tiên (theo thứ tự) của mỗi giao dịch, nếu có — tra bảng ảnh đã nhớ sẵn theo giao dịch,
     // không quét lại toàn bộ ảnh đính kèm mỗi lần dựng.
     final photoOf = <String, ({String file, int order})>{};
-    for (final t in list) {
+    for (final t in cellTxs) {
       final p = f.photosOf(t.id);
       if (p.isNotEmpty) photoOf[t.id] = (file: p.first, order: 0);
     }
@@ -1123,7 +1160,9 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                 availableGestures: AvailableGestures.horizontalSwipe,
                 firstDay: DateTime(2000),
                 lastDay: DateTime(2100),
-                focusedDay: selectedDay.isBefore(from) ? from : selectedDay,
+                // Trang lịch = tháng dương lịch của [month] (không nhảy về tháng trước khi kỳ tài chính bắt đầu sau ngày 1).
+                focusedDay:
+                    _calFocus ?? (selectedDay.year == month.year && selectedDay.month == month.month ? selectedDay : DateTime(month.year, month.month, 15)),
                 startingDayOfWeek: StartingDayOfWeek.values[TimeConfig.of(ref.read(storeProvider)).firstDayOfWeek - 1],
                 headerVisible: false,
                 rowHeight: box.maxWidth / 7, // ô vuông
@@ -1135,7 +1174,16 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                 },
                 onPageChanged: (d) {
                   final delta = (d.year - month.year) * 12 + d.month - month.month;
-                  if (delta != 0) _goMonth(delta); // bấm ‹ › đã đổi tháng rồi → tránh dựng lại lần 2
+                  _pageTimer?.cancel();
+                  if (delta == 0) {
+                    _calFocus = null; // bấm ‹ › đã đổi tháng rồi, hoặc vuốt quay lại → không làm gì thêm
+                    return;
+                  }
+                  // Lịch đang tự trượt trang: đợi trượt xong mới đổi tháng (vuốt liên tiếp thì gộp lại một lần).
+                  _calFocus = d;
+                  _pageTimer = Timer(const Duration(milliseconds: 340), () {
+                    if (mounted) _goMonth(delta);
+                  });
                 },
                 calendarBuilders: CalendarBuilders(
                   defaultBuilder: (c, d, _) => cell(d),
@@ -1167,57 +1215,72 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
           ),
         ],
         const SizedBox(height: 12),
-        if (recent.isNotEmpty) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Row(
-              children: [
-                // Màn hẹp / chữ to: tiêu đề tự rút gọn, nút "Xem tất cả" luôn hiện đủ.
-                Expanded(
-                  child: Text(
-                    'Giao dịch gần đây',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
-                  ),
-                ),
-                TextButton(
-                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-                  onPressed: () => setState(() => calendar = false),
-                  child: Text('Xem tất cả (${recent.length})', maxLines: 1, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          GroupedTxDays(items: recent.take(8).toList()),
-        ] else
-          AppCard(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
-                  child: Icon(Icons.touch_app_rounded, color: scheme.primary, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        // Phần dưới lịch đổi theo tháng: mờ chéo nhẹ riêng phần này (lịch phía trên tự trượt trang).
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 360),
+          reverseDuration: const Duration(milliseconds: 180),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeInCubic,
+          layoutBuilder: (cur, prev) => Stack(alignment: Alignment.topCenter, children: [...prev, ?cur]),
+          child: KeyedSubtree(
+            key: ValueKey('recent-$from'),
+            child: recent.isNotEmpty
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text('Tháng ${Fmt.month(from)} chưa có giao dịch', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Chạm vào một ngày trên lịch hoặc dùng nút ghi nhanh ở trên để thêm.',
-                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: Row(
+                          children: [
+                            // Màn hẹp / chữ to: tiêu đề tự rút gọn, nút "Xem tất cả" luôn hiện đủ.
+                            Expanded(
+                              child: Text(
+                                'Giao dịch gần đây',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: scheme.onSurfaceVariant),
+                              ),
+                            ),
+                            TextButton(
+                              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                              onPressed: () => setState(() => calendar = false),
+                              child: Text('Xem tất cả (${recent.length})', maxLines: 1, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(height: 6),
+                      GroupedTxDays(items: recent.take(8).toList()),
                     ],
+                  )
+                : AppCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+                          child: Icon(Icons.touch_app_rounded, color: scheme.primary, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Tháng ${Fmt.month(from)} chưa có giao dịch', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Chạm vào một ngày trên lịch hoặc dùng nút ghi nhanh ở trên để thêm.',
+                                style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
           ),
+        ),
       ],
     );
   }
