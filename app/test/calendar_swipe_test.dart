@@ -106,7 +106,9 @@ void main() {
     );
 
     expect(find.text('Tháng ${Fmt.month(DateTime(prev.year, prev.month, 1))}'), findsOneWidget, reason: 'đã sang tháng trước');
-    expect(dragWorst, lessThan(60000), reason: 'giữa lúc đang kéo không được có khung nặng (đổi tháng phải đợi trượt xong)');
+    // So tương đối (máy bận khi chạy chung các test làm mọi khung chậm như nhau): giữa lúc kéo không được có khung
+    // nặng ngang khung đổi tháng — code cũ đổi tháng + mờ chéo ngay giữa lúc kéo nên khung kéo chính là khung nặng nhất.
+    expect(dragWorst, lessThan(worst * 0.6), reason: 'giữa lúc đang kéo không được có khung nặng (đổi tháng phải đợi trượt xong)');
     expect(t.takeException(), isNull);
   }, retry: 2); // đo thời gian thật: máy bận có thể trượt ngẫu nhiên
 }
