@@ -137,7 +137,7 @@ class _CyclePageState extends ConsumerState<CyclePage> {
                   dowBuilder: (c, d) => calendarDow(c, d, CalendarLook.of(store)),
                   defaultBuilder: (c, d, _) => dayCell(d),
                   todayBuilder: (c, d, _) => dayCell(d, today: true),
-                  outsideBuilder: (c, d, _) => const SizedBox.shrink(), // ngày tháng khác: để trống cho gọn
+                  outsideBuilder: (c, d, _) => Opacity(opacity: 0.35, child: dayCell(d)),
                 ),
               ),
             ),
@@ -147,11 +147,11 @@ class _CyclePageState extends ConsumerState<CyclePage> {
               runSpacing: 6,
               children: [
                 _legend(AppColors.cycle, 'Hành kinh'),
-                _legend(AppColors.cycle, 'Dự đoán', outline: true),
-                _legend(AppColors.income.withValues(alpha: 0.3), 'Dễ thụ thai'),
+                _legend(AppColors.cycle.withValues(alpha: 0.3), 'Dự đoán'),
+                _legend(AppColors.income.withValues(alpha: 0.35), 'Dễ thụ thai'),
                 _legend(AppColors.income, 'Rụng trứng'),
-                _legend(_safeColor, 'An toàn', dot: true),
-                _legend(_safeRelColor, 'An toàn tương đối', dot: true),
+                _legend(_safeColor.withValues(alpha: 0.30), 'An toàn'),
+                _legend(_safeRelColor.withValues(alpha: 0.40), 'An toàn tương đối'),
               ],
             ),
             if (p != null) ...[
@@ -607,19 +607,13 @@ class _CyclePageState extends ConsumerState<CyclePage> {
     child: Icon(i, size: 22),
   );
 
-  /// Chú thích: [dot] = chấm nhỏ (ngày an toàn), [outline] = chỉ viền (kỳ dự đoán), còn lại = ô màu.
-  Widget _legend(Color c, String l, {bool dot = false, bool outline = false}) => Row(
+  Widget _legend(Color c, String l) => Row(
     mainAxisSize: MainAxisSize.min,
     children: [
       Container(
-        width: dot ? 7 : 14,
-        height: dot ? 7 : 14,
-        decoration: BoxDecoration(
-          color: outline ? null : c,
-          shape: dot ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: dot ? null : BorderRadius.circular(4),
-          border: outline ? Border.all(color: c, width: 1.5) : null,
-        ),
+        width: 14,
+        height: 14,
+        decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(4)),
       ),
       const SizedBox(width: 4),
       Text(l, style: const TextStyle(fontSize: 12)),
@@ -636,13 +630,15 @@ class _CyclePageState extends ConsumerState<CyclePage> {
   /// Một ô lịch: [kind] 1 = hành kinh, 2 = dự đoán, 3 = dễ thụ thai, 4 = an toàn, 5 = an toàn tương đối, 0 = thường.
   Widget _day(DateTime d, {required int kind, bool ovulation = false, bool today = false}) {
     final scheme = Theme.of(context).colorScheme;
-    // Gọn mắt: chỉ ngày quan trọng có nền (kinh nguyệt, rụng trứng, dễ thụ thai);
-    // kỳ dự đoán chỉ có viền; ngày an toàn chỉ có chấm nhỏ dưới số.
+    // Mỗi ngày một ô vuông bo góc nhẹ (không nối dải) — màu theo loại ngày
     final bg = ovulation
         ? AppColors.income
         : switch (kind) {
             1 => AppColors.cycle,
-            3 => AppColors.income.withValues(alpha: 0.16),
+            2 => AppColors.cycle.withValues(alpha: 0.16),
+            3 => AppColors.income.withValues(alpha: 0.18),
+            4 => _safeColor.withValues(alpha: 0.15),
+            5 => _safeRelColor.withValues(alpha: 0.22),
             _ => Colors.transparent,
           };
     final fg = ovulation || kind == 1
@@ -650,43 +646,28 @@ class _CyclePageState extends ConsumerState<CyclePage> {
         : switch (kind) {
             2 => AppColors.cycle,
             3 => AppColors.income,
+            4 => _safeColor,
+            5 => _safeRelText,
             _ => null,
           };
-    final dot = switch (kind) {
-      4 => _safeColor,
-      5 => _safeRelColor,
-      _ => null,
-    };
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
-      margin: const EdgeInsets.all(3),
+      margin: const EdgeInsets.all(2.5),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(10),
+        // Kỳ dự đoán: viền mảnh để phân biệt với kỳ đã ghi; hôm nay: viền màu chủ đạo
         border: today
             ? Border.all(color: kind == 1 || ovulation ? Colors.white : scheme.primary, width: 2)
             : kind == 2
-            ? Border.all(color: AppColors.cycle.withValues(alpha: 0.55), width: 1.2)
+            ? Border.all(color: AppColors.cycle.withValues(alpha: 0.45))
             : null,
       ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Text(
-            '${d.day}',
-            style: TextStyle(color: fg, fontWeight: today || kind == 1 || ovulation ? FontWeight.w800 : FontWeight.w500),
-          ),
-          if (dot != null)
-            Positioned(
-              bottom: 5,
-              child: Container(
-                width: 5,
-                height: 5,
-                decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
-              ),
-            ),
-        ],
+      alignment: Alignment.center,
+      child: Text(
+        '${d.day}',
+        style: TextStyle(color: fg, fontWeight: today || kind == 1 || ovulation ? FontWeight.w800 : FontWeight.w600),
       ),
     );
   }
