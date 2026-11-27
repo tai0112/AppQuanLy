@@ -1560,16 +1560,7 @@ class _TxGridCard extends ConsumerWidget {
                 if (photo != null)
                   FileImage2(photo!, radius: 0)
                 else
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [color.withValues(alpha: 0.35), color.withValues(alpha: 0.12)],
-                      ),
-                    ),
-                    child: Icon(isTransfer ? Icons.swap_horiz_rounded : iconOf(cat?.icon), size: tiny ? 26 : (dense ? 32 : 44), color: color),
-                  ),
+                  _CategoryCover(icon: isTransfer ? Icons.swap_horiz_rounded : iconOf(cat?.icon), color: color, dense: dense, tiny: tiny),
                 Positioned(
                   left: dense ? 4 : 8,
                   top: dense ? 4 : 8,
@@ -1623,6 +1614,69 @@ class _TxGridCard extends ConsumerWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "Ảnh bìa" cho giao dịch không có ảnh: nền màu danh mục đậm như một tấm ảnh (cùng độ nặng thị giác với ô có ảnh),
+/// biểu tượng trắng trong vòng tròn mờ ở giữa và biểu tượng lớn chìm ở góc. Chỉ dùng gradient + icon, không blur nên nhẹ.
+class _CategoryCover extends StatelessWidget {
+  const _CategoryCover({required this.icon, required this.color, required this.dense, required this.tiny});
+  final IconData icon;
+  final Color color;
+  final bool dense, tiny;
+
+  @override
+  Widget build(BuildContext context) {
+    final hsl = HSLColor.fromColor(color);
+    final light = hsl.withLightness((hsl.lightness + 0.12).clamp(0.0, 0.85)).toColor();
+    final deep = hsl.withLightness((hsl.lightness - 0.14).clamp(0.12, 1.0)).toColor();
+    final badge = tiny ? 34.0 : (dense ? 46.0 : 64.0);
+    return ClipRect(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [light, deep]),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Biểu tượng lớn chìm ở góc dưới phải
+            Positioned(
+              right: -badge * 0.35,
+              bottom: -badge * 0.35,
+              child: Transform.rotate(
+                angle: -0.25,
+                child: Icon(icon, size: badge * 1.6, color: Colors.white.withValues(alpha: 0.13)),
+              ),
+            ),
+            // Ánh sáng nhẹ ở góc trên trái
+            Positioned(
+              left: -badge * 0.6,
+              top: -badge * 0.6,
+              child: Container(
+                width: badge * 1.8,
+                height: badge * 1.8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(colors: [Colors.white.withValues(alpha: 0.22), Colors.white.withValues(alpha: 0)]),
+                ),
+              ),
+            ),
+            Center(
+              child: Container(
+                width: badge,
+                height: badge,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(alpha: 0.2),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.2),
+                ),
+                child: Icon(icon, size: badge * 0.5, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
