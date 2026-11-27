@@ -353,9 +353,16 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
   /// Trang lịch đang hiện trong lúc chờ đổi tháng (giữ lịch đứng yên ở trang mới nếu có gì dựng lại giữa chừng).
   DateTime? _calFocus;
 
+  /// Tháng hiển thị ở phần đầu trang trong lúc lịch đang trượt (đổi cùng lúc với lịch, chỉ phần đầu dựng lại).
+  final _headerMonth = ValueNotifier<DateTime?>(null);
+
+  /// Hướng đổi tháng gần nhất (+1 tháng sau, -1 tháng trước) → tiêu đề trượt ngang đúng hướng.
+  int _dir = 1;
+
   @override
   void dispose() {
     _pageTimer?.cancel();
+    _headerMonth.dispose();
     search.dispose();
     super.dispose();
   }
@@ -437,98 +444,18 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
               padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
               child: AppCard(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        IconButton.filledTonal(
-                          visualDensity: VisualDensity.compact,
-                          onPressed: () => _goMonth(-1),
-                          icon: const Icon(Icons.chevron_left_rounded),
-                        ),
-                        Expanded(
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 380),
-                            transitionBuilder: (c, a) => FadeTransition(
-                              opacity: a,
-                              child: SlideTransition(
-                                position: Tween(begin: const Offset(0, 0.3), end: Offset.zero).animate(a),
-                                child: c,
-                              ),
-                            ),
-                            child: Column(
-                              key: ValueKey(from),
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.event_note_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
-                                    const SizedBox(width: 6),
-                                    Flexible(
-                                      child: Text(
-                                        'Tháng ${Fmt.month(from)}',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  '${Fmt.dateShort(from)} – ${Fmt.dateShort(to.subtract(const Duration(days: 1)))} · ${list.length} giao dịch',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        IconButton.filledTonal(
-                          visualDensity: VisualDensity.compact,
-                          onPressed: () => _goMonth(1),
-                          icon: const Icon(Icons.chevron_right_rounded),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: Row(
-                        children: [
-                          _Total(
-                            'Thu',
-                            Icons.south_west_rounded,
-                            totals.income,
-                            AppColors.income,
-                            f.money,
-                            selected: type == TxType.income,
-                            onTap: () => _toggleType(TxType.income),
-                          ),
-                          const SizedBox(width: 8),
-                          _Total(
-                            'Chi',
-                            Icons.north_east_rounded,
-                            totals.expense,
-                            AppColors.expense,
-                            f.money,
-                            selected: type == TxType.expense,
-                            onTap: () => _toggleType(TxType.expense),
-                          ),
-                          const SizedBox(width: 8),
-                          _Total(
-                            'Còn lại',
-                            Icons.account_balance_wallet_rounded,
-                            totals.income - totals.expense,
-                            Theme.of(context).colorScheme.primary,
-                            f.money,
-                            selected: type == null,
-                            onTap: () => setState(() => type = null),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: ValueListenableBuilder<DateTime?>(
+                  valueListenable: _headerMonth,
+                  builder: (context, preview, _) {
+                    // Đang trượt lịch sang tháng khác: phần đầu hiện ngay tháng đó (tính riêng, nhẹ).
+                    if (preview == null) return _header(f, from, to, list.length, totals);
+                    final (pf, pt) = f.monthRange(preview);
+                    final range = f.inRange(pf, pt);
+                    final unfilteredP = source == MoneySource.all && cats.isEmpty && query.isEmpty;
+                    // Như phần chính: tổng tính trước khi lọc theo loại, số giao dịch đếm sau khi lọc.
+                    final pTotals = unfilteredP ? f.totalsIn(pf, pt) : f.totals(_filtered(f, range, withType: false));
+                    return _header(f, pf, pt, _filtered(f, range).length, pTotals);
+                  },
                 ),
               ),
             ),
@@ -638,6 +565,107 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Phần đầu trang: tháng (‹ ›) + tổng Thu / Chi / Còn lại của khoảng [from, to).
+  Widget _header(Finance f, DateTime from, DateTime to, int count, ({double income, double expense}) totals) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            IconButton.filledTonal(visualDensity: VisualDensity.compact, onPressed: () => _goMonth(-1), icon: const Icon(Icons.chevron_left_rounded)),
+            Expanded(
+              // Tiêu đề trượt NGANG theo hướng đổi tháng: tháng cũ ra nhanh, tháng mới vào sau → không đè chữ lên nhau.
+              child: ClipRect(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 420),
+                  reverseDuration: const Duration(milliseconds: 200),
+                  switchInCurve: Curves.easeOutCubic,
+                  switchOutCurve: Curves.easeInCubic,
+                  transitionBuilder: (c, a) {
+                    final incoming = c.key == ValueKey(from);
+                    final dx = 0.35 * _dir;
+                    return FadeTransition(
+                      // Vào: chờ tháng cũ ra gần hết mới hiện (không chồng chữ).
+                      opacity: incoming ? CurvedAnimation(parent: a, curve: const Interval(0.35, 1)) : a,
+                      child: SlideTransition(
+                        position: Tween(begin: Offset(incoming ? dx : -dx, 0), end: Offset.zero).animate(a),
+                        child: c,
+                      ),
+                    );
+                  },
+                  layoutBuilder: (cur, prev) => Stack(alignment: Alignment.center, children: [...prev, ?cur]),
+                  child: Column(
+                    key: ValueKey(from),
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.event_note_rounded, size: 18, color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Tháng ${Fmt.month(from)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${Fmt.dateShort(from)} – ${Fmt.dateShort(to.subtract(const Duration(days: 1)))} · $count giao dịch',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            IconButton.filledTonal(visualDensity: VisualDensity.compact, onPressed: () => _goMonth(1), icon: const Icon(Icons.chevron_right_rounded)),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: [
+              _Total(
+                'Thu',
+                Icons.south_west_rounded,
+                totals.income,
+                AppColors.income,
+                f.money,
+                selected: type == TxType.income,
+                onTap: () => _toggleType(TxType.income),
+              ),
+              const SizedBox(width: 8),
+              _Total(
+                'Chi',
+                Icons.north_east_rounded,
+                totals.expense,
+                AppColors.expense,
+                f.money,
+                selected: type == TxType.expense,
+                onTap: () => _toggleType(TxType.expense),
+              ),
+              const SizedBox(width: 8),
+              _Total(
+                'Còn lại',
+                Icons.account_balance_wallet_rounded,
+                totals.income - totals.expense,
+                Theme.of(context).colorScheme.primary,
+                f.money,
+                selected: type == null,
+                onTap: () => setState(() => type = null),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -911,13 +939,14 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
   }
 
   /// Áp các bộ lọc đang bật (nguồn tiền, danh mục, loại, tìm kiếm); không lọc gì thì trả nguyên danh sách.
-  List<Txn> _filtered(Finance f, List<Txn> all) {
+  List<Txn> _filtered(Finance f, List<Txn> all, {bool withType = true}) {
     final q = query.toLowerCase();
-    if (source == MoneySource.all && cats.isEmpty && type == null && q.isEmpty) return all;
+    final ty = withType ? type : null;
+    if (source == MoneySource.all && cats.isEmpty && ty == null && q.isEmpty) return all;
     bool pass(Txn t) =>
         (source == MoneySource.all || (f.account(t.accountId)?.matches(source) ?? false)) &&
         (cats.isEmpty || _inCats(f, cats, t)) &&
-        (type == null || t.type == type) &&
+        (ty == null || t.type == ty) &&
         (q.isEmpty ||
             (t.note ?? '').toLowerCase().contains(q) ||
             (t.location ?? '').toLowerCase().contains(q) ||
@@ -928,8 +957,10 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
   void _goMonth(int delta) {
     final f = ref.read(financeProvider);
     _pageTimer?.cancel();
+    if (_headerMonth.value == null) _dir = delta.sign == 0 ? _dir : delta.sign;
     setState(() {
       _calFocus = null;
+      _headerMonth.value = null;
       month = DateTime(month.year, month.month + delta, 15);
       final (from, to) = f.monthRange(month);
       final today = dateOnly(DateTime.now());
@@ -1179,8 +1210,11 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
                     _calFocus = null; // bấm ‹ › đã đổi tháng rồi, hoặc vuốt quay lại → không làm gì thêm
                     return;
                   }
-                  // Lịch đang tự trượt trang: đợi trượt xong mới đổi tháng (vuốt liên tiếp thì gộp lại một lần).
+                  // Lịch đang tự trượt trang: phần đầu trang đổi NGAY cùng lịch (chỉ phần đầu dựng lại);
+                  // phần còn lại đợi trượt xong mới đổi (vuốt liên tiếp thì gộp lại một lần).
                   _calFocus = d;
+                  _dir = delta.sign;
+                  _headerMonth.value = DateTime(month.year, month.month + delta, 15);
                   _pageTimer = Timer(const Duration(milliseconds: 340), () {
                     if (mounted) _goMonth(delta);
                   });
@@ -1936,20 +1970,14 @@ class _Total extends StatelessWidget {
               width: double.infinity,
               child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 360),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (c, a) => FadeTransition(
-                    opacity: a,
-                    child: SlideTransition(
-                      position: Tween(begin: const Offset(0, 0.2), end: Offset.zero).animate(a),
-                      child: c,
-                    ),
-                  ),
-                  child: Text(
-                    fmt(value),
-                    key: ValueKey(fmt(value)),
+                // Số chạy mượt từ giá trị cũ sang giá trị mới trên MỘT dòng (không mờ chéo hai số đè lên nhau);
+                // chữ số đều bề ngang nên không xô lệch khi đang chạy.
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(end: value),
+                  duration: const Duration(milliseconds: 520),
+                  curve: Curves.easeOutCubic,
+                  builder: (_, v, _) => Text(
+                    fmt(v),
                     style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 15, fontFeatures: const [FontFeature.tabularFigures()]),
                   ),
                 ),

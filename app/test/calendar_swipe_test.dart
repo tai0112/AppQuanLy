@@ -92,7 +92,12 @@ void main() {
       });
     }
     await g.up();
-    for (var k = 0; k < 50; k++) {
+    // Phần đầu trang đổi CÙNG LÚC với lịch (không đợi trượt xong mới đổi): sau 3 khung đã thấy tháng mới.
+    for (var k = 0; k < 3; k++) {
+      await frame(() => t.pump(const Duration(milliseconds: 16)));
+    }
+    expect(find.text('Tháng ${Fmt.month(DateTime(prev.year, prev.month, 1))}'), findsWidgets, reason: 'tiêu đề đổi ngay khi lịch trượt');
+    for (var k = 0; k < 47; k++) {
       await frame(() => t.pump(const Duration(milliseconds: 16)));
     }
     // ignore: avoid_print
