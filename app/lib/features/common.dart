@@ -15,6 +15,7 @@ import '../data/models.dart';
 import '../data/time_config.dart';
 
 import '../providers.dart';
+import 'camera_capture.dart';
 import 'pickers.dart';
 
 export 'pickers.dart';
@@ -52,13 +53,34 @@ Future<List<String>> pickPhotos(BuildContext context, WidgetRef ref, {bool multi
     ),
   );
   if (source == null) return [];
+  final store0 = ref.read(storeProvider);
+  // Điện thoại: máy ảnh trong app, khung xem toàn màn hình, ảnh lưu đúng khung nhìn.
+  // Web / không có camera / lỗi mở camera → quay về máy ảnh hệ thống như trước.
+  var src = source;
+  if (source == ImageSource.camera && !kIsWeb && context.mounted) {
+    final r = await captureFullScreen(context);
+    switch (r) {
+      case null:
+        return [];
+      case CaptureDone(:final photo):
+        outPaths?.add(photo.path);
+        return [store0.addFile(photo.bytes, 'image/jpeg', name: photo.name)];
+      case CaptureUseGallery():
+        src = ImageSource.gallery;
+      case CaptureUnavailable(:final denied):
+        if (denied) {
+          if (context.mounted) showToast(context, 'Chưa có quyền dùng máy ảnh. Bật trong Cài đặt → LinTin → Máy ảnh.', error: true);
+          return [];
+        }
+    }
+  }
   final picker = ImagePicker();
   final files = <XFile>[];
   try {
-    if (source == ImageSource.gallery && multiple) {
+    if (src == ImageSource.gallery && multiple) {
       files.addAll(await picker.pickMultiImage(maxWidth: 1600, imageQuality: 80));
     } else {
-      final f = await picker.pickImage(source: source, maxWidth: 1600, imageQuality: 80);
+      final f = await picker.pickImage(source: src, maxWidth: 1600, imageQuality: 80);
       if (f != null) files.add(f);
     }
   } on PlatformException catch (e) {
@@ -68,7 +90,7 @@ Future<List<String>> pickPhotos(BuildContext context, WidgetRef ref, {bool multi
       showToast(
         context,
         denied
-            ? (source == ImageSource.camera
+            ? (src == ImageSource.camera
                   ? 'Chưa có quyền dùng máy ảnh. Bật trong Cài đặt iPhone → LinTin → Máy ảnh.'
                   : 'Chưa có quyền truy cập ảnh. Bật trong Cài đặt iPhone → LinTin → Ảnh.')
             : 'Không mở được ảnh: ${e.message ?? e.code}',

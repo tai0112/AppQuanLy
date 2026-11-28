@@ -1,6 +1,6 @@
 {
   "appName": "LinTin",
-  "updated": "27/11/2026",
+  "updated": "28/11/2026",
   "contact": "tai023156@gmail.com",
   "privacy": {
     "title": "Chính sách quyền riêng tư",
@@ -16,7 +16,7 @@
       },
       {
         "title": "3. Máy ảnh và thư viện ảnh",
-        "body": "Ứng dụng chỉ truy cập máy ảnh khi bạn bấm \"Chụp ảnh\" và chỉ đọc những ảnh bạn tự chọn trong thư viện, nhằm đính kèm hoá đơn / ảnh vào giao dịch, ảnh kỷ niệm vào lịch trình, ảnh vào bài viết hoặc tin nhắn. Ứng dụng không tự chụp, không quét thư viện, không nhận diện khuôn mặt và không dùng ảnh cho mục đích nào khác."
+        "body": "Ứng dụng chỉ truy cập máy ảnh khi bạn bấm \"Chụp ảnh\" và chỉ đọc những ảnh bạn tự chọn trong thư viện, nhằm đính kèm hoá đơn / ảnh vào giao dịch, ảnh kỷ niệm vào lịch trình, ảnh vào bài viết hoặc tin nhắn. Ảnh chụp bằng máy ảnh trong ứng dụng chỉ được lưu khi bạn bấm \"Dùng ảnh\"; bấm \"Chụp lại\" hoặc đóng thì ảnh bị xoá ngay. Máy ảnh không bao giờ bật micro hay ghi âm. Ứng dụng không tự chụp, không quét thư viện, không nhận diện khuôn mặt và không dùng ảnh cho mục đích nào khác."
       },
       {
         "title": "4. Vị trí",
