@@ -346,11 +346,38 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
         title: Text(_orig == null ? 'Thêm nhắc nhở' : 'Sửa nhắc nhở'),
         actions: [
           if (_orig != null) IconButton(onPressed: _delete, icon: const Icon(Icons.delete_outline_rounded), tooltip: 'Xoá'),
-          TextButton(onPressed: _save, child: const Text('Lưu')),
         ],
       ),
+      bottomNavigationBar: KeyboardAvoidBottomBar(
+        minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        child: Pressable(
+          onTap: _save,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            height: 52,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              gradient: LinearGradient(colors: [heroOf(_color), accentOf(heroOf(_color), hue: 18)]),
+              boxShadow: [BoxShadow(color: _color.withValues(alpha: 0.32), blurRadius: 14, offset: const Offset(0, 6))],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_rounded, color: Colors.white),
+                const SizedBox(width: 8),
+                Text(
+                  _orig == null ? 'Lưu nhắc nhở' : 'Cập nhật nhắc nhở',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 40),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
         children: [
           FormSection(
             title: 'Nội dung',
@@ -369,21 +396,47 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
                 children: [
                   for (final ic in _icons)
                     Pressable(
-                      onTap: () => setState(() => _icon = ic),
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _icon = ic);
+                      },
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(color: ic == _icon ? _color : _color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                        child: Icon(iconOf(ic), color: ic == _icon ? Colors.white : _color, size: 22),
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(color: ic == _icon ? _color : _color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(13)),
+                        child: Icon(iconOf(ic), color: ic == _icon ? Colors.white : _color, size: 21),
                       ),
                     ),
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: ColorPickerRow(value: _color, onChanged: (c) => setState(() => _color = c)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  for (final c in AppColors.palette)
+                    Pressable(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _color = c);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        width: c.toARGB32() == _color.toARGB32() ? 32 : 28,
+                        height: c.toARGB32() == _color.toARGB32() ? 32 : 28,
+                        decoration: BoxDecoration(
+                          color: c,
+                          shape: BoxShape.circle,
+                          boxShadow: c.toARGB32() == _color.toARGB32() ? [BoxShadow(color: c.withValues(alpha: 0.45), blurRadius: 8)] : null,
+                        ),
+                        child: c.toARGB32() == _color.toARGB32() ? const Icon(Icons.check_rounded, color: Colors.white, size: 17) : null,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -412,22 +465,63 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
             title: 'Lặp lại',
             padding: const EdgeInsets.all(14),
             children: [
-              Center(
-                child: PillToggle<int>(
-                  value: _mode,
-                  values: const [ReminderRepeat.daily, ReminderRepeat.weekdays, ReminderRepeat.dates],
-                  icons: const [Icons.repeat_rounded, Icons.view_week_rounded, Icons.event_available_rounded],
-                  labels: const ['Hằng ngày', 'Theo thứ', 'Chọn ngày'],
-                  itemWidth: 100,
-                  onChanged: (v) => setState(() => _mode = v),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(16)),
+                child: Row(
+                  children: [
+                    for (final (m, ic, lbl) in const [
+                      (ReminderRepeat.daily, Icons.repeat_rounded, 'Hằng ngày'),
+                      (ReminderRepeat.weekdays, Icons.view_week_rounded, 'Theo thứ'),
+                      (ReminderRepeat.dates, Icons.event_available_rounded, 'Chọn ngày'),
+                    ])
+                      Expanded(
+                        child: Pressable(
+                          onTap: () {
+                            if (_mode == m) return;
+                            HapticFeedback.selectionClick();
+                            setState(() => _mode = m);
+                          },
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutCubic,
+                            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+                            decoration: BoxDecoration(
+                              color: _mode == m ? _color : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: _mode == m ? [BoxShadow(color: _color.withValues(alpha: 0.28), blurRadius: 8, offset: const Offset(0, 2))] : null,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(ic, size: 15, color: _mode == m ? Colors.white : scheme.onSurfaceVariant),
+                                const SizedBox(width: 5),
+                                Flexible(
+                                  child: Text(
+                                    lbl,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: _mode == m ? FontWeight.w700 : FontWeight.w600,
+                                      color: _mode == m ? Colors.white : scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               AnimatedSize(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 260),
                 curve: Curves.easeOutCubic,
                 alignment: Alignment.topCenter,
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
+                  duration: const Duration(milliseconds: 220),
                   transitionBuilder: (c, a) => FadeTransition(
                     opacity: a,
                     child: SlideTransition(
@@ -451,8 +545,6 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          FilledButton.icon(onPressed: _save, icon: const Icon(Icons.check_rounded), label: const Text('Lưu nhắc nhở')),
         ],
       ),
     );
@@ -574,12 +666,27 @@ class _ReminderEditPageState extends ConsumerState<ReminderEditPage> {
           ),
         );
       default:
+        final timeLabels = _times.isEmpty ? 'chưa đặt giờ' : _times.map(timeStr).join(', ');
         return Padding(
-          padding: const EdgeInsets.only(top: 14),
-          child: Text(
-            'Nhắc mỗi ngày vào các giờ đã chọn.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: scheme.onSurfaceVariant),
+          padding: const EdgeInsets.only(top: 12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: _color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.event_repeat_rounded, size: 18, color: _color),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Nhắc mỗi ngày lúc $timeLabels',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: scheme.onSurface),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
     }
