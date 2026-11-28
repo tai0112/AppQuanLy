@@ -12,4 +12,3 @@ class AppHttpOverrides extends HttpOverrides {
 void initHttpOverrides() {
   HttpOverrides.global = AppHttpOverrides();
 }
-

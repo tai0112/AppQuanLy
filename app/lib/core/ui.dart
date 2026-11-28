@@ -230,6 +230,126 @@ class PillToggle<T> extends StatelessWidget {
   }
 }
 
+/// Thanh chọn chia đều toàn chiều ngang: nền trượt màu theo mục đang chọn (có bóng nhẹ), mỗi mục có biểu tượng + chữ,
+/// tuỳ chọn số đếm nhỏ. Khoảng cách giữa các mục đều, chữ không bị ép sát nhau như [PillToggle].
+class SegmentTabs<T> extends StatelessWidget {
+  const SegmentTabs({
+    super.key,
+    required this.value,
+    required this.values,
+    required this.labels,
+    required this.icons,
+    required this.onChanged,
+    this.colors,
+    this.counts,
+    this.height = 52,
+    this.vertical = false,
+  });
+  final T value;
+  final List<T> values;
+  final List<String> labels;
+  final List<IconData> icons;
+  final List<Color>? colors;
+
+  /// Số đếm hiện dưới / cạnh chữ (VD số danh mục).
+  final List<int>? counts;
+  final double height;
+
+  /// true: biểu tượng trên, chữ dưới (hợp với 4 mục trên màn hẹp).
+  final bool vertical;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final idx = values.indexOf(value).clamp(0, values.length - 1);
+    final active = colors?[idx] ?? scheme.primary;
+    const pad = 4.0;
+    return Container(
+      height: height,
+      padding: const EdgeInsets.all(pad),
+      decoration: BoxDecoration(
+        color: dark ? scheme.surfaceContainerHigh : scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          final w = box.maxWidth / values.length;
+          return Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeOutCubic,
+                left: idx * w,
+                top: 0,
+                bottom: 0,
+                width: w,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color.lerp(active, Colors.white, 0.12)!, active]),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: active.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3))],
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  for (final (i, v) in values.indexed)
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (v != value) HapticFeedback.selectionClick();
+                          onChanged(v);
+                        },
+                        child: _segment(context, i, v == value, colors?[i] ?? scheme.primary),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _segment(BuildContext context, int i, bool sel, Color color) {
+    final scheme = Theme.of(context).colorScheme;
+    final fg = sel ? Colors.white : scheme.onSurfaceVariant;
+    final icon = AnimatedScale(
+      scale: sel ? 1.08 : 1,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutBack,
+      child: Icon(icons[i], size: vertical ? 18 : 17, color: sel ? Colors.white : color),
+    );
+    final label = AnimatedDefaultTextStyle(
+      duration: const Duration(milliseconds: 220),
+      style: TextStyle(
+        fontSize: 12.5,
+        fontWeight: sel ? FontWeight.w800 : FontWeight.w600,
+        color: fg,
+        fontFamily: DefaultTextStyle.of(context).style.fontFamily,
+      ),
+      child: Text(counts == null ? labels[i] : '${labels[i]} · ${counts![i]}', maxLines: 1),
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: vertical
+              ? Column(mainAxisSize: MainAxisSize.min, children: [icon, const SizedBox(height: 3), label])
+              : Row(mainAxisSize: MainAxisSize.min, children: [icon, const SizedBox(width: 6), label]),
+        ),
+      ),
+    );
+  }
+}
+
 /// Số tiền chạy (đếm lên/xuống) khi thay đổi.
 class AnimatedAmount extends StatelessWidget {
   const AnimatedAmount({super.key, required this.value, required this.format, this.style, this.textAlign});

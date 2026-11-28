@@ -69,7 +69,19 @@ extension WatchTables on WidgetRef {
 
 /// Bảng mà Finance đọc — chỉ khi một trong các bảng này đổi thì màn tài chính mới dựng lại
 /// (đồng bộ xong, sửa lịch trình, chat... không làm màn Giao dịch / Thống kê vẽ lại).
-const financeTables = [E.appSettings, E.currencies, E.exchangeRates, E.accounts, E.categories, E.transactions, E.attachments, E.jarTransactions, E.budgets];
+/// Có cả quy tắc định kỳ: thiếu bảng này thì thêm / sửa / xoá / bật tắt quy tắc không làm màn Giao dịch định kỳ vẽ lại.
+const financeTables = [
+  E.appSettings,
+  E.currencies,
+  E.exchangeRates,
+  E.accounts,
+  E.categories,
+  E.transactions,
+  E.attachments,
+  E.jarTransactions,
+  E.budgets,
+  E.recurringRules,
+];
 
 final financeProvider = Provider<Finance>((ref) {
   ref.watch(storeProvider.select((s) => s.versionKey(financeTables)));

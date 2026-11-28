@@ -36,64 +36,37 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
       ),
       body: Column(
         children: [
-          // Chọn loại danh mục: 4 ô chia đều, icon trên – chữ dưới, kèm số lượng
+          // Chọn loại danh mục: thanh trượt chia đều, mỗi loại một màu, kèm số danh mục chính
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 6),
+            child: SegmentTabs<int>(
+              value: type,
+              values: const [1, 2, 3, 4],
+              labels: const ['Khoản chi', 'Khoản thu', 'Lịch trình', 'Hoạt động'],
+              icons: const [Icons.north_east_rounded, Icons.south_west_rounded, Icons.event_rounded, Icons.schedule_rounded],
+              colors: _typeColors,
+              counts: [
+                for (final v in const [1, 2, 3, 4]) f.categories.where((c) => c.type == v && c.parentId == null).length,
+              ],
+              vertical: true,
+              height: 64,
+              onChanged: (v) => setState(() => type = v),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 10),
             child: Row(
               children: [
-                for (final (v, label, icon) in [
-                  (1, 'Khoản chi', Icons.north_east_rounded),
-                  (2, 'Khoản thu', Icons.south_west_rounded),
-                  (3, 'Lịch trình', Icons.event_rounded),
-                  (4, 'Hoạt động', Icons.schedule_rounded),
-                ])
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(right: v == 4 ? 0 : 6),
-                      child: Pressable(
-                        onTap: () => setState(() => type = v),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 260),
-                          curve: Curves.easeOutCubic,
-                          height: 62,
-                          decoration: BoxDecoration(
-                            color: type == v
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              AnimatedScale(
-                                scale: type == v ? 1.15 : 1,
-                                duration: const Duration(milliseconds: 260),
-                                curve: Curves.easeOutBack,
-                                child: Icon(
-                                  icon,
-                                  size: 20,
-                                  color: type == v ? Theme.of(context).colorScheme.onPrimary : Theme.of(context).colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              FittedBox(
-                                fit: BoxFit.scaleDown,
-                                child: Text(
-                                  '$label · ${f.categories.where((c) => c.type == v && c.parentId == null).length}',
-                                  maxLines: 1,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: type == v ? Theme.of(context).colorScheme.onPrimary : null,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                Icon(Icons.info_outline_rounded, size: 14, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${roots.length} danh mục chính · ${cats.length - roots.length} mục con · giữ ⋮⋮ để sắp xếp',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
+                ),
               ],
             ),
           ),
@@ -128,41 +101,12 @@ class _CategoriesPageState extends ConsumerState<CategoriesPage> {
                   return Padding(
                     key: ValueKey(root.id),
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: AppCard(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Theme(
-                        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                        child: ExpansionTile(
-                          leading: CircleIcon(icon: root.icon, color: hexColor(root.color)),
-                          title: Text(root.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text('${children.length} mục con'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.add_rounded),
-                                tooltip: 'Thêm mục con',
-                                onPressed: () => editCategory(context, ref, type: type, parent: root),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.edit_rounded),
-                                onPressed: () => editCategory(context, ref, type: type, existing: root),
-                              ),
-                              DragHandle(index: i),
-                            ],
-                          ),
-                          children: [
-                            for (final ch in children)
-                              ListTile(
-                                contentPadding: const EdgeInsets.only(left: 40, right: 16),
-                                leading: CircleIcon(icon: ch.icon, color: hexColor(ch.color), size: 34),
-                                title: Text(ch.name),
-                                trailing: const Icon(Icons.chevron_right_rounded),
-                                onTap: () => editCategory(context, ref, type: type, existing: ch, parent: root),
-                              ),
-                          ],
-                        ),
-                      ),
+                    child: _RootCard(
+                      root: root,
+                      children: children,
+                      index: i,
+                      onEdit: (c) => editCategory(context, ref, type: type, existing: c, parent: c.id == root.id ? null : root),
+                      onAddChild: () => editCategory(context, ref, type: type, parent: root),
                     ),
                   ).stagger(i).withKey(ValueKey('wrap-${root.id}'));
                 },
@@ -229,6 +173,170 @@ const _iconWords = <String, String>{
 };
 
 const _typeNames = {1: 'Khoản chi', 2: 'Khoản thu', 3: 'Lịch trình', 4: 'Mẫu hoạt động'};
+const _typeColors = [AppColors.expense, AppColors.income, AppColors.transfer, Color(0xFF8E4EC6)];
+
+/// Thẻ danh mục chính: bấm để mở / thu gọn; mục con hiện dạng thẻ nhỏ (bấm để sửa), cuối cùng là ô "Thêm mục con".
+class _RootCard extends StatefulWidget {
+  const _RootCard({required this.root, required this.children, required this.index, required this.onEdit, required this.onAddChild});
+  final Category root;
+  final List<Category> children;
+  final int index;
+  final ValueChanged<Category> onEdit;
+  final VoidCallback onAddChild;
+
+  @override
+  State<_RootCard> createState() => _RootCardState();
+}
+
+class _RootCardState extends State<_RootCard> {
+  bool open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final root = widget.root;
+    final color = hexColor(root.color);
+    final kids = widget.children;
+    return AppCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            onTap: () => setState(() => open = !open),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 4, 12),
+              child: Row(
+                children: [
+                  CircleIcon(icon: root.icon, color: color, size: 44),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          root.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(kids.isEmpty ? 'Chưa có mục con' : '${kids.length} mục con', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Sửa',
+                    visualDensity: VisualDensity.compact,
+                    style: IconButton.styleFrom(backgroundColor: color.withValues(alpha: 0.1), foregroundColor: color),
+                    icon: const Icon(Icons.edit_rounded, size: 18),
+                    onPressed: () => widget.onEdit(root),
+                  ),
+                  AnimatedRotation(
+                    turns: open ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOutCubic,
+                    child: Icon(Icons.expand_more_rounded, color: scheme.onSurfaceVariant),
+                  ),
+                  DragHandle(index: widget.index),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: !open
+                ? const SizedBox(width: double.infinity)
+                : Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(14)),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final ch in kids) _ChildChip(cat: ch, onTap: () => widget.onEdit(ch)),
+                        _AddChildChip(color: color, onTap: widget.onAddChild),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChildChip extends StatelessWidget {
+  const _ChildChip({required this.cat, required this.onTap});
+  final Category cat;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final color = hexColor(cat.color);
+    return Pressable(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(4, 4, 12, 4),
+        decoration: BoxDecoration(
+          color: Theme.of(context).brightness == Brightness.dark ? scheme.surfaceContainerHighest : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleIcon(icon: cat.icon, color: color, size: 26),
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 180),
+              child: Text(
+                cat.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddChildChip extends StatelessWidget {
+  const _AddChildChip({required this.color, required this.onTap});
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Pressable(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.add_rounded, size: 16, color: color),
+          const SizedBox(width: 4),
+          Text(
+            'Thêm mục con',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
 /// Thêm / sửa danh mục: xem trước trực tiếp, chọn nhóm cha, màu, icon (tìm bằng tiếng Việt), nút lưu cố định ở đáy.
 Future<void> editCategory(BuildContext context, WidgetRef ref, {required int type, Category? existing, Category? parent}) async {

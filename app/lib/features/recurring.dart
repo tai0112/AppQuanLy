@@ -242,7 +242,14 @@ class _RuleCard extends ConsumerWidget {
                     },
                   ),
                   const Spacer(),
-                  Text(rule.isActive ? 'Đang bật' : 'Tạm dừng', style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+                  Flexible(
+                    child: Text(
+                      rule.isActive ? 'Đang bật' : 'Tạm dừng',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                    ),
+                  ),
                   const SizedBox(width: 6),
                   Switch.adaptive(value: rule.isActive, onChanged: (v) => ref.read(storeProvider).put(E.recurringRules, {...rule.m, 'isActive': v})),
                 ],
@@ -352,19 +359,20 @@ Future<void> editRecurringRule(BuildContext context, WidgetRef ref, RecurringRul
           ),
           children: [
             Text(existing == null ? 'Thêm giao dịch định kỳ' : 'Sửa giao dịch định kỳ', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 12),
-            PillToggle<int>(
+            const SizedBox(height: 16),
+            SegmentTabs<int>(
               value: type,
               values: const [TxType.expense, TxType.income, TxType.transfer],
               labels: const ['Khoản chi', 'Khoản thu', 'Chuyển tiền'],
               icons: const [Icons.north_east_rounded, Icons.south_west_rounded, Icons.swap_horiz_rounded],
               colors: const [AppColors.expense, AppColors.income, AppColors.transfer],
+              height: 50,
               onChanged: (v) => set(() {
                 type = v;
                 if (category != null && category!.type != type) category = null;
               }),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
             AmountField(controller: amount, label: 'Số tiền', suffix: sym),
             const SizedBox(height: 12),
             TextField(
@@ -375,7 +383,7 @@ Future<void> editRecurringRule(BuildContext context, WidgetRef ref, RecurringRul
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
-            const SizedBox(height: 10),
+            const _Section('Tài khoản & danh mục'),
             AccountChips(
               label: type == TxType.transfer ? 'Từ tài khoản' : (type == TxType.income ? 'Nhận vào' : 'Trả bằng'),
               selected: account?.id,
@@ -403,64 +411,78 @@ Future<void> editRecurringRule(BuildContext context, WidgetRef ref, RecurringRul
                   }
                 },
               ),
-            const SizedBox(height: 10),
-            const Text('Tần suất lặp', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                for (final (code, label) in [('DAILY', 'Hằng ngày'), ('WEEKLY', 'Hằng tuần'), ('MONTHLY', 'Hằng tháng'), ('YEARLY', 'Hằng năm')])
-                  ChoiceChip(label: Text(label), selected: freq == code, onSelected: (_) => set(() => freq = code)),
-              ],
+            const _Section('Lặp lại'),
+            SegmentTabs<String>(
+              value: freq,
+              values: const ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'],
+              labels: const ['Ngày', 'Tuần', 'Tháng', 'Năm'],
+              icons: const [Icons.today_rounded, Icons.view_week_rounded, Icons.calendar_month_rounded, Icons.event_rounded],
+              height: 46,
+              onChanged: (v) => set(() => freq = v),
             ),
-            if (freq == 'WEEKLY') ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (var d = 1; d <= 7; d++)
-                    FilterChip(
-                      label: Text(Fmt.weekdaysShort[d - 1]),
-                      selected: weekdays.contains(d),
-                      visualDensity: VisualDensity.compact,
-                      onSelected: (on) => set(() {
-                        if (on) {
-                          weekdays.add(d);
-                        } else if (weekdays.length > 1) {
-                          weekdays.remove(d);
-                        }
-                      }),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: freq != 'WEEKLY'
+                  ? const SizedBox(width: double.infinity)
+                  : Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          for (var d = 1; d <= 7; d++)
+                            _DayDot(
+                              label: Fmt.weekdaysShort[d - 1],
+                              selected: weekdays.contains(d),
+                              onTap: () => set(() {
+                                if (!weekdays.contains(d)) {
+                                  weekdays.add(d);
+                                } else if (weekdays.length > 1) {
+                                  weekdays.remove(d);
+                                }
+                              }),
+                            ),
+                        ],
+                      ),
                     ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+              decoration: BoxDecoration(color: scheme.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(14)),
+              child: Row(
+                children: [
+                  Icon(Icons.repeat_rounded, size: 18, color: scheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      interval == 1 ? 'Mỗi ${_unit(freq)}' : 'Cứ $interval ${_unit(freq)} một lần',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: interval > 1 ? () => set(() => interval--) : null,
+                    icon: const Icon(Icons.remove_rounded, size: 18),
+                  ),
+                  SizedBox(
+                    width: 28,
+                    child: Text(
+                      '$interval',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                    ),
+                  ),
+                  IconButton.filledTonal(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: interval < 30 ? () => set(() => interval++) : null,
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                  ),
                 ],
               ),
-            ],
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text(
-                  'Mỗi $interval ${switch (freq) {
-                    'DAILY' => 'ngày',
-                    'WEEKLY' => 'tuần',
-                    'YEARLY' => 'năm',
-                    _ => 'tháng',
-                  }}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const Spacer(),
-                IconButton.filledTonal(
-                  visualDensity: VisualDensity.compact,
-                  onPressed: interval > 1 ? () => set(() => interval--) : null,
-                  icon: const Icon(Icons.remove_rounded, size: 18),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  visualDensity: VisualDensity.compact,
-                  onPressed: interval < 30 ? () => set(() => interval++) : null,
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                ),
-              ],
             ),
+            const SizedBox(height: 4),
             InfoTile(
               icon: Icons.event_rounded,
               color: scheme.primary,
@@ -496,4 +518,57 @@ Future<void> editRecurringRule(BuildContext context, WidgetRef ref, RecurringRul
   name.dispose();
   amount.dispose();
   note.dispose();
+}
+
+String _unit(String freq) => switch (freq) {
+  'DAILY' => 'ngày',
+  'WEEKLY' => 'tuần',
+  'YEARLY' => 'năm',
+  _ => 'tháng',
+};
+
+class _Section extends StatelessWidget {
+  const _Section(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(2, 18, 2, 8),
+    child: Text(
+      text.toUpperCase(),
+      style: TextStyle(fontSize: 11.5, letterSpacing: 0.8, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurfaceVariant),
+    ),
+  );
+}
+
+/// Ô tròn chọn thứ trong tuần.
+class _DayDot extends StatelessWidget {
+  const _DayDot({required this.label, required this.selected, required this.onTap});
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Pressable(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        width: 38,
+        height: 38,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: selected ? scheme.primary : scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+          boxShadow: selected ? [BoxShadow(color: scheme.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))] : null,
+        ),
+        child: Text(
+          label,
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: selected ? scheme.onPrimary : scheme.onSurfaceVariant),
+        ),
+      ),
+    );
+  }
 }

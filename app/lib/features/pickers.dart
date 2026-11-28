@@ -127,126 +127,128 @@ class _DatePickerSheetState extends ConsumerState<_DatePickerSheet> {
                   children: [
                     // Ngày đang chọn (to, đổi có hiệu ứng)
                     Text(widget.title ?? (widget.withTime ? 'Chọn ngày & giờ' : 'Chọn ngày'), style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant)),
-              const SizedBox(height: 2),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
-                transitionBuilder: (c, a) => FadeTransition(
-                  opacity: a,
-                  child: SlideTransition(
-                    position: Tween(begin: const Offset(0, 0.25), end: Offset.zero).animate(a),
-                    child: c,
-                  ),
-                ),
-                child: Align(
-                  key: ValueKey('$selected$hour$minute'),
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${Fmt.weekdays[selected.weekday - 1]}, ${Fmt.date(selected)}${widget.withTime ? ' · ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}' : ''}',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              SizedBox(
-                height: 34,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    for (final (label, d) in quick)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: _QuickChip(label: label, active: d == selected, onTap: () => _pick(d)),
+                    const SizedBox(height: 2),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      transitionBuilder: (c, a) => FadeTransition(
+                        opacity: a,
+                        child: SlideTransition(
+                          position: Tween(begin: const Offset(0, 0.25), end: Offset.zero).animate(a),
+                          child: c,
+                        ),
                       ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
-                decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(20)),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Pressable(
-                            onTap: () => setState(() {
-                              monthMode = !monthMode;
-                              yearView = month.year;
-                            }),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                              child: Row(
-                                children: [
-                                  Text(
-                                    monthMode ? 'Năm $yearView' : 'Tháng ${month.month}, ${month.year}',
-                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                      child: Align(
+                        key: ValueKey('$selected$hour$minute'),
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          '${Fmt.weekdays[selected.weekday - 1]}, ${Fmt.date(selected)}${widget.withTime ? ' · ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}' : ''}',
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 34,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: [
+                          for (final (label, d) in quick)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: _QuickChip(label: label, active: d == selected, onTap: () => _pick(d)),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
+                      decoration: BoxDecoration(color: scheme.surfaceContainerHigh, borderRadius: BorderRadius.circular(20)),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Pressable(
+                                  onTap: () => setState(() {
+                                    monthMode = !monthMode;
+                                    yearView = month.year;
+                                  }),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                                    child: Row(
+                                      children: [
+                                        Text(
+                                          monthMode ? 'Năm $yearView' : 'Tháng ${month.month}, ${month.year}',
+                                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                                        ),
+                                        const SizedBox(width: 4),
+                                        AnimatedRotation(
+                                          turns: monthMode ? 0.5 : 0,
+                                          duration: const Duration(milliseconds: 250),
+                                          child: Icon(Icons.expand_more_rounded, color: scheme.primary),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  const SizedBox(width: 4),
-                                  AnimatedRotation(
-                                    turns: monthMode ? 0.5 : 0,
-                                    duration: const Duration(milliseconds: 250),
-                                    child: Icon(Icons.expand_more_rounded, color: scheme.primary),
-                                  ),
-                                ],
+                                ),
                               ),
+                              _NavBtn(icon: Icons.chevron_left_rounded, onTap: () => monthMode ? setState(() => yearView--) : _go(-1)),
+                              const SizedBox(width: 6),
+                              _NavBtn(icon: Icons.chevron_right_rounded, onTap: () => monthMode ? setState(() => yearView++) : _go(1)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 250),
+                            curve: Curves.easeOutCubic,
+                            alignment: Alignment.topCenter,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 260),
+                              transitionBuilder: (c, a) {
+                                final incoming = c.key == ValueKey(monthMode ? 'm$yearView' : month);
+                                final dx = (incoming ? dir : -dir) * 0.15;
+                                return FadeTransition(
+                                  opacity: a,
+                                  child: SlideTransition(
+                                    position: Tween(begin: Offset(monthMode ? 0 : dx, 0), end: Offset.zero).animate(a),
+                                    child: c,
+                                  ),
+                                );
+                              },
+                              child: monthMode ? _monthGrid(scheme) : _dayGrid(scheme, today),
                             ),
                           ),
-                        ),
-                        _NavBtn(icon: Icons.chevron_left_rounded, onTap: () => monthMode ? setState(() => yearView--) : _go(-1)),
-                        const SizedBox(width: 6),
-                        _NavBtn(icon: Icons.chevron_right_rounded, onTap: () => monthMode ? setState(() => yearView++) : _go(1)),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 250),
-                      curve: Curves.easeOutCubic,
-                      alignment: Alignment.topCenter,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 260),
-                        transitionBuilder: (c, a) {
-                          final incoming = c.key == ValueKey(monthMode ? 'm$yearView' : month);
-                          final dx = (incoming ? dir : -dir) * 0.15;
-                          return FadeTransition(
-                            opacity: a,
-                            child: SlideTransition(
-                              position: Tween(begin: Offset(monthMode ? 0 : dx, 0), end: Offset.zero).animate(a),
-                              child: c,
-                            ),
-                          );
-                        },
-                        child: monthMode ? _monthGrid(scheme) : _dayGrid(scheme, today),
+                        ],
                       ),
                     ),
-                  ],
-                ),
-              ),
-              if (widget.withTime) ...[
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Icon(Icons.schedule_rounded, size: 18, color: scheme.primary),
-                    const SizedBox(width: 6),
-                    const Text('Giờ', style: TextStyle(fontWeight: FontWeight.w700)),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                _TimeWheels(
-                  hour: hour,
-                  minute: minute,
-                  onChanged: (h, m) => setState(() {
-                    hour = h;
-                    minute = m;
-                  }),
-                ),
-              ],
+                    if (widget.withTime) ...[
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Icon(Icons.schedule_rounded, size: 18, color: scheme.primary),
+                          const SizedBox(width: 6),
+                          const Text('Giờ', style: TextStyle(fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      _TimeWheels(
+                        hour: hour,
+                        minute: minute,
+                        onChanged: (h, m) => setState(() {
+                          hour = h;
+                          minute = m;
+                        }),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 12),
-            _Actions(onDone: () => Navigator.pop(context, DateTime(selected.year, selected.month, selected.day, (hour % 24 + 24) % 24, (minute % 60 + 60) % 60))),
+            _Actions(
+              onDone: () => Navigator.pop(context, DateTime(selected.year, selected.month, selected.day, (hour % 24 + 24) % 24, (minute % 60 + 60) % 60)),
+            ),
           ],
         ),
       ),

@@ -201,8 +201,7 @@ class SyncEngine extends ChangeNotifier {
           final catType = localCat?['type'] ?? m['type'];
           if (catName != null && catName.isNotEmpty) {
             final match = serverCats.firstWhere(
-              (c) => c['name']?.toString().trim().toLowerCase() == catName &&
-                     (catType == null || c['type'] == null || c['type'] == catType),
+              (c) => c['name']?.toString().trim().toLowerCase() == catName && (catType == null || c['type'] == null || c['type'] == catType),
               orElse: () => <String, dynamic>{},
             );
             if (match.isNotEmpty) {
@@ -222,10 +221,7 @@ class SyncEngine extends ChangeNotifier {
           final localAcc = store.get(E.accounts, accId);
           final accName = (m['accountName'] ?? localAcc?['name'])?.toString().trim().toLowerCase();
           if (accName != null && accName.isNotEmpty) {
-            final match = serverAccs.firstWhere(
-              (a) => a['name']?.toString().trim().toLowerCase() == accName,
-              orElse: () => <String, dynamic>{},
-            );
+            final match = serverAccs.firstWhere((a) => a['name']?.toString().trim().toLowerCase() == accName, orElse: () => <String, dynamic>{});
             if (match.isNotEmpty) {
               m['accountId'] = match['id'];
               m['accountName'] = match['name'];
@@ -244,10 +240,7 @@ class SyncEngine extends ChangeNotifier {
           final localToAcc = store.get(E.accounts, toAccId);
           final toAccName = (m['toAccountName'] ?? localToAcc?['name'])?.toString().trim().toLowerCase();
           if (toAccName != null && toAccName.isNotEmpty) {
-            final match = serverAccs.firstWhere(
-              (a) => a['name']?.toString().trim().toLowerCase() == toAccName,
-              orElse: () => <String, dynamic>{},
-            );
+            final match = serverAccs.firstWhere((a) => a['name']?.toString().trim().toLowerCase() == toAccName, orElse: () => <String, dynamic>{});
             if (match.isNotEmpty) {
               m['toAccountId'] = match['id'];
               m['toAccountName'] = match['name'];
@@ -277,10 +270,7 @@ class SyncEngine extends ChangeNotifier {
         final localId = localAcc['id'] as String;
         final localName = localAcc['name']?.toString().trim().toLowerCase();
         if (localName == null || localName.isEmpty) continue;
-        final serverMatch = serverAccs.firstWhere(
-          (s) => s['name']?.toString().trim().toLowerCase() == localName,
-          orElse: () => <String, dynamic>{},
-        );
+        final serverMatch = serverAccs.firstWhere((s) => s['name']?.toString().trim().toLowerCase() == localName, orElse: () => <String, dynamic>{});
         if (serverMatch.isNotEmpty && serverMatch['id'] != localId) {
           final hasTxs = store.all(E.transactions).any((t) => t['accountId'] == localId || t['toAccountId'] == localId);
           if (!hasTxs) {
@@ -307,8 +297,7 @@ class SyncEngine extends ChangeNotifier {
         final catType = m['type'];
         if (catName != null && catName.isNotEmpty) {
           final match = categories.firstWhere(
-            (c) => c['name']?.toString().trim().toLowerCase() == catName &&
-                   (catType == null || c['type'] == null || c['type'] == catType),
+            (c) => c['name']?.toString().trim().toLowerCase() == catName && (catType == null || c['type'] == null || c['type'] == catType),
             orElse: () => <String, dynamic>{},
           );
           if (match.isNotEmpty) {
@@ -322,10 +311,7 @@ class SyncEngine extends ChangeNotifier {
       if (accId != null && store.get(E.accounts, accId) == null) {
         final accName = m['accountName']?.toString().trim().toLowerCase();
         if (accName != null && accName.isNotEmpty) {
-          final match = accounts.firstWhere(
-            (a) => a['name']?.toString().trim().toLowerCase() == accName,
-            orElse: () => <String, dynamic>{},
-          );
+          final match = accounts.firstWhere((a) => a['name']?.toString().trim().toLowerCase() == accName, orElse: () => <String, dynamic>{});
           if (match.isNotEmpty) {
             m['accountId'] = match['id'];
             updated = true;
@@ -337,10 +323,7 @@ class SyncEngine extends ChangeNotifier {
       if (toAccId != null && store.get(E.accounts, toAccId) == null) {
         final toAccName = m['toAccountName']?.toString().trim().toLowerCase();
         if (toAccName != null && toAccName.isNotEmpty) {
-          final match = accounts.firstWhere(
-            (a) => a['name']?.toString().trim().toLowerCase() == toAccName,
-            orElse: () => <String, dynamic>{},
-          );
+          final match = accounts.firstWhere((a) => a['name']?.toString().trim().toLowerCase() == toAccName, orElse: () => <String, dynamic>{});
           if (match.isNotEmpty) {
             m['toAccountId'] = match['id'];
             updated = true;
@@ -503,10 +486,7 @@ class SyncEngine extends ChangeNotifier {
     final shouldFullPull = forceFull || isEmpty;
 
     final since = shouldFullPull ? null : store.meta('lastPulledAt');
-    final query = <String, dynamic>{
-      if (since != null) 'since': since,
-      if (shouldFullPull) 'full': 'true',
-    };
+    final query = <String, dynamic>{if (since != null) 'since': since, if (shouldFullPull) 'full': 'true'};
     final res = await api.get<Map<String, dynamic>>('/sync/pull', query: query.isEmpty ? null : query);
     _apply(res['changes'] as Map<String, dynamic>? ?? {});
     store.setMeta('lastPulledAt', res['serverTime'] as String);

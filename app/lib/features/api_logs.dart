@@ -57,10 +57,7 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
         if (onlyErrors) 'onlyErrors': true,
       };
 
-      final results = await Future.wait([
-        api.get<Map<String, dynamic>>('/admin/logs', query: queryParams),
-        api.get<Map<String, dynamic>>('/admin/logs/stats'),
-      ]);
+      final results = await Future.wait([api.get<Map<String, dynamic>>('/admin/logs', query: queryParams), api.get<Map<String, dynamic>>('/admin/logs/stats')]);
 
       final logData = results[0];
       final statsData = results[1];
@@ -140,16 +137,8 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
       appBar: AppBar(
         title: const Text('Nhật ký hệ thống & API'),
         actions: [
-          IconButton(
-            tooltip: 'Làm mới',
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _fetch,
-          ),
-          IconButton(
-            tooltip: 'Dọn dẹp nhật ký cũ',
-            icon: const Icon(Icons.cleaning_services_rounded),
-            onPressed: _clearLogs,
-          ),
+          IconButton(tooltip: 'Làm mới', icon: const Icon(Icons.refresh_rounded), onPressed: _fetch),
+          IconButton(tooltip: 'Dọn dẹp nhật ký cũ', icon: const Icon(Icons.cleaning_services_rounded), onPressed: _clearLogs),
         ],
       ),
       body: Column(
@@ -308,33 +297,19 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
                               children: [
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _methodColor(method).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
+                                  decoration: BoxDecoration(color: _methodColor(method).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
                                   child: Text(
                                     method,
-                                    style: TextStyle(
-                                      color: _methodColor(method),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 11,
-                                    ),
+                                    style: TextStyle(color: _methodColor(method), fontWeight: FontWeight.w800, fontSize: 11),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _statusColor(status).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
+                                  decoration: BoxDecoration(color: _statusColor(status).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
                                   child: Text(
                                     '$status',
-                                    style: TextStyle(
-                                      color: _statusColor(status),
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 11,
-                                    ),
+                                    style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.w800, fontSize: 11),
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -373,11 +348,7 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
                                   Text(ip, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
                                 ],
                                 const Spacer(),
-                                if (dt != null)
-                                  Text(
-                                    Fmt.dateTime(dt),
-                                    style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-                                  ),
+                                if (dt != null) Text(Fmt.dateTime(dt), style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
                               ],
                             ),
                           ],
@@ -451,10 +422,7 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
         builder: (_, scrollController) => Scaffold(
           appBar: AppBar(
             title: const Text('Chi tiết yêu cầu API'),
-            leading: IconButton(
-              icon: const Icon(Icons.close_rounded),
-              onPressed: () => Navigator.pop(ctx),
-            ),
+            leading: IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
           ),
           body: ListView(
             controller: scrollController,
@@ -464,10 +432,7 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _methodColor(method).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
+                    decoration: BoxDecoration(color: _methodColor(method).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
                     child: Text(
                       method,
                       style: TextStyle(color: _methodColor(method), fontWeight: FontWeight.w800, fontSize: 13),
@@ -476,10 +441,7 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: _statusColor(status).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
+                    decoration: BoxDecoration(color: _statusColor(status).withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
                     child: Text(
                       'HTTP $status',
                       style: TextStyle(color: _statusColor(status), fontWeight: FontWeight.w800, fontSize: 13),
@@ -495,18 +457,9 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
               _field('Người dùng', user ?? 'Khách'),
               _field('Địa chỉ IP', ip ?? 'Không rõ'),
               if (userAgent != null) _field('User Agent', userAgent),
-              if (reqBody != null && reqBody.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _jsonBlock('Dữ liệu gửi lên (Request Body)', reqBody),
-              ],
-              if (resBody != null && resBody.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _jsonBlock('Phản hồi từ máy chủ (Response Body)', resBody),
-              ],
-              if (err != null && err.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _jsonBlock('Chi tiết lỗi (Exception)', err, isError: true),
-              ],
+              if (reqBody != null && reqBody.isNotEmpty) ...[const SizedBox(height: 12), _jsonBlock('Dữ liệu gửi lên (Request Body)', reqBody)],
+              if (resBody != null && resBody.isNotEmpty) ...[const SizedBox(height: 12), _jsonBlock('Phản hồi từ máy chủ (Response Body)', resBody)],
+              if (err != null && err.isNotEmpty) ...[const SizedBox(height: 12), _jsonBlock('Chi tiết lỗi (Exception)', err, isError: true)],
             ],
           ),
         ),
@@ -519,13 +472,14 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 100, child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey))),
-        Expanded(
-          child: SelectableText(
-            value,
-            style: const TextStyle(fontSize: 13),
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
           ),
         ),
+        Expanded(child: SelectableText(value, style: const TextStyle(fontSize: 13))),
         if (copyable)
           IconButton(
             visualDensity: VisualDensity.compact,
@@ -552,7 +506,10 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isError ? Colors.red : null)),
+            Text(
+              title,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isError ? Colors.red : null),
+            ),
             IconButton(
               visualDensity: VisualDensity.compact,
               icon: const Icon(Icons.copy_rounded, size: 16),
@@ -574,15 +531,10 @@ class _ApiLogsPageState extends ConsumerState<ApiLogsPage> {
           ),
           child: SelectableText(
             pretty,
-            style: TextStyle(
-              fontFamily: 'monospace',
-              fontSize: 11,
-              color: isError ? Colors.red.shade900 : null,
-            ),
+            style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: isError ? Colors.red.shade900 : null),
           ),
         ),
       ],
     );
   }
 }
-

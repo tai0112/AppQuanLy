@@ -50,13 +50,7 @@ void main() {
 
       final rule = store.put(E.recurringRules, {
         'name': 'Tiền nhà',
-        'templateJson': jsonEncode({
-          'type': TxType.expense,
-          'amount': 3500000,
-          'currencyCode': 'VND',
-          'accountId': acc['id'],
-          'categoryId': cat['id'],
-        }),
+        'templateJson': jsonEncode({'type': TxType.expense, 'amount': 3500000, 'currencyCode': 'VND', 'accountId': acc['id'], 'categoryId': cat['id']}),
         'rRule': 'FREQ=DAILY',
         'nextRunAt': toIso8601WithOffset(DateTime(2026, 11, 23, 8, 0)),
         'isActive': true,
