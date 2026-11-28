@@ -1875,44 +1875,50 @@ class _DayRow extends ConsumerWidget {
     final acc = f.account(txn.accountId);
     final accLabel = isTransfer ? '${acc?.name ?? '?'} → ${f.account(txn.toAccountId)?.name ?? '?'}' : (acc?.name ?? '');
     final extraMeta = [Fmt.time(txn.occurredAt), if (txn.location?.isNotEmpty == true) '📍 ${txn.location!}'].join(' · ');
-    return AppCard(
-      padding: const EdgeInsets.all(10),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => TransactionEditPage(id: txn.id, type: txn.type),
-        ),
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    // Giống các kiểu xem lưới: thẻ "tràn" ra thành màn sửa (OpenCard), giữ bóng mềm như AppCard
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: dark ? null : [BoxShadow(color: scheme.primary.withValues(alpha: 0.06), blurRadius: 24, offset: const Offset(0, 8))],
       ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox.square(
-              dimension: 60,
-              child: photo != null
-                  ? FileImage2(photo!, radius: 0)
-                  : Container(
-                      color: color.withValues(alpha: 0.16),
-                      child: Icon(isTransfer ? Icons.swap_horiz_rounded : iconOf(cat?.icon), color: color, size: 28),
-                    ),
+      child: OpenCard(
+        radius: AppRadius.lg,
+        padding: const EdgeInsets.all(10),
+        page: TransactionEditPage(id: txn.id, type: txn.type),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: SizedBox.square(
+                dimension: 60,
+                child: photo != null
+                    ? FileImage2(photo!, radius: 0)
+                    : Container(
+                        color: color.withValues(alpha: 0.16),
+                        child: Icon(isTransfer ? Icons.swap_horiz_rounded : iconOf(cat?.icon), color: color, size: 28),
+                      ),
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _TxMetaColumn(
-              title: isTransfer ? 'Chuyển khoản' : (cat?.name ?? 'Không có danh mục'),
-              catColor: color,
-              note: txn.note,
-              accLabel: accLabel,
-              extraMeta: extraMeta,
-              isRecurring: txn.recurringRuleId != null,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _TxMetaColumn(
+                title: isTransfer ? 'Chuyển khoản' : (cat?.name ?? 'Không có danh mục'),
+                catColor: color,
+                note: txn.note,
+                accLabel: accLabel,
+                extraMeta: extraMeta,
+                isRecurring: txn.recurringRuleId != null,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '$sign${f.money(txn.amount, txn.currencyCode)}',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: txColor(txn.type)),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              '$sign${f.money(txn.amount, txn.currencyCode)}',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: txColor(txn.type)),
+            ),
+          ],
+        ),
       ),
     );
   }
